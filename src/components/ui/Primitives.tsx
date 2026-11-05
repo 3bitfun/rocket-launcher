@@ -21,8 +21,8 @@ export function PathField({ label, value, onChange, kind = 'directory', hint, on
     <button type="button" className="icon-button" onClick={() => void choose()} aria-label={`Browse ${label.toLowerCase()}`}>{kind === 'java' ? <Terminal size={17} /> : <FolderOpen size={17} />}</button></div>{hint && <small>{hint}</small>}</label>;
 }
 
-export function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (value: boolean) => void; label: string; description: string }) {
-  return <label className="toggle-row"><span><strong>{label}</strong><small>{description}</small></span><input className="switch" type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} /></label>;
+export function Toggle({ checked, onChange, label, description, disabled = false }: { checked: boolean; onChange: (value: boolean) => void; label: string; description: string; disabled?: boolean }) {
+  return <label className="toggle-row"><span><strong>{label}</strong><small>{description}</small></span><input className="switch" type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /></label>;
 }
 
 export function formatDate(time: number): string { return new Date(time * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); }

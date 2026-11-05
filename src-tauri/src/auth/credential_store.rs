@@ -10,9 +10,10 @@ use windows_sys::Win32::{
 };
 
 fn target(id: &str) -> Result<Vec<u16>> {
+    let (namespace, id) = id.strip_prefix("refresh:").map_or(("Minecraft", id), |id| ("MicrosoftRefresh", id));
     let id = uuid::Uuid::parse_str(id)
         .map_err(|_| AppError::new("AUTH_STORAGE", "Invalid account identifier."))?;
-    Ok(OsStr::new(&format!("RocketLauncher/Minecraft/{id}"))
+    Ok(OsStr::new(&format!("RocketLauncher/{namespace}/{id}"))
         .encode_wide()
         .chain(Some(0))
         .collect())

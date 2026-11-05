@@ -12,7 +12,7 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.unminimize();
@@ -22,6 +22,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .manage(GameJobs::default())
+        .manage(auth::accounts::AccountJobs::default())
         .setup(|app| {
             let store = storage::Store::open(app.path().app_local_data_dir()?)?;
             let appender = tracing_appender::rolling::Builder::new()
@@ -33,12 +34,24 @@ pub fn run() {
             tracing::info!(event = "launcher_started", version = env!("CARGO_PKG_VERSION"));
             app.manage(LauncherState { store: std::sync::Mutex::new(store), catalog_lock: tokio::sync::Mutex::new(()), _log_guard: guard });
             Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
-            get_snapshot, save_settings, create_instance, update_instance, select_instance,
-            remove_instance, duplicate_instance, list_installed_mods, get_versions, read_logs,
-            check_game, install_game, download_status, ignite_game,
-        ])
-        .run(tauri::generate_context!())
+        });
+
+    #[cfg(debug_assertions)]
+    let app = app.invoke_handler(tauri::generate_handler![
+        get_snapshot, save_settings, create_instance, update_instance, select_instance,
+        get_accounts, microsoft_sign_in, set_offline_mode, select_account, create_local_test_account,
+        remove_instance, duplicate_instance, list_installed_mods, get_versions, read_logs,
+        check_game, install_game, download_status, ignite_game,
+    ]);
+
+    #[cfg(not(debug_assertions))]
+    let app = app.invoke_handler(tauri::generate_handler![
+        get_snapshot, save_settings, create_instance, update_instance, select_instance,
+        get_accounts, microsoft_sign_in, set_offline_mode, select_account,
+        remove_instance, duplicate_instance, list_installed_mods, get_versions, read_logs,
+        check_game, install_game, download_status, ignite_game,
+    ]);
+
+    app.run(tauri::generate_context!())
         .expect("Rocket Launcher could not start. Check launcher.json and filesystem permissions in the application data directory.");
 }

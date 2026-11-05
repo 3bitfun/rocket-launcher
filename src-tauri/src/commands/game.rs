@@ -127,21 +127,28 @@ pub async fn check_game(
     .await
     {
         Err(error) => Ok(GameStatus::new(&id, Readiness::JavaRequired, error.message)),
-        Ok(java) if launch::usable_session().is_none() => Ok(GameStatus::new(
-            &id,
-            Readiness::AuthenticationRequired,
-            format!(
-                "Files verified · Java {} ({}). {}",
-                java.major,
-                java.arch.name(),
-                launch::authentication_required().message
-            ),
-        )),
-        Ok(_) => Ok(GameStatus::new(
-            &id,
-            Readiness::Ready,
-            "Minecraft is ready to launch.",
-        )),
+        Ok(java) => match crate::auth::accounts::readiness(&input.data) {
+            Ok(crate::auth::accounts::AccountMode::Microsoft { offline }) => Ok(GameStatus::new(
+                &id,
+                Readiness::Ready,
+                if offline { "Minecraft is ready to launch offline." } else { "Minecraft is ready to launch." },
+            )),
+            Ok(crate::auth::accounts::AccountMode::LocalTest) => Ok(GameStatus::new(
+                &id,
+                Readiness::Ready,
+                "Local Offline Test — Unauthenticated. Ready to start Minecraft locally.",
+            )),
+            Err(error) => Ok(GameStatus::new(
+                &id,
+                Readiness::AuthenticationRequired,
+                format!(
+                    "Files verified · Java {} ({}). {}",
+                    java.major,
+                    java.arch.name(),
+                    error.message
+                ),
+            )),
+        },
     }
 }
 
@@ -251,7 +258,24 @@ pub async fn ignite_game(
     id: String,
 ) -> Result<()> {
     let input = input(&state, &id)?;
-    let session = launch::usable_session().ok_or_else(launch::authentication_required)?;
+    let account_mode = crate::auth::accounts::readiness(&input.data)?;
+    let auth = match account_mode {
+        crate::auth::accounts::AccountMode::Microsoft { .. } => {
+            launch::LaunchAuth::Microsoft(crate::auth::accounts::launch_session(&input.data).await?)
+        }
+        crate::auth::accounts::AccountMode::LocalTest => {
+            #[cfg(debug_assertions)]
+            {
+                let (player, uuid) = crate::auth::accounts::local_test_identity(&input.data)?
+                    .ok_or_else(launch::authentication_required)?;
+                launch::LaunchAuth::LocalTest { player, uuid }
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                return Err(launch::authentication_required());
+            }
+        }
+    };
     let _guard = jobs
         .operation
         .try_lock()
@@ -277,6 +301,12 @@ pub async fn ignite_game(
             platform.arch,
         )
         .await?;
+        let launch_message = if matches!(account_mode, crate::auth::accounts::AccountMode::LocalTest) {
+            "Local Offline Test — Unauthenticated. Starting Minecraft…"
+        } else {
+            "Verifying game files before launch…"
+        };
+        publish_game(&app, GameStatus::new(&id, Readiness::Launching, launch_message));
         let event_app = app.clone();
         launch::start(
             reservation,
@@ -285,7 +315,7 @@ pub async fn ignite_game(
                 instance: input.instance,
                 java,
                 platform,
-                session,
+                auth,
                 log_root: input.logs,
             },
             move |status| publish_game(&event_app, status),

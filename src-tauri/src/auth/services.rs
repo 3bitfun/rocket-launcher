@@ -81,6 +81,9 @@ async fn parse<T: serde::de::DeserializeOwned>(
     service: &str,
 ) -> Result<T> {
     if !response.status().is_success() {
+        if response.status().as_u16() == 401 && service == "Minecraft profile" {
+            return Err(AppError::new("AUTH_EXPIRED", "The Minecraft access token expired."));
+        }
         return Err(AppError::new("AUTH_REJECTED", format!("{service} rejected authentication (HTTP {}). Verify the account and app registration.", response.status())));
     }
     let mut body = Vec::new();
@@ -131,6 +134,16 @@ async fn get<T: serde::de::DeserializeOwned>(
 }
 
 /// Returns an account only after Xbox authentication, Minecraft ownership and profile checks.
+pub async fn check_profile(token: &str, uuid: &str) -> Result<()> {
+    let client = reqwest::Client::builder().https_only(true).redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(7)).build().map_err(|_| malformed())?;
+    let response = client.get("https://api.minecraftservices.com/minecraft/profile").bearer_auth(token).send().await
+        .map_err(|_| AppError::new("AUTH_NETWORK", "Could not contact Minecraft Services."))?;
+    let profile: Profile = parse(response, "Minecraft profile").await?;
+    if !valid_profile(&profile) || !profile.id.eq_ignore_ascii_case(uuid) { return Err(malformed()); }
+    Ok(())
+}
+
 pub async fn verify(microsoft_access_token: &str) -> Result<VerifiedAccount> {
     if microsoft_access_token.is_empty() {
         return Err(malformed());
@@ -194,7 +207,7 @@ pub async fn verify(microsoft_access_token: &str) -> Result<VerifiedAccount> {
         return Err(malformed());
     }
     Ok(VerifiedAccount {
-        uuid: profile.id,
+        uuid: profile.id.to_ascii_lowercase(),
         name: profile.name,
         access_token: minecraft.access_token,
         expires_at: crate::models::now().saturating_add(minecraft.expires_in.saturating_sub(60)),

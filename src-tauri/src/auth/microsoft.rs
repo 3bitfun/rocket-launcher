@@ -14,7 +14,7 @@ pub struct MicrosoftTokens {
     pub expires_in: u64,
 }
 
-fn client_id(value: &str) -> Result<&str> {
+pub fn client_id(value: &str) -> Result<&str> {
     uuid::Uuid::parse_str(value).map_err(|_| {
         AppError::new(
             "AUTH_CONFIGURATION",
@@ -59,6 +59,7 @@ pub fn authorization_url(
         .append_pair("redirect_uri", redirect)
         .append_pair("response_mode", "query")
         .append_pair("scope", SCOPES)
+        .append_pair("prompt", "select_account")
         .append_pair("state", attempt.state())
         .append_pair("code_challenge", &attempt.challenge())
         .append_pair("code_challenge_method", "S256");

@@ -1,4 +1,5 @@
 use crate::{
+    auth::accounts::{self, AccountJobs, Accounts, AccountsSummary},
     errors::{AppError, Result},
     minecraft::versions::{self, VersionCatalog},
     models::*,
@@ -25,6 +26,55 @@ impl LauncherState {
             )
         })
     }
+}
+
+#[tauri::command]
+pub fn get_accounts(state: State<'_, LauncherState>) -> Result<AccountsSummary> {
+    let data = state.store()?.paths.data.clone();
+    Ok(Accounts::read(&data)?.summary())
+}
+
+#[tauri::command]
+pub async fn microsoft_sign_in(
+    state: State<'_, LauncherState>,
+    jobs: State<'_, AccountJobs>,
+) -> Result<AccountsSummary> {
+    let _guard = jobs.0.try_lock().map_err(|_| accounts::busy())?;
+    let data = state.store()?.paths.data.clone();
+    Ok(accounts::sign_in(&data).await?.summary())
+}
+
+#[tauri::command]
+pub async fn select_account(
+    state: State<'_, LauncherState>,
+    jobs: State<'_, AccountJobs>,
+    id: String,
+) -> Result<AccountsSummary> {
+    let _guard = jobs.0.try_lock().map_err(|_| accounts::busy())?;
+    let data = state.store()?.paths.data.clone();
+    Ok(accounts::select(&data, id)?.summary())
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+pub async fn create_local_test_account(
+    state: State<'_, LauncherState>,
+    jobs: State<'_, AccountJobs>,
+) -> Result<AccountsSummary> {
+    let _guard = jobs.0.try_lock().map_err(|_| accounts::busy())?;
+    let data = state.store()?.paths.data.clone();
+    Ok(accounts::create_test_account(&data)?.summary())
+}
+
+#[tauri::command]
+pub fn set_offline_mode(
+    state: State<'_, LauncherState>,
+    jobs: State<'_, AccountJobs>,
+    offline: bool,
+) -> Result<AccountsSummary> {
+    let _guard = jobs.0.try_lock().map_err(|_| accounts::busy())?;
+    let data = state.store()?.paths.data.clone();
+    Ok(accounts::set_offline(&data, offline)?.summary())
 }
 
 #[tauri::command]

@@ -2,9 +2,9 @@
 
 **Beyond the Built Limit.** A native Windows Minecraft Java Edition launcher built with Tauri 2, Rust, React, TypeScript, Vite, Tailwind CSS, Motion, and Lucide.
 
-## Current milestone: Phase 2
+## Current milestone: Phase 3 sign-in integration
 
-Rocket Launcher installs and verifies vanilla Minecraft Java Edition on Windows. Authenticated gameplay requires the Phase 3 account integration.
+Rocket Launcher installs, verifies, and can launch vanilla Minecraft Java Edition on Windows after Microsoft sign-in and Minecraft Java ownership verification.
 
 - Launch Pad, Instances, Mods, Downloads, and Settings navigation.
 - Create, rename, edit, select, duplicate, and remove instances.
@@ -15,12 +15,13 @@ Rocket Launcher installs and verifies vanilla Minecraft Java Edition on Windows.
 - Mojang client, libraries, assets, logging configuration and native archives, with streaming downloads, SHA-1 verification, shared cache reuse, and offline repair checks.
 - Java discovery with exact version and architecture matching. A manually selected executable takes priority.
 - Launch Pad install and repair actions, measured Downloads progress, and native launch preparation behind an ownership-verified session boundary.
+- Microsoft OAuth sign-in, Xbox/Minecraft ownership verification, Windows Credential Manager refresh-token storage, and authenticated launch sessions.
 - Dark, light, and system themes; custom accent colours; animation and reduced-motion preferences.
 - Actual `.jar` file listing from each instance's mods directory.
 - Local rotating structured logs and an in-app log viewer.
 - Keyboard-accessible controls, native modal focus management, responsive desktop layout.
 
-**Unavailable:** Microsoft authentication, authenticated gameplay and offline play, automatic Java installation, mod loaders, Modrinth downloads, updates, and crash reporting.
+**Unavailable:** Automatic Java installation, mod loaders, Modrinth downloads, updates, and crash reporting.
 
 ## Run locally on Windows 10/11
 
@@ -40,6 +41,17 @@ npm run desktop
 ```
 
 `npm run desktop` starts Vite and the native Tauri application together. The first Rust build takes longer while dependencies compile. `npm run dev` starts only the browser frontend; it intentionally displays a native-app requirement instead of substituting mock storage or a fake backend.
+
+## Microsoft sign-in
+
+Microsoft sign-in requires a public-client app registration approved for the Xbox/Minecraft authentication flow. Set its client ID before starting the desktop app:
+
+```powershell
+$env:ROCKET_MICROSOFT_CLIENT_ID = '<approved application client ID>'
+npm run desktop
+```
+
+The client ID is not a secret, but this project does not ship an app registration. Without it, Settings reports `AUTH_CONFIGURATION`. Sign in with an account that owns Minecraft Java Edition; the launcher verifies ownership before enabling launch. Refresh tokens are stored in Windows Credential Manager. After a successful sign-in, Offline mode can use the saved verified profile for local play without contacting Microsoft. Multiplayer and other online services require an online session.
 
 Build a standalone executable:
 
@@ -80,7 +92,7 @@ The application uses Tauri's local application data directory, normally `%LOCALA
 | `instances\<UUID>\` | Default isolated game directories |
 | `cache\versions.json` | Validated Mojang catalogue with fetch timestamp |
 | `cache\minecraft\` | Shared version metadata, client JARs, libraries, assets, extracted natives, and installation records |
-| `logs\game\` | Per-launch stdout and stderr once authenticated launching is enabled |
+| `logs\game\` | Per-launch stdout and stderr |
 | `logs\launcher.log.*` | Daily JSON logs, at most seven files |
 
 Configuration writes use a same-directory temporary file, flush to disk, then atomically replace the destination. Invalid configuration is preserved rather than silently reset. Back up `launcher.json` before manual edits. A different launcher schema version is rejected.
@@ -116,10 +128,8 @@ src-tauri/src/
 
 The frontend has no filesystem or shell plugin permissions. Rust downloads from allowed Mojang HTTPS hosts. No account credentials or telemetry are collected. Inter, Space Grotesk and JetBrains Mono are bundled for offline use under the SIL Open Font License; notices are in `public/licenses/`.
 
-## Next milestone: Phase 3
+## Remaining authentication work
 
-Register a Microsoft public client approved for the Minecraft authentication flow. Implement Microsoft OAuth, Xbox Live and XSTS exchange, Minecraft Services login, Minecraft Java entitlement and profile verification, secure token storage and refresh. Have the native account service issue validated sessions to the launcher, then test a real signed-in launch and exit. Offline launch needs a separately validated offline-capable session design; the current launch boundary accepts only an unexpired authenticated session.
-
-No Microsoft app registration is needed to install game files in Phase 2.
+Offline mode is limited to a previously verified cached profile and local play. A real Microsoft app registration is required for end-to-end sign-in and launch testing. No app registration is needed to install or verify game files.
 
 Rocket Launcher is an independent project, not an official Minecraft product or approved by Mojang or Microsoft.

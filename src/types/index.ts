@@ -38,6 +38,11 @@ export interface AppSnapshot {
   activeInstanceId: string | null;
   paths: { data: string; cache: string; logs: string; config: string };
 }
+export interface AccountsSummary {
+  profiles: { id: string; name: string; type: 'microsoft' | 'local_test' }[];
+  activeId: string | null;
+  offline: boolean;
+}
 export interface InstanceInput {
   name: string;
   version: string;

@@ -1,6 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import type { AppSnapshot, DownloadProgress, GameStatus, InstanceInput, InstalledMod, Settings, VersionCatalog } from '../types';
+import type { AccountsSummary, AppSnapshot, DownloadProgress, GameStatus, InstanceInput, InstalledMod, Settings, VersionCatalog } from '../types';
 
 export const isDesktop = () => isTauri();
 
@@ -10,6 +10,11 @@ function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
 }
 
 export const native = {
+  accounts: () => call<AccountsSummary>('get_accounts'),
+  signIn: () => call<AccountsSummary>('microsoft_sign_in'),
+  selectAccount: (id: string) => call<AccountsSummary>('select_account', { id }),
+  createTestAccount: () => call<AccountsSummary>('create_local_test_account'),
+  setOfflineMode: (offline: boolean) => call<AccountsSummary>('set_offline_mode', { offline }),
   checkGame: (id: string) => call<GameStatus>('check_game', { id }),
   installGame: (id: string) => call<void>('install_game', { id }),
   ignite: (id: string) => call<void>('ignite_game', { id }),

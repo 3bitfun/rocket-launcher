@@ -1,18 +1,29 @@
-import { useState, type FormEvent } from 'react';
-import { Check, Cpu, Folder, Info, Palette, Save, Settings2, UserRound } from 'lucide-react';
-import type { AppSnapshot, Settings as SettingsModel } from '../../types';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Check, Cpu, Folder, Info, LogIn, Palette, Save, Settings2, UserRound } from 'lucide-react';
+import type { AccountsSummary, AppSnapshot, Settings as SettingsModel } from '../../types';
 import { native, errorMessage } from '../../services/native';
 import { Modal } from '../../components/ui/Modal';
 import { PathField, Spinner, Toggle } from '../../components/ui/Primitives';
 
 const accents = ['#FF704D', '#E4B75E', '#66BD9E', '#78A5EF', '#B19AE8', '#E68DA8'];
 
-export function Settings({ snapshot, busy, onSave, onDirtyChange }: { snapshot: AppSnapshot; busy: boolean; onSave: (settings: SettingsModel) => Promise<boolean>; onDirtyChange: (dirty: boolean) => void }) {
+export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateChanged }: { snapshot: AppSnapshot; busy: boolean; onSave: (settings: SettingsModel) => Promise<boolean>; onDirtyChange: (dirty: boolean) => void; onAuthStateChanged?: () => void }) {
   const [draft, setDraft] = useState(snapshot.settings);
   const [error, setError] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<AccountsSummary | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [changingOffline, setChangingOffline] = useState(false);
   const [logs, setLogs] = useState<string | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void native.accounts().then((value) => { if (active) setAccounts(value); })
+      .catch((reason) => { if (active) setError(errorMessage(reason)); });
+    return () => { active = false; };
+  }, []);
   const dirty = JSON.stringify(draft) !== JSON.stringify(snapshot.settings);
+  const activeAccount = accounts?.profiles.find((profile) => profile.id === accounts.activeId);
   function update<K extends keyof SettingsModel>(key: K, value: SettingsModel[K]) {
     const next = { ...draft, [key]: value };
     setDraft(next); onDirtyChange(JSON.stringify(next) !== JSON.stringify(snapshot.settings));
@@ -26,6 +37,35 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange }: { snapshot: 
     try { setLogs(await native.logs()); }
     catch (reason) { setError(errorMessage(reason)); }
     finally { setLoadingLogs(false); }
+  }
+  async function signIn() {
+    setSigningIn(true);
+    setError(null);
+    try { setAccounts(await native.signIn()); onAuthStateChanged?.(); }
+    catch (reason) { setError(errorMessage(reason)); }
+    finally { setSigningIn(false); }
+  }
+  async function selectAccount(id: string) {
+    setAccountBusy(true);
+    setError(null);
+    try { setAccounts(await native.selectAccount(id)); onAuthStateChanged?.(); }
+    catch (reason) { setError(errorMessage(reason)); }
+    finally { setAccountBusy(false); }
+  }
+  async function createLocalTestAccount() {
+    setAccountBusy(true);
+    setError(null);
+    try { setAccounts(await native.createTestAccount()); onAuthStateChanged?.(); }
+    catch (reason) { setError(errorMessage(reason)); }
+    finally { setAccountBusy(false); }
+  }
+  async function setOfflineMode(offline: boolean) {
+    if (!accounts) return;
+    setChangingOffline(true);
+    setError(null);
+    try { setAccounts(await native.setOfflineMode(offline)); onAuthStateChanged?.(); }
+    catch (reason) { setError(errorMessage(reason)); }
+    finally { setChangingOffline(false); }
   }
 
   return <form className="settings-form" onSubmit={(event) => void save(event)}>
@@ -51,7 +91,15 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange }: { snapshot: 
         <div className="setting-row"><div><strong>Launcher logs</strong><small>Local structured logs. Keeps the seven most recent daily files.</small></div><button type="button" className="button secondary small-button" onClick={() => void showLogs()} disabled={loadingLogs}>{loadingLogs && <Spinner size={14} />}View logs</button></div>
       </section>
 
-      <section className="panel settings-section"><div className="settings-section-title"><UserRound size={19} /><div><h2>Accounts</h2><p>Your identity, ready for the next phase.</p></div></div><div className="account-state"><span className="avatar"><UserRound size={22} /></span><div><strong>No Minecraft account connected</strong><p>Microsoft sign-in, ownership verification, secure token storage, and authenticated offline play arrive in Phase 3.</p></div><span className="phase-badge">Unavailable</span></div><div className="notice"><Info size={16} /><span>A local workspace is not an authenticated Minecraft account. This build cannot launch Minecraft or access multiplayer.</span></div></section>
+      <section className="panel settings-section"><div className="settings-section-title"><UserRound size={19} /><div><h2>Accounts</h2><p>Verified Microsoft identity for launching Minecraft.</p></div></div>
+        <div className="account-state"><span className="avatar"><UserRound size={22} /></span><div><strong>{activeAccount?.type === 'local_test' ? 'Local Test — Not Authenticated' : activeAccount ? `Connected as ${activeAccount.name}` : 'No Minecraft account connected'}</strong><p>{activeAccount?.type === 'local_test' ? 'Developer profile for testing account UI, instance management, and launch preparation only.' : activeAccount ? accounts?.offline ? 'Offline mode is active. Turn it off to sign in or switch accounts.' : 'Ownership was verified. Sign in again to switch accounts.' : 'Sign in with the Microsoft account that owns Minecraft Java Edition.'}</p></div>
+          {accounts && accounts.profiles.length > 1 && <select aria-label="Active account" value={accounts.activeId ?? ''} disabled={accountBusy || signingIn || changingOffline} onChange={(event) => void selectAccount(event.target.value)}>{accounts.profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.type === 'local_test' ? `Local Test — Not Authenticated · ${profile.name}` : `Microsoft · ${profile.name}`}</option>)}</select>}
+          <button type="button" className="button secondary small-button" onClick={() => void signIn()} disabled={busy || signingIn || accountBusy || Boolean(accounts?.offline)}>{signingIn ? <Spinner size={15} /> : <LogIn size={15} />}{activeAccount ? 'Sign in / switch' : 'Sign in'}</button>
+        </div>
+        <div className="notice"><Info size={16} /><span>Sign-in needs an approved Microsoft app registration configured as ROCKET_MICROSOFT_CLIENT_ID. Tokens are stored in Windows Credential Manager.</span></div>
+        {import.meta.env.DEV && <div className="inline-actions"><button type="button" className="button secondary small-button" onClick={() => void createLocalTestAccount()} disabled={busy || accountBusy || signingIn}>{accountBusy ? <Spinner size={15} /> : <UserRound size={15} />}Create Test Account</button></div>}
+        <Toggle label="Offline mode" description="Use a saved verified profile without contacting Microsoft. Multiplayer and online services are unavailable." checked={accounts?.offline ?? false} disabled={!accounts || changingOffline || accountBusy || activeAccount?.type !== 'microsoft'} onChange={(value) => void setOfflineMode(value)} />
+      </section>
     </fieldset>
     {error && <p role="alert" className="form-error">{error}</p>}
     <div className="settings-save"><span>{dirty ? 'You have unsaved changes' : 'All preferences saved locally'}</span><div className="inline-actions"><button type="button" className="button secondary" disabled={!dirty || busy} onClick={() => { setDraft(snapshot.settings); onDirtyChange(false); setError(null); }}>Revert</button><button type="submit" className="button primary" disabled={!dirty || busy}>{busy ? <Spinner size={16} /> : <Save size={16} />}Save preferences</button></div></div>

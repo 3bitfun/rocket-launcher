@@ -1,5 +1,6 @@
-//! Native authentication building blocks. No session is issued by this module yet.
-#![allow(dead_code)]
+//! Native account authentication and offline session handling.
+pub mod accounts;
+mod browser;
 #[cfg(windows)]
 mod credential_store;
 mod microsoft;

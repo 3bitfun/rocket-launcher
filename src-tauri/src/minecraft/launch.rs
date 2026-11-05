@@ -21,22 +21,60 @@ use tokio::{
 
 /// Only native account code may issue this after ownership, profile and expiry checks.
 pub struct ValidatedSession {
+    pub(crate) player: String,
+    pub(crate) uuid: String,
+    pub(crate) access_token: String,
+    pub(crate) xuid: String,
+    pub(crate) client_id: String,
+    pub(crate) expires_at: u64,
+    pub(crate) offline: bool,
+}
+
+pub enum LaunchAuth {
+    Microsoft(ValidatedSession),
+    #[cfg(debug_assertions)]
+    LocalTest { player: String, uuid: String },
+}
+
+struct LaunchIdentity {
     player: String,
     uuid: String,
     access_token: String,
     xuid: String,
     client_id: String,
-    expires_at: u64,
+    auth_session: String,
+    user_type: String,
 }
-pub fn session() -> Option<ValidatedSession> {
-    // Phase 3 replaces this provider. There is deliberately no IPC credential input.
-    None
+
+impl LaunchIdentity {
+    fn authenticated(session: &ValidatedSession) -> Self {
+        Self {
+            player: session.player.clone(),
+            uuid: session.uuid.clone(),
+            access_token: session.access_token.clone(),
+            xuid: session.xuid.clone(),
+            client_id: session.client_id.clone(),
+            auth_session: format!("token:{}:{}", session.access_token, session.uuid),
+            user_type: "msa".into(),
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn local_test(player: String, uuid: String) -> Self {
+        Self {
+            player,
+            uuid,
+            access_token: String::new(),
+            xuid: String::new(),
+            client_id: String::new(),
+            auth_session: String::new(),
+            user_type: "legacy".into(),
+        }
+    }
 }
+
 pub fn authentication_required() -> AppError {
-    AppError::new("AUTH_REQUIRED", "Minecraft files can be installed and checked now. Launching requires Microsoft sign-in and verified Minecraft ownership (Phase 3).")
-}
-pub fn usable_session() -> Option<ValidatedSession> {
-    session().filter(|session| session.expires_at > now())
+    AppError::new("AUTH_REQUIRED", "Sign in from Settings with a Microsoft account that owns Minecraft Java Edition before launching.")
 }
 
 fn expand(template: &str, values: &BTreeMap<&str, String>) -> Result<String> {
@@ -101,7 +139,7 @@ fn resolve_args(
     installed: &Installed,
     instance: &Instance,
     platform: &Platform,
-    auth: &ValidatedSession,
+    auth: &LaunchIdentity,
 ) -> Result<Vec<String>> {
     let path = |p: &Path| p.to_string_lossy().into_owned();
     let version = &installed.version;
@@ -113,13 +151,10 @@ fn resolve_args(
         ("auth_player_name", auth.player.clone()),
         ("auth_uuid", auth.uuid.clone()),
         ("auth_access_token", auth.access_token.clone()),
-        (
-            "auth_session",
-            format!("token:{}:{}", auth.access_token, auth.uuid),
-        ),
+        ("auth_session", auth.auth_session.clone()),
         ("auth_xuid", auth.xuid.clone()),
         ("clientid", auth.client_id.clone()),
-        ("user_type", "msa".into()),
+        ("user_type", auth.user_type.clone()),
         ("user_properties", "{}".into()),
         ("profile_properties", "{}".into()),
         ("version_name", version.id.clone()),
@@ -177,6 +212,7 @@ fn resolve_args(
     args.extend(game);
     Ok(args)
 }
+
 fn legacy_arguments(legacy: &str, values: &BTreeMap<&str, String>) -> Result<Vec<String>> {
     let mut quote = None;
     let mut current = String::new();
@@ -289,7 +325,7 @@ pub struct LaunchRequest {
     pub instance: Instance,
     pub java: Java,
     pub platform: Platform,
-    pub session: ValidatedSession,
+    pub auth: LaunchAuth,
     pub log_root: PathBuf,
 }
 
@@ -303,13 +339,31 @@ pub async fn start(
         instance,
         java,
         platform,
-        session,
+        auth,
         log_root,
     } = request;
-    if session.expires_at <= now() {
-        return Err(authentication_required());
-    }
-    let args = resolve_args(&installed, &instance, &platform, &session)?;
+    let (identity, access_token, expires_at, local_test) = match auth {
+        LaunchAuth::Microsoft(session) => {
+            let expires_at = (!session.offline).then_some(session.expires_at);
+            if expires_at.is_some_and(|expires_at| expires_at <= now()) {
+                return Err(authentication_required());
+            }
+            (
+                LaunchIdentity::authenticated(&session),
+                session.access_token,
+                expires_at,
+                false,
+            )
+        }
+        #[cfg(debug_assertions)]
+        LaunchAuth::LocalTest { player, uuid } => (
+            LaunchIdentity::local_test(player, uuid),
+            String::new(),
+            None,
+            true,
+        ),
+    };
+    let args = resolve_args(&installed, &instance, &platform, &identity)?;
     tokio::task::spawn_blocking({
         let game = instance.game_directory.clone();
         move || -> Result<()> {
@@ -343,7 +397,7 @@ pub async fn start(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    if session.expires_at <= now() {
+    if expires_at.is_some_and(|expires_at| expires_at <= now()) {
         return Err(authentication_required());
     }
     let mut child = spawn(&mut command)?;
@@ -357,16 +411,20 @@ pub async fn start(
     };
     let out = child.stdout.take().expect("piped stdout");
     let err = child.stderr.take().expect("piped stderr");
-    report(GameStatus::new(
-        &instance.id,
-        Readiness::Running,
+    let running_message = if local_test {
+        format!(
+            "Local Offline Test — Unauthenticated. Minecraft is running (PID {}).",
+            child.id().unwrap_or_default()
+        )
+    } else {
         format!(
             "Minecraft is running (PID {}).",
             child.id().unwrap_or_default()
-        ),
-    ));
+        )
+    };
+    report(GameStatus::new(&instance.id, Readiness::Running, running_message));
     tauri::async_runtime::spawn(async move {
-        let token = session.access_token;
+        let token = access_token;
         let mut out = tokio::spawn(capture(out, stdout, token.clone()));
         let mut err = tokio::spawn(capture(err, stderr, token));
         let exit = child.wait().await;
@@ -515,6 +573,22 @@ fn windows_job(child: &Child) -> Result<std::os::windows::io::OwnedHandle> {
 mod tests {
     use super::*;
 
+    #[cfg(debug_assertions)]
+    #[test]
+    fn local_test_identity_contains_no_authentication_material() {
+        let identity = LaunchIdentity::local_test(
+            "RocketTester".into(),
+            "9c203c2e-8e51-4eed-8915-93a4b3131881".into(),
+        );
+
+        assert_eq!(identity.player, "RocketTester");
+        assert_eq!(identity.access_token, "");
+        assert_eq!(identity.auth_session, "");
+        assert_eq!(identity.xuid, "");
+        assert_eq!(identity.client_id, "");
+        assert_eq!(identity.user_type, "legacy");
+    }
+
     #[tokio::test]
     async fn captured_output_keeps_last_line_and_redacts_session_material() {
         let dir = tempfile::tempdir().unwrap();
@@ -572,6 +646,5 @@ mod tests {
         assert!(manager.reserve("instance").is_err());
         drop(reservation);
         assert!(manager.reserve("instance").is_ok());
-        assert!(usable_session().is_none());
     }
 }

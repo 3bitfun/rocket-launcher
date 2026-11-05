@@ -81,7 +81,7 @@ export default function App() {
           {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onSelect={select} onDuplicate={(instance) => void mutate(() => native.duplicate(instance.id), 'Configuration duplicated into a new, empty instance.')} onDelete={openRemoval} />}
           {page === 'downloads' && <Downloads catalog={catalog} error={catalogError} fetching={fetching} onRefresh={() => void launcher.refreshVersions()} progress={game.download} onRetry={!busy && retry ? () => void game.run(retry, 'install') : undefined} />}
           {page === 'mods' && <Mods snapshot={snapshot} />}
-          {page === 'settings' && <Settings snapshot={snapshot} busy={busy} onSave={(settings) => mutate(() => native.settings(settings), 'Preferences saved. Make yourself at home.')} onDirtyChange={setSettingsDirty} />}
+            {page === 'settings' && <Settings snapshot={snapshot} busy={busy} onSave={(settings) => mutate(() => native.settings(settings), 'Preferences saved. Make yourself at home.')} onDirtyChange={setSettingsDirty} onAuthStateChanged={() => { if (selected) void game.check(selected.id); }} />}
         </motion.div></AnimatePresence>
         <footer className="app-footer"><span>BEYOND THE BUILT LIMIT.</span><span>Made for the worlds you make.<ArrowUpRight size={12} /></span></footer>
       </main>
