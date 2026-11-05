@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Rocket Launcher",
+  "version": "0.1.0",
+  "identifier": "app.rocketlauncher.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{
+      "label": "main",
+      "title": "Rocket Launcher",
+      "width": 1200,
+      "height": 820,
+      "minWidth": 900,
+      "minHeight": 640,
+      "center": true,
+      "backgroundColor": "#0D0F14",
+      "decorations": true
+    }],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data:; font-src 'self' data:; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "category": "Game",
+    "shortDescription": "Your Minecraft launch pad.",
+    "icon": ["icons/icon.ico", "icons/icon.png"]
+  }
+}

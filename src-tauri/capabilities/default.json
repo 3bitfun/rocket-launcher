@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-window",
+  "description": "Local launcher window; native pickers only. No shell or filesystem plugin access.",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:allow-open"]
+}
