@@ -1,5 +1,9 @@
 # Rocket Launcher progress
 
+Phase 3 is started but incomplete. A native PKCE attempt and strict loopback callback parser are implemented and tested independently; they are not yet connected to the UI or a token exchange. No credentials or verified account metadata are stored yet. Sign-in, account management, online gameplay and offline gameplay remain unavailable. The existing authentication boundary stays closed.
+
+For eventual desktop OAuth setup, register a public client that supports personal Microsoft accounts in Microsoft Entra, add the Mobile and desktop platform with the `http://localhost` redirect URI, and configure the application client ID locally. No client secret should be embedded. Xbox and Minecraft Services access and the Minecraft entitlement flow still need to be implemented and verified with an appropriately configured application and an account that owns Minecraft Java Edition.
+
 Phase 2 implements real vanilla Minecraft installation on Windows, Java compatibility checks, and a process launcher behind an authenticated-session boundary. The existing Launch Pad, instance cards and Downloads page now show backend readiness and progress.
 
 - Official Mojang version metadata and inheritance, Windows and architecture rules, streaming downloads, SHA-1 and size verification, native extraction, and persistent installation records. Cache hits are verified and reused; interrupted transfers retry from the last complete file.
