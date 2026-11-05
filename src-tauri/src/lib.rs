@@ -5,6 +5,7 @@ mod minecraft;
 mod models;
 mod storage;
 
+use commands::game::*;
 use commands::*;
 use tauri::Manager;
 
@@ -19,6 +20,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
+        .manage(GameJobs::default())
         .setup(|app| {
             let store = storage::Store::open(app.path().app_local_data_dir()?)?;
             let appender = tracing_appender::rolling::Builder::new()
@@ -34,6 +36,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_snapshot, save_settings, create_instance, update_instance, select_instance,
             remove_instance, duplicate_instance, list_installed_mods, get_versions, read_logs,
+            check_game, install_game, download_status, ignite_game,
         ])
         .run(tauri::generate_context!())
         .expect("Rocket Launcher could not start. Check launcher.json and filesystem permissions in the application data directory.");

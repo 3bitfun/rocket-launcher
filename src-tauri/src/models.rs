@@ -67,20 +67,14 @@ pub struct Instance {
 pub struct InstanceView {
     #[serde(flatten)]
     pub instance: Instance,
-    pub readiness: &'static str,
+    pub readiness: crate::minecraft::launch::Readiness,
 }
 
 impl From<&Instance> for InstanceView {
     fn from(instance: &Instance) -> Self {
-        // Phase 1 never installs game files or claims offline readiness.
-        let readiness = if instance.game_directory.is_dir() {
-            "requires_download"
-        } else {
-            "missing_files"
-        };
         Self {
             instance: instance.clone(),
-            readiness,
+            readiness: crate::minecraft::launch::Readiness::Checking,
         }
     }
 }

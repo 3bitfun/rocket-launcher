@@ -1,6 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import type { AppSnapshot, InstanceInput, InstalledMod, Settings, VersionCatalog } from '../types';
+import type { AppSnapshot, DownloadProgress, GameStatus, InstanceInput, InstalledMod, Settings, VersionCatalog } from '../types';
 
 export const isDesktop = () => isTauri();
 
@@ -10,6 +10,10 @@ function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
 }
 
 export const native = {
+  checkGame: (id: string) => call<GameStatus>('check_game', { id }),
+  installGame: (id: string) => call<void>('install_game', { id }),
+  ignite: (id: string) => call<void>('ignite_game', { id }),
+  downloadStatus: () => call<DownloadProgress | null>('download_status'),
   snapshot: () => call<AppSnapshot>('get_snapshot'),
   versions: (refresh = false) => call<VersionCatalog>('get_versions', { refresh }),
   create: (input: InstanceInput) => call<AppSnapshot>('create_instance', { input }),

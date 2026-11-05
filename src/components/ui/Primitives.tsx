@@ -17,7 +17,7 @@ export function PathField({ label, value, onChange, kind = 'directory', hint, on
       if (typeof selected === 'string') onChange(selected);
     } catch (error) { onError(errorMessage(error)); }
   }
-  return <label className="field"><span>{label}</span><div className="path-field"><input value={value} onChange={(e) => onChange(e.target.value)} placeholder={kind === 'java' ? 'Automatic detection (available in Phase 2)' : 'Choose a folder'} />
+  return <label className="field"><span>{label}</span><div className="path-field"><input value={value} onChange={(e) => onChange(e.target.value)} placeholder={kind === 'java' ? 'Automatic detection' : 'Choose a folder'} />
     <button type="button" className="icon-button" onClick={() => void choose()} aria-label={`Browse ${label.toLowerCase()}`}>{kind === 'java' ? <Terminal size={17} /> : <FolderOpen size={17} />}</button></div>{hint && <small>{hint}</small>}</label>;
 }
 

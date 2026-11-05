@@ -18,7 +18,7 @@ export function Sidebar({ page, onNavigate, count, version, online }: { page: Pa
       {page === id && <motion.span className="nav-indicator" layoutId="active-navigation" />}
       <Icon size={19} strokeWidth={1.7} /><span>{title}</span>{id === 'instances' && count > 0 && <span className="nav-count">{count}</span>}
     </button>)}</nav>
-    <div className="sidebar-bottom"><div className="build-note"><span className="eyebrow">THE FIRST STAGE</span><p>A little space for<br />your next big world.</p><span className="phase-badge">Phase 01 · Foundation</span></div>
+    <div className="sidebar-bottom"><div className="build-note"><span className="eyebrow">THE SECOND STAGE</span><p>A little space for<br />your next big world.</p><span className="phase-badge">Phase 02 · Installation</span></div>
       <button className="account-button" onClick={() => onNavigate('settings')}><span className="avatar"><UserRound size={19} /></span><span><strong>No account connected</strong><small><span className={`status-dot ${online ? 'online' : ''}`} />{online ? 'Mojang service reachable' : 'Local workspace'}</small></span><ArrowUpRight size={15} /></button>
       <div className="sidebar-footer"><span>Rocket Launcher</span><span>v{version}</span></div>
     </div>

@@ -134,3 +134,4 @@ pub fn read_logs(state: State<'_, LauncherState>) -> Result<String> {
         .map_err(|e| AppError::io("read the current log", e))?;
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
+pub mod game;

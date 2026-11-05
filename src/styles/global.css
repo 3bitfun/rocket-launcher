@@ -1,7 +1,12 @@
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Inter Variable", sans-serif;
+  --font-display: "Space Grotesk Variable", sans-serif;
+  --font-mono: "JetBrains Mono Variable", monospace;
 }
 
 :root {
@@ -64,7 +69,8 @@ input[type="checkbox"], input[type="range"] { accent-color: var(--accent); }
 input[type="range"] { padding: 0; width: 100%; cursor: pointer; }
 input[type="number"] { font-variant-numeric: tabular-nums; }
 input[readonly] { color: var(--muted); }
-code { font-family: "Cascadia Code", "Consolas", monospace; }
+code, .log-view { font-family: var(--font-mono); }
+h1, h2, h3, .brand, .ignite-button { font-family: var(--font-display); }
 ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
 ::-webkit-scrollbar { width: 7px; height: 7px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
@@ -154,6 +160,7 @@ main:focus { outline: none; }
 .launch-action { display: flex; flex-direction: column; gap: 9px; align-items: center; flex-shrink: 0; }
 .ignite-button { display: flex; gap: 12px; justify-content: center; align-items: center; width: 194px; height: 52px; color: var(--accent-ink); background: var(--accent); border-radius: 8px; letter-spacing: 2px; font-size: 15px; font-weight: 750; }
 .ignite-button:disabled { opacity: .64; }
+.ignite-button.task { font-size: 12px; letter-spacing: .2px; gap: 6px; }
 .ignite-button svg:last-child { margin-left: 7px; }
 .launch-action small { color: var(--muted); font-size: 8px; }
 .recent-section { margin-top: 28px; }
@@ -320,7 +327,7 @@ main:focus { outline: none; }
 .account-state > .phase-badge { margin-left: auto; }
 .settings-save { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; padding: 16px 0; background: var(--bg); border-top: 1px solid var(--border); margin-top: 23px; z-index: 1; }
 .settings-save > span { font-size: 10px; color: var(--muted); }
-.log-view { max-height: 55vh; overflow: auto; padding: 16px; font: 11px/1.8 "Cascadia Code", Consolas, monospace; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.log-view { max-height: 55vh; overflow: auto; padding: 16px; font: 11px/1.8 var(--font-mono); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .toast { position: fixed; z-index: 20; left: calc(50% + 110px); bottom: 25px; transform: translateX(-50%); max-width: min(600px, calc(100vw - 270px)); display: flex; gap: 12px; align-items: center; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--card); box-shadow: 0 10px 40px #0005; font-size: 12px; }
 .toast > svg { color: var(--green); flex-shrink: 0; }
 .toast.error > svg { color: var(--danger); }
@@ -384,3 +391,5 @@ main:focus { outline: none; }
 :root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after {
   animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important;
 }
+.launch-status { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; margin: 6px 0; }
+.game-progress { accent-color: var(--accent); width: 100%; height: 8px; }

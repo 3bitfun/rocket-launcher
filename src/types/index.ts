@@ -1,5 +1,11 @@
 export type Page = 'launchpad' | 'instances' | 'mods' | 'downloads' | 'settings';
 export type Theme = 'dark' | 'light' | 'system';
+export type Readiness = 'checking' | 'requires_download' | 'missing_files' | 'downloading' | 'installing' | 'java_required' | 'authentication_required' | 'ready' | 'launching' | 'running' | 'error';
+export interface GameStatus { instanceId: string; readiness: Readiness; message: string; exitCode: number | null }
+export interface DownloadProgress {
+  instanceId: string; version: string; stage: 'downloading' | 'installing' | 'complete' | 'error';
+  current: string; transferredBytes: number; verifiedBytes: number; totalBytes: number | null; bytesPerSecond: number; error: string | null;
+}
 export interface Settings {
   accentColor: string;
   theme: Theme;
@@ -23,7 +29,7 @@ export interface Instance {
   createdAt: number;
   updatedAt: number;
   lastSelectedAt: number;
-  readiness: 'requires_download' | 'missing_files';
+  readiness: Readiness;
 }
 export interface AppSnapshot {
   appVersion: string;

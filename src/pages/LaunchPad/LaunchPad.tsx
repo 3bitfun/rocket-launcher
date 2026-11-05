@@ -1,14 +1,23 @@
 import { ArrowRight, ArrowUpRight, Box, Check, Cpu, HardDrive, Plus, Rocket, ShieldCheck, UserRound } from 'lucide-react';
-import type { AppSnapshot, Instance, Page, VersionCatalog } from '../../types';
+import type { AppSnapshot, GameStatus, Instance, Page, VersionCatalog } from '../../types';
+import { readinessLabel } from '../../services/readiness';
 import { Landscape } from '../../components/launcher/Landscape';
 import { InstanceCard } from '../../components/instances/InstanceCard';
 import { formatRam } from '../../components/ui/Primitives';
 
-export function LaunchPad({ snapshot, catalog, busy, onCreate, onEdit, onSelect, onNavigate }: {
+export function LaunchPad({ snapshot, catalog, busy, status, onCreate, onEdit, onSelect, onNavigate, onInstall, onIgnite, onCheck }: {
   snapshot: AppSnapshot; catalog: VersionCatalog | null; busy: boolean;
+  status?: GameStatus; onInstall: (instance: Instance) => void; onIgnite: (instance: Instance) => void; onCheck: (instance: Instance) => void;
   onCreate: () => void; onEdit: (instance: Instance) => void; onSelect: (instance: Instance) => void; onNavigate: (page: Page) => void;
 }) {
   const selected = snapshot.instances.find((instance) => instance.id === snapshot.activeInstanceId);
+  const readiness = selected?.readiness;
+  const action = !selected ? { label: 'Create instance', run: onCreate } :
+    readiness === 'requires_download' || readiness === 'missing_files' ? { label: readiness === 'missing_files' ? 'Repair files' : 'Install Minecraft', run: () => onInstall(selected) } :
+    readiness === 'java_required' ? { label: 'Configure Java', run: () => onEdit(selected) } :
+    readiness === 'ready' ? { label: 'IGNITE', run: () => onIgnite(selected) } :
+    readiness === 'error' ? { label: 'Check again', run: () => onCheck(selected) } :
+    { label: readiness === 'authentication_required' ? 'IGNITE' : readinessLabel[readiness ?? 'checking'], run: undefined };
   const recent = [...snapshot.instances].sort((a, b) => b.lastSelectedAt - a.lastSelectedAt).slice(0, 3);
   return <>
     <section className="hero"><Landscape /><div className="hero-shade" /><div className="hero-content">
@@ -19,8 +28,10 @@ export function LaunchPad({ snapshot, catalog, busy, onCreate, onEdit, onSelect,
     <section className="launch-console panel" aria-label="Selected instance">
       <div className="launch-details"><span className="eyebrow">ON THE LAUNCH PAD</span><h2>{selected?.name ?? 'Your next adventure awaits'}</h2><div className="launch-meta">
         <span><Box size={14} />{selected ? `Minecraft ${selected.version}` : 'No instance selected'}</span>{selected && <><span className="separator">/</span><span>Vanilla</span><span className="separator">/</span><span><Cpu size={14} />{formatRam(selected.ramMb)}</span></>}
-      </div><span className="readiness"><span className="status-dot" />{selected ? (selected.readiness === 'missing_files' ? 'Missing game directory' : 'Requires download') : 'Create an instance to get started'}</span></div>
-      <div className="launch-action"><button className="ignite-button" disabled aria-describedby="launch-limitation"><Rocket size={21} />IGNITE<ArrowUpRight size={17} /></button><small id="launch-limitation">Game launching arrives in Phase 2</small></div>
+      </div><span className="readiness"><span className="status-dot" />{readiness ? readinessLabel[readiness] : 'Create an instance to get started'}</span>
+      {status?.message && <p className="launch-status" id="launch-status" role="status">{status.message}</p>}</div>
+      <div className="launch-action"><button className={action.label === 'IGNITE' ? 'ignite-button' : 'ignite-button task'} disabled={!action.run || busy} onClick={action.run} aria-describedby={status?.message ? 'launch-status' : undefined}><Rocket size={18} />{action.label}<ArrowUpRight size={15} /></button>
+      {readiness === 'authentication_required' && selected && <button className="text-button" disabled={busy} onClick={() => onCheck(selected)}>Verify files again</button>}</div>
     </section>
 
     <section className="recent-section"><div className="section-heading"><div><h2>Recent instances <span className="count-badge">{snapshot.instances.length}</span></h2><p>Pick up where your imagination left off.</p></div><button className="text-button" onClick={() => onNavigate('instances')}>View all<ArrowRight size={15} /></button></div>

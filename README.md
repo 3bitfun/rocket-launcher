@@ -2,9 +2,9 @@
 
 **Beyond the Built Limit.** A native Windows Minecraft Java Edition launcher built with Tauri 2, Rust, React, TypeScript, Vite, Tailwind CSS, Motion, and Lucide.
 
-## Current milestone: Phase 1
+## Current milestone: Phase 2
 
-This is a functional **desktop foundation**, not yet a playable Minecraft launcher.
+Rocket Launcher installs and verifies vanilla Minecraft Java Edition on Windows. Authenticated gameplay requires the Phase 3 account integration.
 
 - Launch Pad, Instances, Mods, Downloads, and Settings navigation.
 - Create, rename, edit, select, duplicate, and remove instances.
@@ -12,12 +12,15 @@ This is a functional **desktop foundation**, not yet a playable Minecraft launch
 - Native directory and executable pickers.
 - Atomic Rust-managed configuration persistence and single-instance application behavior.
 - Live official Mojang version catalogue, release/snapshot filters, local cache, bounded requests, timeout, one retry, and explicit failure/fallback states.
+- Mojang client, libraries, assets, logging configuration and native archives, with streaming downloads, SHA-1 verification, shared cache reuse, and offline repair checks.
+- Java discovery with exact version and architecture matching. A manually selected executable takes priority.
+- Launch Pad install and repair actions, measured Downloads progress, and native launch preparation behind an ownership-verified session boundary.
 - Dark, light, and system themes; custom accent colours; animation and reduced-motion preferences.
 - Actual `.jar` file listing from each instance's mods directory.
 - Local rotating structured logs and an in-app log viewer.
 - Keyboard-accessible controls, native modal focus management, responsive desktop layout.
 
-**Unavailable:** game installation, launch, Java compatibility detection, Microsoft authentication, authenticated offline play, mod loaders, Modrinth downloads, updates, and crash reporting. The UI labels these explicitly. No downloads, login sessions, speeds, or game launches are simulated.
+**Unavailable:** Microsoft authentication, authenticated gameplay and offline play, automatic Java installation, mod loaders, Modrinth downloads, updates, and crash reporting.
 
 ## Run locally on Windows 10/11
 
@@ -58,11 +61,14 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D w
 cargo test --manifest-path src-tauri/Cargo.toml --locked
 # Explicit network integration test: downloads Mojang's real manifest, then reads the cache.
 cargo test --manifest-path src-tauri/Cargo.toml live_manifest_fetch -- --ignored
+# Download to an isolated temporary directory, verify locally, delete one test JAR, and repair.
+$env:ROCKET_TEST_VERSION = '1.21.1'
+cargo test --manifest-path src-tauri/Cargo.toml live_install_and_offline_repair -- --ignored
 ```
 
 Rust tests exercise configuration replacement/reopening, corruption preservation, validation, the instance lifecycle, file preservation, local mod listing, manifest parsing, and cache lookup. Frontend tests exercise submission, error/retry states, preferences, and feature availability. Mock data exists only under `src/test`.
 
-See [the Phase 1 validation record](docs/VALIDATION.md) for the checks actually performed and their limits.
+See [PROGRESS.md](PROGRESS.md) for Phase 2 verification and [the Phase 1 validation record](docs/VALIDATION.md) for the foundation checks.
 
 ## Local data and behavior
 
@@ -73,17 +79,19 @@ The application uses Tauri's local application data directory, normally `%LOCALA
 | `launcher.json` | Versioned settings, instance configurations, and active selection |
 | `instances\<UUID>\` | Default isolated game directories |
 | `cache\versions.json` | Validated Mojang catalogue with fetch timestamp |
+| `cache\minecraft\` | Shared version metadata, client JARs, libraries, assets, extracted natives, and installation records |
+| `logs\game\` | Per-launch stdout and stderr once authenticated launching is enabled |
 | `logs\launcher.log.*` | Daily JSON logs, at most seven files |
 
 Configuration writes use a same-directory temporary file, flush to disk, then atomically replace the destination. Invalid configuration is preserved rather than silently reset. Back up `launcher.json` before manual edits. A different launcher schema version is rejected.
 
 Removing an instance **only removes its configuration**; game directories are preserved. Duplication copies settings into a **new empty directory**; it does not copy saves, mods, or game files. Existing directories cannot be relocated through the editor. Changing the default directory affects newly created instances only.
 
-RAM is configurable between 1 and 64 GB in 256 MB increments. This phase validates ranges, not available physical memory. Java overrides must point to an existing executable; runtime version and architecture checks are Phase 2. Leave the override blank to inherit the launcher default when launching is implemented.
+RAM is configurable between 1 and 64 GB in 256 MB increments. Java discovery checks the instance override, the launcher setting, `JAVA_HOME`, `PATH`, common Windows installations, and launcher runtime folders. Install the Java major reported on the Launch Pad and use a runtime matching the launcher's Windows architecture.
 
 The catalogue is reused for one hour, then refreshed. Refresh always tries the network. Valid cached versions remain available when Mojang cannot be reached, with a visible warning. Without any valid cache, creating an instance requires the first successful fetch. Existing instances can be renamed, selected, removed, and edited without changing their Minecraft version while offline. Historical alpha/beta versions are intentionally excluded.
 
-Instances display **Requires download** when their local directory exists, or **Missing game directory** if it has disappeared. This build never certifies an instance as installed or offline-ready. A local workspace does not authenticate an account or grant Minecraft access.
+Create or select an instance on the Launch Pad, then click **Install Minecraft**. Downloads shows measured transfer speed and bytes, plus verified bytes including cache hits. Interrupted downloads resume at file boundaries: only verified files are reused. Select **Repair files** after failed local verification, or **Retry installation** after a download error. The launcher can validate installed files without contacting Mojang. Verified files and a compatible Java runtime do not grant Minecraft account access.
 
 ## Architecture
 
@@ -101,17 +109,17 @@ src-tauri/src/
   commands/            Narrow IPC boundary
   errors.rs            Serializable, actionable errors
   instances/           Instance lifecycle and scoped mod enumeration
-  minecraft/versions.rs Official manifest fetching, validation, caching
+  minecraft/           Mojang catalogue, install planning, downloads, Java, and launch supervision
   models.rs            Serializable configuration/domain models
   storage/             Validation and atomic persistence
 ```
 
-The frontend has no filesystem or shell plugin permissions. HTTP requests are performed by Rust against a fixed HTTPS Mojang endpoint; response sizes are capped and metadata hosts validated. No secrets, authentication tokens, telemetry, or account credentials are collected in Phase 1. Native command arguments are revalidated in Rust.
+The frontend has no filesystem or shell plugin permissions. Rust downloads from allowed Mojang HTTPS hosts. No account credentials or telemetry are collected. Inter, Space Grotesk and JetBrains Mono are bundled for offline use under the SIL Open Font License; notices are in `public/licenses/`.
 
-## Next milestone: Phase 2
+## Next milestone: Phase 3
 
-Implement the complete installation and launch pipeline: version metadata inheritance, rule-aware libraries, assets, native extraction, hash verification, cancellable/retryable download jobs with byte-based progress, Java discovery/version/architecture compatibility, and modern/legacy argument resolution. Build launch/process supervision behind an account/entitlement boundary so Phase 2 cannot expose an ownership bypass. Phase 3 adds legitimate Microsoft OAuth, Xbox/Minecraft Services authentication, ownership verification, OS-backed token storage, refresh, and authenticated offline behavior.
+Register a Microsoft public client approved for the Minecraft authentication flow. Implement Microsoft OAuth, Xbox Live and XSTS exchange, Minecraft Services login, Minecraft Java entitlement and profile verification, secure token storage and refresh. Have the native account service issue validated sessions to the launcher, then test a real signed-in launch and exit. Offline launch needs a separately validated offline-capable session design; the current launch boundary accepts only an unexpired authenticated session.
 
-Microsoft app registration is not needed for Phase 1. No client ID or secret is invented or embedded. Exact public-client registration/setup instructions will accompany Phase 3's actual authentication implementation.
+No Microsoft app registration is needed to install game files in Phase 2.
 
 Rocket Launcher is an independent project, not an official Minecraft product or approved by Mojang or Microsoft.

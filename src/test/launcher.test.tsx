@@ -7,6 +7,7 @@ import { LaunchPad } from '../pages/LaunchPad/LaunchPad';
 import { Settings } from '../pages/Settings/Settings';
 import { errorMessage } from '../services/native';
 import { snapshot, catalog } from './fixtures';
+import type { Instance } from '../types';
 
 describe('instance editor', () => {
   it('uses the real catalogue result and submits a typed instance configuration', async () => {
@@ -56,11 +57,28 @@ it('shows actual catalogue failure and offers a working retry action', async () 
   expect(retry).toHaveBeenCalledOnce();
 });
 
-it('never presents unimplemented Minecraft launching as available', () => {
-  render(<LaunchPad snapshot={snapshot} catalog={catalog} busy={false} onCreate={vi.fn()} onEdit={vi.fn()} onSelect={vi.fn()} onNavigate={vi.fn()} />);
+it('offers installation, then keeps IGNITE disabled until authentication', async () => {
+  const profile: Instance = { id: 'test', name: 'Test World', version: '1.21.1', versionType: 'release', loader: 'vanilla', gameDirectory: 'C:\\test', ramMb: 4096, javaPath: null, createdAt: 0, updatedAt: 0, lastSelectedAt: 0, readiness: 'requires_download' };
+  const onInstall = vi.fn();
+  const onIgnite = vi.fn();
+  const props = { catalog, busy: false, onCreate: vi.fn(), onEdit: vi.fn(), onSelect: vi.fn(), onNavigate: vi.fn(), onInstall, onIgnite, onCheck: vi.fn() };
+  const selected = { ...snapshot, activeInstanceId: profile.id, instances: [profile] };
+  const { rerender } = render(<LaunchPad {...props} snapshot={selected} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Install Minecraft' }));
+  expect(onInstall).toHaveBeenCalledWith(profile);
+  rerender(<LaunchPad {...props} snapshot={{ ...selected, instances: [{ ...profile, readiness: 'authentication_required' }] }} status={{ instanceId: profile.id, readiness: 'authentication_required', message: 'Files verified; sign-in required.', exitCode: null }} />);
   expect(screen.getByRole('button', { name: 'IGNITE' })).toBeDisabled();
-  expect(screen.getByText('Game launching arrives in Phase 2')).toBeInTheDocument();
-  expect(screen.queryByText('Ready for offline launch')).not.toBeInTheDocument();
+  expect(screen.getByText('Files verified; sign-in required.')).toBeInTheDocument();
+  expect(onIgnite).not.toHaveBeenCalled();
+});
+
+it('shows measured download bytes and retries a failed installation', async () => {
+  const onRetry = vi.fn();
+  render(<Downloads catalog={null} error={null} fetching={false} onRefresh={vi.fn()} onRetry={onRetry} progress={{ instanceId: 'test', version: '1.21.1', stage: 'error', current: 'Installation failed', transferredBytes: 2097152, verifiedBytes: 1048576, totalBytes: 4194304, bytesPerSecond: 0, error: 'Wrong SHA-1' }} />);
+  expect(screen.getByText('2.0 MiB transferred')).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent('Wrong SHA-1');
+  await userEvent.click(screen.getByRole('button', { name: 'Retry installation' }));
+  expect(onRetry).toHaveBeenCalledOnce();
 });
 
 it('saves changed preferences and tracks unsaved state', async () => {

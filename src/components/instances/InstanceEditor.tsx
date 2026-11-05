@@ -45,9 +45,9 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
         <div className="loader-option"><Box size={19} /><div><strong>Vanilla</strong><small>The original Minecraft experience</small></div><span className="tag">Selected</span></div>
         <label className="field"><span className="field-title">Memory allocation <strong>{formatRam(ram)}</strong></span><input type="range" min="1024" max="16384" step="256" value={Math.min(ram, 16384)} onChange={(e) => setRam(Number(e.target.value))} /><div className="ram-input"><input aria-label="Memory in MB" type="number" min="1024" max="65536" step="256" value={ram} onChange={(e) => setRam(Number(e.target.value))} required /><small>MB · leave memory for Windows and other apps</small></div></label>
         {instance ? <label className="field"><span>Game directory</span><input value={instance.gameDirectory} readOnly /><small>Existing directories stay in place. Create a new instance to choose another location.</small></label> : <PathField label="Instance parent directory" value={parent} onChange={setParent} onError={setError} hint="A unique game folder is created here. Your existing files stay untouched." />}
-        <PathField label="Java executable override" kind="java" value={java} onChange={setJava} onError={setError} hint="Optional. Leave blank to use the launcher default. Compatibility checks arrive in Phase 2." />
+        <PathField label="Java executable override" kind="java" value={java} onChange={setJava} onError={setError} hint="Optional. Leave blank to use the launcher default or automatic detection." />
       </fieldset>
-      <div className="notice"><AlertCircle size={16} /><span>This saves your instance configuration. Game installation and launching arrive in Phase 2.</span></div>
+      <div className="notice"><AlertCircle size={16} /><span>Install or verify Minecraft files from the Launch Pad after saving.</span></div>
       {(error || saveError) && <p role="alert" className="form-error">{error || saveError}</p>}
       <div className="modal-actions"><button type="button" className="button secondary" onClick={onClose} disabled={busy}>Cancel</button><button className="button primary" type="submit" disabled={busy || !selectedVersion}>{busy && <Spinner />}{instance ? 'Save changes' : 'Create instance'}</button></div>
     </form>
