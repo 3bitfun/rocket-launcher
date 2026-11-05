@@ -4,3 +4,5 @@
 mod credential_store;
 mod microsoft;
 mod pkce;
+mod services;
+mod verified_cache;

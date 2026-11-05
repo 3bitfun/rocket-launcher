@@ -2,6 +2,8 @@
 
 Phase 3 is started but incomplete. Native PKCE, loopback callback validation, Microsoft authorization URL generation, code redemption and token refresh primitives are implemented. A Windows Credential Manager wrapper is present for UUID-scoped launcher credentials. These pieces are not yet connected to the UI or an account service, and no verified account metadata is stored. Sign-in, account management, online gameplay and offline gameplay remain unavailable. The existing authentication boundary stays closed.
 
+Xbox Live and XSTS token exchange, Minecraft Services login, entitlement checking, and profile validation have now been added as native primitives, together with a credential-store-backed verified identity record. These have not been integrated with the login flow, tested against a registered application, or connected to launch; no account is yet cached by the application. Offline launch remains unavailable.
+
 The OAuth URL and callback unit tests passed; a temporary Windows credential was written, read and deleted successfully. Strict Rust Clippy passed. Live Microsoft authentication and the token exchanges remain untested because no configured public client was supplied.
 
 For eventual desktop OAuth setup, register a public client that supports personal Microsoft accounts in Microsoft Entra, add the Mobile and desktop platform with the `http://localhost` redirect URI, and configure the application client ID locally. No client secret should be embedded. Xbox and Minecraft Services access and the Minecraft entitlement flow still need to be implemented and verified with an appropriately configured application and an account that owns Minecraft Java Edition.
