@@ -262,6 +262,32 @@ fn read_version(root: &Path, entry: &VersionEntry) -> Result<Version> {
     }
     Ok(version)
 }
+// Fast readiness check: metadata only, no SHA-1 reads. Full integrity checks
+// remain in the installation/download pipeline.
+fn quick_file_check(path: &Path, expected_size: Option<u64>, max_size: u64) -> bool {
+    let Ok(meta) = fs::metadata(path) else {
+        return false;
+    };
+    if !meta.is_file() || meta.len() > max_size {
+        return false;
+    }
+    expected_size.map_or(true, |size| meta.len() == size)
+}
+
+fn read_version_quick(root: &Path, entry: &VersionEntry) -> Result<Version> {
+    let spec = version_spec(entry)?;
+    if !quick_file_check(&root.join(&spec.relative), None, spec.max_size) {
+        return Err(missing(&spec.relative));
+    }
+    let version: Version = read_json(&root.join(&spec.relative))?;
+    if version.id != entry.id {
+        return Err(invalid(
+            "Minecraft metadata version does not match its catalogue entry.",
+        ));
+    }
+    Ok(version)
+}
+
 fn receipt_path(root: &Path, id: &str, platform: &Platform) -> Result<PathBuf> {
     Ok(root
         .join("versions")
@@ -278,6 +304,15 @@ fn missing(path: &Path) -> AppError {
     )
 }
 pub fn verify_installed(root: &Path, id: &str, platform: &Platform) -> Result<Option<Installed>> {
+    inspect_installed(root, id, platform, true)
+}
+
+pub fn inspect_installed(
+    root: &Path,
+    id: &str,
+    platform: &Platform,
+    full: bool,
+) -> Result<Option<Installed>> {
     let path = receipt_path(root, id, platform)?;
     if !path.exists() {
         return Ok(None);
@@ -292,7 +327,11 @@ pub fn verify_installed(root: &Path, id: &str, platform: &Platform) -> Result<Op
         if next.as_ref() != Some(&entry.id) {
             return Err(invalid("Invalid installation inheritance order."));
         }
-        let version = read_version(root, entry)?;
+        let version = if full {
+            read_version(root, entry)?
+        } else {
+            read_version_quick(root, entry)?
+        };
         next.clone_from(&version.inherits_from);
         chain.push(version);
     }
@@ -301,25 +340,48 @@ pub fn verify_installed(root: &Path, id: &str, platform: &Platform) -> Result<Op
     }
     let version = merge(chain)?;
     let mut plan = Plan::new(&version, platform)?;
-    if !plan.index.verify(root) {
+    if !(if full {
+        plan.index.verify(root)
+    } else {
+        quick_file_check(
+            &root.join(&plan.index.relative),
+            Some(plan.index.artifact.size),
+            plan.index.max_size,
+        )
+    }) {
         return Err(missing(&plan.index.relative));
     }
     let index_id = &version.asset_index.as_ref().unwrap().id;
     plan.add_assets(root, index_id)?;
+    // Asset objects can number in the thousands. They were checked during
+    // installation; don't stat or hash them again for routine launch readiness.
     for spec in plan.files.values() {
-        if !spec.verify(root) {
+        if !full && spec.relative.starts_with("assets/objects") {
+            continue;
+        }
+        if !(if full {
+            spec.verify(root)
+        } else {
+            quick_file_check(
+                &root.join(&spec.relative),
+                Some(spec.artifact.size),
+                spec.max_size,
+            )
+        }) {
             return Err(missing(&spec.relative));
         }
     }
-    for (source, target) in &plan.aliases {
-        let spec = &plan.files[source];
-        if !download::verify(
-            &root.join(target),
-            &spec.artifact.sha1,
-            Some(spec.artifact.size),
-            spec.max_size,
-        ) {
-            return Err(missing(target));
+    if full {
+        for (source, target) in &plan.aliases {
+            let spec = &plan.files[source];
+            if !download::verify(
+                &root.join(target),
+                &spec.artifact.sha1,
+                Some(spec.artifact.size),
+                spec.max_size,
+            ) {
+                return Err(missing(target));
+            }
         }
     }
     let natives = path.parent().unwrap().join(segment(&receipt.natives)?);
@@ -335,7 +397,12 @@ pub fn verify_installed(root: &Path, id: &str, platform: &Platform) -> Result<Op
     }
     for (name, hash) in &receipt.native_hashes {
         let file = natives.join(segment(name)?);
-        if !download::verify(&file, hash, None, 256 * 1024 * 1024) {
+        let valid = if full {
+            download::verify(&file, hash, None, 256 * 1024 * 1024)
+        } else {
+            quick_file_check(&file, None, 256 * 1024 * 1024)
+        };
+        if !valid {
             return Err(missing(&file));
         }
     }

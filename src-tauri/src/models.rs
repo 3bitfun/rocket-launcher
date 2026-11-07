@@ -46,6 +46,14 @@ impl Settings {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Loader {
+    #[default]
+    Vanilla,
+    Fabric,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Instance {
@@ -53,7 +61,9 @@ pub struct Instance {
     pub name: String,
     pub version: String,
     pub version_type: String,
-    pub loader: String,
+    pub loader: Loader,
+    #[serde(default)]
+    pub loader_version: Option<String>,
     pub game_directory: PathBuf,
     pub ram_mb: u32,
     pub java_path: Option<PathBuf>,
@@ -84,6 +94,10 @@ impl From<&Instance> for InstanceView {
 pub struct InstanceInput {
     pub name: String,
     pub version: String,
+    #[serde(default)]
+    pub loader: Loader,
+    #[serde(default)]
+    pub loader_version: Option<String>,
     pub ram_mb: u32,
     pub java_path: Option<PathBuf>,
     pub parent_directory: Option<PathBuf>,

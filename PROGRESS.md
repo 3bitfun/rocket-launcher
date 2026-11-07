@@ -1,12 +1,22 @@
 # Rocket Launcher progress
 
-Phase 3 is started but incomplete. Native PKCE, loopback callback validation, Microsoft authorization URL generation, code redemption and token refresh primitives are implemented. A Windows Credential Manager wrapper is present for UUID-scoped launcher credentials. These pieces are not yet connected to the UI or an account service, and no verified account metadata is stored. Sign-in, account management, online gameplay and offline gameplay remain unavailable. The existing authentication boundary stays closed.
+The Windows x64 NSIS installer built successfully. The packaged executable opened a Rocket Launcher window in a Windows startup smoke test. This build is unsigned. The public release roadmap still includes Forge, NeoForge, modpack installation, automatic updates, and crash reporting with privacy controls.
 
-Xbox Live and XSTS token exchange, Minecraft Services login, entitlement checking, and profile validation have now been added as native primitives, together with a credential-store-backed verified identity record. These have not been integrated with the login flow, tested against a registered application, or connected to launch; no account is yet cached by the application. Offline launch remains unavailable.
+An isolated Windows smoke test installed Minecraft 1.21.1, Fabric, Iris, and Sodium, started the client on Java 21 using a debug-only local profile, and reached renderer initialization. The test closed Minecraft after it created the block texture atlas.
+
+The Mods page now browses Modrinth using the selected Fabric instance's Minecraft version. The version picker lists matching downloads, and the native installer rechecks compatibility and file integrity before publishing the selected JAR and its required dependencies. It preserves existing JARs when a conflict is found. Offline Mode reads the cached Minecraft catalogue and leaves local mods available without browsing or downloading.
+
+The live Modrinth test installed Sodium and Iris on Minecraft 1.21.1 in temporary instances and resolved Iris's required Sodium dependency. It also checked incompatible release rejection and preservation of a conflicting local file. The production frontend build, 11 UI tests, 32 local Rust tests, and strict Clippy passed.
+
+Phase 3 connects Microsoft browser sign-in, Xbox and Minecraft entitlement verification, account selection, and verified offline sessions to Settings and IGNITE. Sign out removes saved credentials for the selected Microsoft account. A live sign-in and gameplay test still requires an approved client registration and an account that owns Minecraft Java Edition.
+
+The working tree adds Fabric instances, compatible loader selection, and a Fabric installation layer on top of the shared vanilla cache. The app checks readiness quickly, then verifies hashes for both layers before launching. A failed integrity check offers file repair. A saved Fabric version remains selectable if the loader service is unavailable.
+
+Fabric validation passed on Windows with Minecraft 1.21.1 in an isolated cache. The live test installed both layers and confirmed that full verification rejects a same-size change to a Fabric JAR. The frontend build, 10 UI tests, 32 local Rust tests, and strict Clippy passed. Gameplay was outside this installation test.
 
 The OAuth URL and callback unit tests passed; a temporary Windows credential was written, read and deleted successfully. Strict Rust Clippy passed. Live Microsoft authentication and the token exchanges remain untested because no configured public client was supplied.
 
-For eventual desktop OAuth setup, register a public client that supports personal Microsoft accounts in Microsoft Entra, add the Mobile and desktop platform with the `http://localhost` redirect URI, and configure the application client ID locally. No client secret should be embedded. Xbox and Minecraft Services access and the Minecraft entitlement flow still need to be implemented and verified with an appropriately configured application and an account that owns Minecraft Java Edition.
+For desktop OAuth setup, see the Microsoft sign-in instructions in README.md.
 
 Phase 2 implements real vanilla Minecraft installation on Windows, Java compatibility checks, and a process launcher behind an authenticated-session boundary. The existing Launch Pad, instance cards and Downloads page now show backend readiness and progress.
 

@@ -27,29 +27,80 @@ pub fn run() {
             let store = storage::Store::open(app.path().app_local_data_dir()?)?;
             let appender = tracing_appender::rolling::Builder::new()
                 .rotation(tracing_appender::rolling::Rotation::DAILY)
-                .filename_prefix("launcher.log").max_log_files(7)
+                .filename_prefix("launcher.log")
+                .max_log_files(7)
                 .build(&store.paths.logs)?;
             let (writer, guard) = tracing_appender::non_blocking(appender);
-            let _ = tracing_subscriber::fmt().json().with_ansi(false).with_writer(writer).try_init();
-            tracing::info!(event = "launcher_started", version = env!("CARGO_PKG_VERSION"));
-            app.manage(LauncherState { store: std::sync::Mutex::new(store), catalog_lock: tokio::sync::Mutex::new(()), _log_guard: guard });
+            let _ = tracing_subscriber::fmt()
+                .json()
+                .with_ansi(false)
+                .with_writer(writer)
+                .try_init();
+            tracing::info!(
+                event = "launcher_started",
+                version = env!("CARGO_PKG_VERSION")
+            );
+            app.manage(LauncherState {
+                store: std::sync::Mutex::new(store),
+                catalog_lock: tokio::sync::Mutex::new(()),
+                _log_guard: guard,
+            });
             Ok(())
         });
 
     #[cfg(debug_assertions)]
     let app = app.invoke_handler(tauri::generate_handler![
-        get_snapshot, save_settings, create_instance, update_instance, select_instance,
-        get_accounts, microsoft_sign_in, set_offline_mode, select_account, create_local_test_account,
-        remove_instance, duplicate_instance, list_installed_mods, get_versions, read_logs,
-        check_game, install_game, download_status, ignite_game,
+        get_snapshot,
+        save_settings,
+        create_instance,
+        update_instance,
+        select_instance,
+        get_accounts,
+        microsoft_sign_in,
+        set_offline_mode,
+        select_account,
+        sign_out_account,
+        create_local_test_account,
+        remove_instance,
+        duplicate_instance,
+        list_installed_mods,
+        get_versions,
+        get_fabric_loaders,
+        read_logs,
+        check_game,
+        install_game,
+        download_status,
+        ignite_game,
+        search_modrinth,
+        modrinth_versions,
+        install_modrinth,
     ]);
 
     #[cfg(not(debug_assertions))]
     let app = app.invoke_handler(tauri::generate_handler![
-        get_snapshot, save_settings, create_instance, update_instance, select_instance,
-        get_accounts, microsoft_sign_in, set_offline_mode, select_account,
-        remove_instance, duplicate_instance, list_installed_mods, get_versions, read_logs,
-        check_game, install_game, download_status, ignite_game,
+        get_snapshot,
+        save_settings,
+        create_instance,
+        update_instance,
+        select_instance,
+        get_accounts,
+        microsoft_sign_in,
+        set_offline_mode,
+        select_account,
+        sign_out_account,
+        remove_instance,
+        duplicate_instance,
+        list_installed_mods,
+        get_versions,
+        get_fabric_loaders,
+        read_logs,
+        check_game,
+        install_game,
+        download_status,
+        ignite_game,
+        search_modrinth,
+        modrinth_versions,
+        install_modrinth,
     ]);
 
     app.run(tauri::generate_context!())

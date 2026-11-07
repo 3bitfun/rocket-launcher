@@ -4,12 +4,32 @@ import { describe, expect, it, vi } from 'vitest';
 import { InstanceEditor } from '../components/instances/InstanceEditor';
 import { Downloads } from '../pages/Downloads/Downloads';
 import { LaunchPad } from '../pages/LaunchPad/LaunchPad';
+import { ModrinthBrowser } from '../pages/Mods/ModrinthBrowser';
 import { Settings } from '../pages/Settings/Settings';
-import { errorMessage } from '../services/native';
+import { errorMessage, native } from '../services/native';
 import { snapshot, catalog } from './fixtures';
 import type { Instance } from '../types';
 
 describe('instance editor', () => {
+  it('keeps a saved Fabric loader when the loader catalogue cannot be reached', async () => {
+    const instance: Instance = {
+      id: 'fabric-test', name: 'Fabric world', version: '1.21.1', versionType: 'release',
+      loader: 'fabric', loaderVersion: '0.20.1', gameDirectory: 'C:\\test',
+      ramMb: 4096, javaPath: null, createdAt: 0, updatedAt: 0, lastSelectedAt: 0, readiness: 'ready',
+    };
+    const request = vi.spyOn(native, 'fabricLoaders').mockRejectedValue(new Error('Fabric unavailable'));
+    try {
+      const save = vi.fn().mockResolvedValue(true);
+      render(<InstanceEditor instance={instance} settings={snapshot.settings} catalog={catalog} fetching={false} catalogError={null} busy={false} onRefresh={vi.fn()} onSave={save} onClose={vi.fn()} />);
+      await screen.findByText('Fabric unavailable');
+      expect(screen.getByLabelText('Fabric loader')).toHaveValue('0.20.1');
+      await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+      expect(save).toHaveBeenCalledWith(expect.objectContaining({ loader: 'fabric', loaderVersion: '0.20.1' }));
+    } finally {
+      request.mockRestore();
+    }
+  });
+
   it('uses the real catalogue result and submits a typed instance configuration', async () => {
     const save = vi.fn().mockResolvedValue(true);
     const close = vi.fn();
@@ -20,7 +40,7 @@ describe('instance editor', () => {
     await user.click(screen.getByLabelText('Include snapshots'));
     await user.selectOptions(screen.getByLabelText('Minecraft version'), '24w33a');
     await user.click(screen.getByRole('button', { name: 'Create instance' }));
-    expect(save).toHaveBeenCalledWith({ name: 'Sunday survival', version: '24w33a', ramMb: 4096, javaPath: null, parentDirectory: 'C:\\test\\instances' });
+    expect(save).toHaveBeenCalledWith({ name: 'Sunday survival', version: '24w33a', loader: 'vanilla', loaderVersion: null, ramMb: 4096, javaPath: null, parentDirectory: 'C:\\test\\instances' });
     await waitFor(() => expect(close).toHaveBeenCalled());
   });
 
@@ -58,7 +78,7 @@ it('shows actual catalogue failure and offers a working retry action', async () 
 });
 
 it('offers installation, then keeps IGNITE disabled until authentication', async () => {
-  const profile: Instance = { id: 'test', name: 'Test World', version: '1.21.1', versionType: 'release', loader: 'vanilla', gameDirectory: 'C:\\test', ramMb: 4096, javaPath: null, createdAt: 0, updatedAt: 0, lastSelectedAt: 0, readiness: 'requires_download' };
+  const profile: Instance = { id: 'test', name: 'Test World', version: '1.21.1', versionType: 'release', loader: 'vanilla', loaderVersion: null, gameDirectory: 'C:\\test', ramMb: 4096, javaPath: null, createdAt: 0, updatedAt: 0, lastSelectedAt: 0, readiness: 'requires_download' };
   const onInstall = vi.fn();
   const onIgnite = vi.fn();
   const props = { catalog, busy: false, onCreate: vi.fn(), onEdit: vi.fn(), onSelect: vi.fn(), onNavigate: vi.fn(), onInstall, onIgnite, onCheck: vi.fn() };
@@ -79,6 +99,42 @@ it('shows measured download bytes and retries a failed installation', async () =
   expect(screen.getByRole('alert')).toHaveTextContent('Wrong SHA-1');
   await userEvent.click(screen.getByRole('button', { name: 'Retry installation' }));
   expect(onRetry).toHaveBeenCalledOnce();
+});
+
+it('installs the chosen Modrinth version into the selected Fabric instance', async () => {
+  const instance: Instance = {
+    id: 'fabric-test', name: 'Fabric world', version: '1.21.1', versionType: 'release',
+    loader: 'fabric', loaderVersion: '0.20.1', gameDirectory: 'C:\\test',
+    ramMb: 4096, javaPath: null, createdAt: 0, updatedAt: 0, lastSelectedAt: 0, readiness: 'ready',
+  };
+  const search = vi.spyOn(native, 'searchMods').mockResolvedValue({
+    totalHits: 1,
+    hits: [{ projectId: 'Project1', title: 'Example Mod', description: 'A test mod', author: 'Test author', downloads: 5 }],
+  });
+  const versions = vi.spyOn(native, 'modVersions').mockResolvedValue([
+    { id: 'Version1', versionNumber: '1.1', versionType: 'release', fileName: 'example-1.1.jar', requiredDependencies: [] },
+    { id: 'Version2', versionNumber: '1.0', versionType: 'release', fileName: 'example-1.0.jar', requiredDependencies: [] },
+  ]);
+  const install = vi.spyOn(native, 'installMod').mockResolvedValue('example-1.0.jar');
+  const refresh = vi.fn();
+  try {
+    render(<ModrinthBrowser instance={instance} onInstalled={refresh} />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Search mods'), 'example');
+    await user.click(screen.getByRole('button', { name: /^Search$/ }));
+    await waitFor(() => expect(search).toHaveBeenLastCalledWith(instance.id, 'example', 0));
+    await user.click(await screen.findByRole('button', { name: 'View versions of Example Mod' }));
+    expect(versions).toHaveBeenCalledWith(instance.id, 'Project1');
+    await user.selectOptions(await screen.findByLabelText('Compatible version'), 'Version2');
+    await user.click(screen.getByRole('button', { name: 'Install mod' }));
+    expect(install).toHaveBeenCalledWith(instance.id, 'Project1', 'Version2');
+    expect(await screen.findByRole('status')).toHaveTextContent('Installed example-1.0.jar');
+    expect(refresh).toHaveBeenCalledOnce();
+  } finally {
+    search.mockRestore();
+    versions.mockRestore();
+    install.mockRestore();
+  }
 });
 
 it('saves changed preferences and tracks unsaved state', async () => {

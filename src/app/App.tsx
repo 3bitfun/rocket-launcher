@@ -13,7 +13,7 @@ import { Settings } from '../pages/Settings/Settings';
 import { useLauncher } from '../hooks/useLauncher';
 import { useGame } from '../hooks/useGame';
 import { isDesktop, native } from '../services/native';
-import type { Instance, Page } from '../types';
+import type { AccountsSummary, Instance, Page } from '../types';
 
 const pageDetails: Record<Page, { title: string; subtitle: string }> = {
   launchpad: { title: 'Launch Pad', subtitle: 'Good to have you on board.' },
@@ -32,7 +32,8 @@ function accentInk(hex: string) {
 export default function App() {
   const launcher = useLauncher();
   const { snapshot: stored, catalog, catalogError, fetching, mutate } = launcher;
-  const game = useGame(stored, launcher.setToast);
+  const [accounts, setAccounts] = useState<AccountsSummary | null>(null);
+  const game = useGame(stored, launcher.setToast, accounts);
   const busy = launcher.busy || game.working || game.download?.stage === 'installing' || game.download?.stage === 'downloading';
   const [page, setPage] = useState<Page>('launchpad');
   const [editor, setEditor] = useState<Instance | 'new' | null>(null);
@@ -42,6 +43,15 @@ export default function App() {
   const systemReduced = useReducedMotion();
   const reduced = Boolean(systemReduced || stored?.settings.reducedMotion === 'always' || stored?.settings.animations === false);
   const snapshot = stored && { ...stored, instances: stored.instances.map((instance) => ({ ...instance, readiness: game.status(instance).readiness })) };
+  const activeAccount = accounts?.profiles.find((account) => account.id === accounts.activeId);
+
+  useEffect(() => {
+    let active = true;
+    void native.accounts().then((value) => {
+      if (active) setAccounts((current) => current ?? value);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!stored) return;
@@ -74,14 +84,14 @@ export default function App() {
   const retry = snapshot.instances.find((instance) => instance.id === game.download?.instanceId && instance.version === game.download.version);
 
   return <MotionConfig reducedMotion={reduced ? 'always' : 'user'} transition={{ duration: reduced ? 0 : 0.2 }}>
-    <div className="app-shell"><a className="skip-link" href="#main-content">Skip to content</a><Sidebar page={page} onNavigate={navigate} count={snapshot.instances.length} version={snapshot.appVersion} online={catalog?.source === 'network' && !catalog.warning && !catalogError} />
+    <div className="app-shell"><a className="skip-link" href="#main-content">Skip to content</a><Sidebar page={page} onNavigate={navigate} count={snapshot.instances.length} version={snapshot.appVersion} account={activeAccount} offline={accounts?.offline ?? false} />
       <main id="main-content" tabIndex={-1}><header className="page-header"><div><div className="eyebrow">YOUR ADVENTURE, REIMAGINED</div><h1>{pageDetails[page].title}</h1><p>{pageDetails[page].subtitle}</p></div><div className="header-status"><span className="status-dot online" />Minecraft installer<span className="header-version">v{snapshot.appVersion}</span></div></header>
         <AnimatePresence mode="wait" initial={false}><motion.div key={page} className="page-content" initial={{ opacity: 0, y: reduced ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : -4 }} transition={{ duration: reduced ? 0 : 0.16 }}>
           {page === 'launchpad' && <LaunchPad snapshot={snapshot} catalog={catalog} busy={busy} status={selected && game.status(selected)} onCreate={() => openEditor('new')} onEdit={openEditor} onSelect={select} onNavigate={navigate} onInstall={(instance) => void game.run(instance, 'install')} onIgnite={(instance) => void game.run(instance, 'launch')} onCheck={(instance) => void game.check(instance.id)} />}
           {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onSelect={select} onDuplicate={(instance) => void mutate(() => native.duplicate(instance.id), 'Configuration duplicated into a new, empty instance.')} onDelete={openRemoval} />}
           {page === 'downloads' && <Downloads catalog={catalog} error={catalogError} fetching={fetching} onRefresh={() => void launcher.refreshVersions()} progress={game.download} onRetry={!busy && retry ? () => void game.run(retry, 'install') : undefined} />}
-          {page === 'mods' && <Mods snapshot={snapshot} />}
-            {page === 'settings' && <Settings snapshot={snapshot} busy={busy} onSave={(settings) => mutate(() => native.settings(settings), 'Preferences saved. Make yourself at home.')} onDirtyChange={setSettingsDirty} onAuthStateChanged={() => { if (selected) void game.check(selected.id); }} />}
+          {page === 'mods' && <Mods snapshot={snapshot} offline={accounts?.offline ?? false} />}
+          {page === 'settings' && <Settings snapshot={snapshot} busy={busy} onSave={(settings) => mutate(() => native.settings(settings), 'Preferences saved. Make yourself at home.')} onDirtyChange={setSettingsDirty} onAuthStateChanged={setAccounts} />}
         </motion.div></AnimatePresence>
         <footer className="app-footer"><span>BEYOND THE BUILT LIMIT.</span><span>Made for the worlds you make.<ArrowUpRight size={12} /></span></footer>
       </main>

@@ -1,5 +1,6 @@
 use crate::{
     errors::{AppError, Result},
+    minecraft::fabric,
     models::*,
     storage::{validate_java, validate_path, validate_ram, Store},
 };
@@ -17,6 +18,22 @@ fn validate_input(input: &InstanceInput) -> Result<()> {
     }
     validate_ram(input.ram_mb)?;
     validate_java(&input.java_path)?;
+    match (&input.loader, input.loader_version.as_deref()) {
+        (Loader::Fabric, Some(loader_version)) => fabric::validate_component(loader_version)?,
+        (Loader::Fabric, None) => {
+            return Err(AppError::new(
+                "VALIDATION",
+                "Choose a Fabric loader version for Fabric instances.",
+            ))
+        }
+        (Loader::Vanilla, None) => {}
+        (Loader::Vanilla, Some(_)) => {
+            return Err(AppError::new(
+                "VALIDATION",
+                "Vanilla instances do not use a mod loader version.",
+            ))
+        }
+    }
     Ok(())
 }
 
@@ -38,13 +55,18 @@ impl Store {
             .map_err(|e| AppError::io("create the instance parent directory", e))?;
         fs::create_dir(&directory)
             .map_err(|e| AppError::io("create the instance game directory", e))?;
+        if let Err(error) = fs::create_dir(directory.join("mods")) {
+            let _ = fs::remove_dir(&directory);
+            return Err(AppError::io("create the instance mods folder", error));
+        }
         let mut next = self.config.clone();
         next.instances.push(Instance {
             id: id.clone(),
             name: input.name.trim().into(),
             version: input.version,
             version_type: version_type.into(),
-            loader: "vanilla".into(),
+            loader: input.loader,
+            loader_version: input.loader_version.clone(),
             game_directory: directory.clone(),
             ram_mb: input.ram_mb,
             java_path: input.java_path,
@@ -59,7 +81,8 @@ impl Store {
                 Ok(snapshot)
             }
             Err(error) => {
-                // Only the newly-created empty directory; never recursive deletion.
+                // Only the newly-created empty directories; never recursive deletion.
+                let _ = fs::remove_dir(directory.join("mods"));
                 let _ = fs::remove_dir(directory);
                 Err(error)
             }
@@ -85,6 +108,8 @@ impl Store {
         instance.name = input.name.trim().into();
         instance.version = input.version;
         instance.version_type = version_type.into();
+        instance.loader = input.loader;
+        instance.loader_version = input.loader_version.clone();
         instance.ram_mb = input.ram_mb;
         instance.java_path = input.java_path;
         instance.updated_at = now();
@@ -131,6 +156,8 @@ impl Store {
             InstanceInput {
                 name,
                 version: original.version,
+                loader: original.loader,
+                loader_version: original.loader_version,
                 ram_mb: original.ram_mb,
                 java_path: original.java_path,
                 parent_directory: None,
@@ -198,6 +225,8 @@ mod tests {
         let input = InstanceInput {
             name: "  Survival  ".into(),
             version: "1.21.1".into(),
+            loader: Loader::Vanilla,
+            loader_version: None,
             ram_mb: 4096,
             java_path: None,
             parent_directory: None,
@@ -248,6 +277,8 @@ mod tests {
                 InstanceInput {
                     name: " ".into(),
                     version: "1.21".into(),
+                    loader: Loader::Vanilla,
+                    loader_version: None,
                     ram_mb: 4096,
                     java_path: None,
                     parent_directory: None
@@ -267,6 +298,8 @@ mod tests {
                 InstanceInput {
                     name: "Mods".into(),
                     version: "1.21".into(),
+                    loader: Loader::Vanilla,
+                    loader_version: None,
                     ram_mb: 4096,
                     java_path: None,
                     parent_directory: None,
@@ -280,10 +313,88 @@ mod tests {
             .unwrap()
             .game_directory
             .join("mods");
-        fs::create_dir(&mods).unwrap();
+        assert!(mods.is_dir());
         fs::write(mods.join("example.jar"), b"jar").unwrap();
         fs::write(mods.join("notes.txt"), b"not a mod").unwrap();
         assert_eq!(store.installed_mods(&id).unwrap().len(), 1);
         assert!(store.installed_mods("../outside").is_err());
+    }
+
+    #[test]
+    fn fabric_instances_persist_their_loader_version_and_mods_folder() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut store = Store::open(temp.path().into()).unwrap();
+        store
+            .create_instance(
+                InstanceInput {
+                    name: "Modded".into(),
+                    version: "1.21.1".into(),
+                    loader: Loader::Fabric,
+                    loader_version: Some("0.20.1".into()),
+                    ram_mb: 4096,
+                    java_path: None,
+                    parent_directory: None,
+                },
+                "release",
+            )
+            .unwrap();
+        let id = store.config.active_instance_id.clone().unwrap();
+        let instance = store.find_instance(&id).unwrap();
+        assert_eq!(instance.loader, Loader::Fabric);
+        assert_eq!(instance.loader_version.as_deref(), Some("0.20.1"));
+        assert!(instance.game_directory.join("mods").is_dir());
+        // The loader version travels with a duplicate.
+        store.duplicate_instance(&id).unwrap();
+        let copy = store.find_instance(&store.config.instances[1].id).unwrap();
+        assert_eq!(copy.loader, Loader::Fabric);
+        assert_eq!(copy.loader_version.as_deref(), Some("0.20.1"));
+        // Editing keeps the loader choice.
+        store
+            .update_instance(
+                &id,
+                InstanceInput {
+                    name: "Renamed".into(),
+                    version: "1.21.1".into(),
+                    loader: Loader::Fabric,
+                    loader_version: Some("0.20.1".into()),
+                    ram_mb: 2048,
+                    java_path: None,
+                    parent_directory: None,
+                },
+                "release",
+            )
+            .unwrap();
+        assert_eq!(store.find_instance(&id).unwrap().ram_mb, 2048);
+        // A Fabric input without a loader version is rejected.
+        assert!(store
+            .create_instance(
+                InstanceInput {
+                    name: "Broken".into(),
+                    version: "1.21.1".into(),
+                    loader: Loader::Fabric,
+                    loader_version: None,
+                    ram_mb: 4096,
+                    java_path: None,
+                    parent_directory: None,
+                },
+                "release",
+            )
+            .is_err());
+        assert_eq!(store.config.instances.len(), 2);
+        // A loader version outside the allowed set is rejected.
+        assert!(store
+            .create_instance(
+                InstanceInput {
+                    name: "Broken".into(),
+                    version: "1.21.1".into(),
+                    loader: Loader::Fabric,
+                    loader_version: Some("../evil".into()),
+                    ram_mb: 4096,
+                    java_path: None,
+                    parent_directory: None,
+                },
+                "release",
+            )
+            .is_err());
     }
 }

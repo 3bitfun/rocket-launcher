@@ -1,5 +1,10 @@
 use super::{browser, credential_store, microsoft, services, verified_cache::VerifiedCache};
-use crate::{errors::{AppError, Result}, minecraft::launch::ValidatedSession, models::now, storage::atomic_json};
+use crate::{
+    errors::{AppError, Result},
+    minecraft::launch::ValidatedSession,
+    models::now,
+    storage::atomic_json,
+};
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
@@ -60,35 +65,44 @@ pub enum AccountMode {
 impl Accounts {
     pub fn read(data: &Path) -> Result<Self> {
         match fs::read(data.join("accounts.json")) {
-            Ok(bytes) if bytes.len() <= 1024 * 1024 => serde_json::from_slice(&bytes).map_err(|_| storage()),
+            Ok(bytes) if bytes.len() <= 1024 * 1024 => {
+                serde_json::from_slice(&bytes).map_err(|_| storage())
+            }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
             _ => Err(storage()),
         }
     }
 
-    fn save(&self, data: &Path) -> Result<()> { atomic_json(&data.join("accounts.json"), self) }
+    fn save(&self, data: &Path) -> Result<()> {
+        atomic_json(&data.join("accounts.json"), self)
+    }
 
     fn active(&self) -> Result<&Account> {
         self.profiles
             .iter()
             .find(|profile| {
                 Some(&profile.id) == self.active_id.as_ref()
-                    && (cfg!(debug_assertions)
-                        || profile.account_type != AccountType::LocalTest)
+                    && (cfg!(debug_assertions) || profile.account_type != AccountType::LocalTest)
             })
             .ok_or_else(crate::minecraft::launch::authentication_required)
     }
 
     pub fn summary(&self) -> AccountsSummary {
-        let profiles = self.profiles.iter()
-            .filter(|profile| cfg!(debug_assertions) || profile.account_type != AccountType::LocalTest)
+        let profiles = self
+            .profiles
+            .iter()
+            .filter(|profile| {
+                cfg!(debug_assertions) || profile.account_type != AccountType::LocalTest
+            })
             .map(|profile| AccountSummaryProfile {
                 id: profile.id.clone(),
                 name: profile.name.clone(),
                 account_type: profile.account_type,
             })
             .collect::<Vec<_>>();
-        let active_id = self.active_id.as_ref()
+        let active_id = self
+            .active_id
+            .as_ref()
             .filter(|id| profiles.iter().any(|profile| &profile.id == *id))
             .cloned();
         AccountsSummary {
@@ -99,14 +113,28 @@ impl Accounts {
     }
 }
 
-fn storage() -> AppError { AppError::new("AUTH_STORAGE", "Could not read saved launcher accounts.") }
-pub fn busy() -> AppError { AppError::new("AUTH_BUSY", "Another account operation is in progress.") }
-pub fn offline_error() -> AppError { AppError::new("OFFLINE_MODE", "Turn off Offline Mode in Settings to use this feature.") }
-fn refresh_key(id: &str) -> String { format!("refresh:{id}") }
+fn storage() -> AppError {
+    AppError::new("AUTH_STORAGE", "Could not read saved launcher accounts.")
+}
+pub fn busy() -> AppError {
+    AppError::new("AUTH_BUSY", "Another account operation is in progress.")
+}
+pub fn offline_error() -> AppError {
+    AppError::new(
+        "OFFLINE_MODE",
+        "Turn off Offline Mode in Settings to use this feature.",
+    )
+}
+fn refresh_key(id: &str) -> String {
+    format!("refresh:{id}")
+}
 
 pub fn select(data: &Path, id: String) -> Result<Accounts> {
     let mut accounts = Accounts::read(data)?;
-    let profile = accounts.profiles.iter().find(|profile| profile.id == id)
+    let profile = accounts
+        .profiles
+        .iter()
+        .find(|profile| profile.id == id)
         .ok_or_else(crate::minecraft::launch::authentication_required)?;
     if profile.account_type == AccountType::LocalTest {
         if !cfg!(debug_assertions) {
@@ -152,19 +180,27 @@ pub fn set_offline(data: &Path, offline: bool) -> Result<Accounts> {
 
 pub fn sign_out(data: &Path, id: String) -> Result<Accounts> {
     let mut accounts = Accounts::read(data)?;
-    if !accounts.profiles.iter().any(|p| p.id == id) { return Err(crate::minecraft::launch::authentication_required()); }
+    if !accounts.profiles.iter().any(|p| p.id == id) {
+        return Err(crate::minecraft::launch::authentication_required());
+    }
     credential_store::delete(&id)?;
     credential_store::delete(&refresh_key(&id))?;
     accounts.profiles.retain(|p| p.id != id);
-    if accounts.active_id.as_ref() == Some(&id) { accounts.active_id = accounts.profiles.first().map(|p| p.id.clone()); }
+    if accounts.active_id.as_ref() == Some(&id) {
+        accounts.active_id = accounts.profiles.first().map(|p| p.id.clone());
+        accounts.offline = false;
+    }
     accounts.save(data)?;
     Ok(accounts)
 }
 
 pub async fn sign_in(data: &Path) -> Result<Accounts> {
     let mut accounts = Accounts::read(data)?;
-    if accounts.offline { return Err(offline_error()); }
-    let client_id = std::env::var("ROCKET_MICROSOFT_CLIENT_ID").ok()
+    if accounts.offline {
+        return Err(offline_error());
+    }
+    let client_id = std::env::var("ROCKET_MICROSOFT_CLIENT_ID")
+        .ok()
         .or_else(|| option_env!("ROCKET_MICROSOFT_CLIENT_ID").map(str::to_owned))
         .unwrap_or_else(|| DEFAULT_MICROSOFT_CLIENT_ID.to_owned());
     let client_id = microsoft::client_id(client_id.trim())?;
@@ -196,8 +232,12 @@ pub fn readiness(data: &Path) -> Result<AccountMode> {
             Err(crate::minecraft::launch::authentication_required())
         };
     }
-    if VerifiedCache::load(&active.id)?.is_none() { return Err(crate::minecraft::launch::authentication_required()); }
-    Ok(AccountMode::Microsoft { offline: accounts.offline })
+    if VerifiedCache::load(&active.id)?.is_none() {
+        return Err(crate::minecraft::launch::authentication_required());
+    }
+    Ok(AccountMode::Microsoft {
+        offline: accounts.offline,
+    })
 }
 
 #[cfg(debug_assertions)]
@@ -215,10 +255,16 @@ pub fn local_test_identity(data: &Path) -> Result<Option<(String, String)>> {
 
 fn session(cache: VerifiedCache, client_id: String, offline: bool) -> ValidatedSession {
     ValidatedSession {
-        player: cache.name, uuid: cache.uuid,
-        access_token: if offline { String::new() } else { cache.minecraft_token },
+        player: cache.name,
+        uuid: cache.uuid,
+        access_token: if offline {
+            String::new()
+        } else {
+            cache.minecraft_token
+        },
         // The Xbox user hash is not an XUID. Do not pass it in that argument.
-        xuid: String::new(), client_id: if offline { String::new() } else { client_id },
+        xuid: String::new(),
+        client_id: if offline { String::new() } else { client_id },
         expires_at: cache.minecraft_expires_at,
         offline,
     }
@@ -230,32 +276,51 @@ pub async fn launch_session(data: &Path) -> Result<ValidatedSession> {
     if active.account_type != AccountType::Microsoft {
         return Err(crate::minecraft::launch::authentication_required());
     }
-    let cache = VerifiedCache::load(&active.id)?.ok_or_else(crate::minecraft::launch::authentication_required)?;
-    if accounts.offline { return Ok(session(cache, active.client_id, true)); }
+    let cache = VerifiedCache::load(&active.id)?
+        .ok_or_else(crate::minecraft::launch::authentication_required)?;
+    if accounts.offline {
+        return Ok(session(cache, active.client_id, true));
+    }
     let refreshed = async {
         if cache.minecraft_expires_at > now().saturating_add(30) {
             match services::check_profile(&cache.minecraft_token, &cache.uuid).await {
                 Ok(()) => return Ok(None),
-                Err(error) if error.code == "AUTH_EXPIRED" => {},
+                Err(error) if error.code == "AUTH_EXPIRED" => {}
                 Err(error) => return Err(error),
             }
         }
         let refresh = credential_store::read(&refresh_key(&active.id))?
-            .and_then(|bytes| String::from_utf8(bytes).ok()).ok_or_else(crate::minecraft::launch::authentication_required)?;
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+            .ok_or_else(crate::minecraft::launch::authentication_required)?;
         let tokens = microsoft::refresh(&active.client_id, &refresh).await?;
         let verified = services::verify(&tokens.access_token).await?;
-        if !verified.uuid.eq_ignore_ascii_case(&active.id) { return Err(AppError::new("AUTH_REJECTED", "The refreshed Minecraft account does not match the selected account.")); }
+        if !verified.uuid.eq_ignore_ascii_case(&active.id) {
+            return Err(AppError::new(
+                "AUTH_REJECTED",
+                "The refreshed Minecraft account does not match the selected account.",
+            ));
+        }
         let cache = VerifiedCache::from_verified(verified, now())?;
         credential_store::write(&refresh_key(&active.id), tokens.refresh_token.as_bytes())?;
         cache.store()?;
-        if let Some(profile) = accounts.profiles.iter_mut().find(|profile| profile.id == active.id) { profile.name.clone_from(&cache.name); }
+        if let Some(profile) = accounts
+            .profiles
+            .iter_mut()
+            .find(|profile| profile.id == active.id)
+        {
+            profile.name.clone_from(&cache.name);
+        }
         accounts.save(data)?;
         Ok(Some(cache))
-    }.await;
+    }
+    .await;
     match refreshed {
         Ok(new_cache) => Ok(session(new_cache.unwrap_or(cache), active.client_id, false)),
         Err(error) if error.code == "AUTH_NETWORK" => Ok(session(cache, active.client_id, true)),
-        Err(error) if error.code == "NO_ENTITLEMENT" => { credential_store::delete(&active.id)?; Err(error) },
+        Err(error) if error.code == "NO_ENTITLEMENT" => {
+            credential_store::delete(&active.id)?;
+            Err(error)
+        }
         Err(error) => Err(error),
     }
 }
@@ -276,7 +341,10 @@ mod tests {
         assert_eq!(profile.account_type, AccountType::LocalTest);
         assert!(profile.client_id.is_empty());
         assert!(VerifiedCache::load(&id).unwrap().is_none());
-        assert!(matches!(readiness(directory.path()), Ok(AccountMode::LocalTest)));
+        assert!(matches!(
+            readiness(directory.path()),
+            Ok(AccountMode::LocalTest)
+        ));
 
         let reloaded = Accounts::read(directory.path()).unwrap();
         assert_eq!(reloaded.profiles[0].account_type, AccountType::LocalTest);

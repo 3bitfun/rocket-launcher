@@ -1,6 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import type { AccountsSummary, AppSnapshot, DownloadProgress, GameStatus, InstanceInput, InstalledMod, Settings, VersionCatalog } from '../types';
+import type { AccountsSummary, AppSnapshot, DownloadProgress, FabricLoaderVersion, GameStatus, InstanceInput, InstalledMod, ModrinthPage, ModrinthVersion, Settings, VersionCatalog } from '../types';
 
 export const isDesktop = () => isTauri();
 
@@ -15,12 +15,14 @@ export const native = {
   selectAccount: (id: string) => call<AccountsSummary>('select_account', { id }),
   createTestAccount: () => call<AccountsSummary>('create_local_test_account'),
   setOfflineMode: (offline: boolean) => call<AccountsSummary>('set_offline_mode', { offline }),
+  signOut: (id: string) => call<AccountsSummary>('sign_out_account', { id }),
   checkGame: (id: string) => call<GameStatus>('check_game', { id }),
   installGame: (id: string) => call<void>('install_game', { id }),
   ignite: (id: string) => call<void>('ignite_game', { id }),
   downloadStatus: () => call<DownloadProgress | null>('download_status'),
   snapshot: () => call<AppSnapshot>('get_snapshot'),
   versions: (refresh = false) => call<VersionCatalog>('get_versions', { refresh }),
+  fabricLoaders: (gameVersion: string) => call<FabricLoaderVersion[]>('get_fabric_loaders', { gameVersion }),
   create: (input: InstanceInput) => call<AppSnapshot>('create_instance', { input }),
   update: (id: string, input: InstanceInput) => call<AppSnapshot>('update_instance', { id, input }),
   select: (id: string) => call<AppSnapshot>('select_instance', { id }),
@@ -28,6 +30,9 @@ export const native = {
   duplicate: (id: string) => call<AppSnapshot>('duplicate_instance', { id }),
   settings: (settings: Settings) => call<AppSnapshot>('save_settings', { settings }),
   mods: (id: string) => call<InstalledMod[]>('list_installed_mods', { id }),
+  searchMods: (instanceId: string, query: string, offset: number) => call<ModrinthPage>('search_modrinth', { instanceId, query, offset }),
+  modVersions: (instanceId: string, projectId: string) => call<ModrinthVersion[]>('modrinth_versions', { instanceId, projectId }),
+  installMod: (instanceId: string, projectId: string, versionId: string) => call<string>('install_modrinth', { instanceId, projectId, versionId }),
   logs: () => call<string>('read_logs'),
   chooseDirectory: () => open({ directory: true, multiple: false, title: 'Choose an instance parent directory' }),
   chooseJava: () => open({ multiple: false, title: 'Choose a Java executable', filters: [{ name: 'Java executable', extensions: ['exe'] }] }),

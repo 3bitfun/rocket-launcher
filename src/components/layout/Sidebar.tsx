@@ -1,6 +1,6 @@
 import { Boxes, Download, LayoutDashboard, Puzzle, Rocket, Settings2, UserRound, ArrowUpRight } from 'lucide-react';
 import { motion } from 'motion/react';
-import type { Page } from '../../types';
+import type { AccountsSummary, Page } from '../../types';
 
 const navigation = [
   { id: 'launchpad', title: 'Launch Pad', icon: LayoutDashboard },
@@ -10,7 +10,8 @@ const navigation = [
   { id: 'settings', title: 'Settings', icon: Settings2 },
 ] as const;
 
-export function Sidebar({ page, onNavigate, count, version, online }: { page: Page; onNavigate: (page: Page) => void; count: number; version: string; online: boolean }) {
+export function Sidebar({ page, onNavigate, count, version, account, offline }: { page: Page; onNavigate: (page: Page) => void; count: number; version: string; account?: AccountsSummary['profiles'][number]; offline: boolean }) {
+  const status = offline ? 'Offline mode' : account?.type === 'local_test' ? 'Local test profile' : account ? 'Microsoft account' : 'Local workspace';
   return <aside className="sidebar">
     <div className="brand"><span className="brand-mark"><Rocket size={23} strokeWidth={1.8} /></span><div>rocket<span>LAUNCHER</span></div></div>
     <div className="nav-label">YOUR WORKSPACE</div>
@@ -18,8 +19,8 @@ export function Sidebar({ page, onNavigate, count, version, online }: { page: Pa
       {page === id && <motion.span className="nav-indicator" layoutId="active-navigation" />}
       <Icon size={19} strokeWidth={1.7} /><span>{title}</span>{id === 'instances' && count > 0 && <span className="nav-count">{count}</span>}
     </button>)}</nav>
-    <div className="sidebar-bottom"><div className="build-note"><span className="eyebrow">THE SECOND STAGE</span><p>A little space for<br />your next big world.</p><span className="phase-badge">Phase 02 · Installation</span></div>
-      <button className="account-button" onClick={() => onNavigate('settings')}><span className="avatar"><UserRound size={19} /></span><span><strong>No account connected</strong><small><span className={`status-dot ${online ? 'online' : ''}`} />{online ? 'Mojang service reachable' : 'Local workspace'}</small></span><ArrowUpRight size={15} /></button>
+    <div className="sidebar-bottom"><div className="build-note"><span className="eyebrow">ROCKET LAUNCHER</span><p>A little space for<br />your next big world.</p></div>
+      <button className="account-button" onClick={() => onNavigate('settings')}><span className="avatar"><UserRound size={19} /></span><span><strong>{account?.name ?? 'No account connected'}</strong><small><span className={`status-dot ${account?.type === 'microsoft' && !offline ? 'online' : ''}`} />{status}</small></span><ArrowUpRight size={15} /></button>
       <div className="sidebar-footer"><span>Rocket Launcher</span><span>v{version}</span></div>
     </div>
   </aside>;

@@ -7,7 +7,7 @@ import { PathField, Spinner, Toggle } from '../../components/ui/Primitives';
 
 const accents = ['#FF704D', '#E4B75E', '#66BD9E', '#78A5EF', '#B19AE8', '#E68DA8'];
 
-export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateChanged }: { snapshot: AppSnapshot; busy: boolean; onSave: (settings: SettingsModel) => Promise<boolean>; onDirtyChange: (dirty: boolean) => void; onAuthStateChanged?: () => void }) {
+export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateChanged }: { snapshot: AppSnapshot; busy: boolean; onSave: (settings: SettingsModel) => Promise<boolean>; onDirtyChange: (dirty: boolean) => void; onAuthStateChanged?: (accounts: AccountsSummary) => void }) {
   const [draft, setDraft] = useState(snapshot.settings);
   const [error, setError] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountsSummary | null>(null);
@@ -24,6 +24,10 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
   }, []);
   const dirty = JSON.stringify(draft) !== JSON.stringify(snapshot.settings);
   const activeAccount = accounts?.profiles.find((profile) => profile.id === accounts.activeId);
+  function applyAccounts(value: AccountsSummary) {
+    setAccounts(value);
+    onAuthStateChanged?.(value);
+  }
   function update<K extends keyof SettingsModel>(key: K, value: SettingsModel[K]) {
     const next = { ...draft, [key]: value };
     setDraft(next); onDirtyChange(JSON.stringify(next) !== JSON.stringify(snapshot.settings));
@@ -41,21 +45,28 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
   async function signIn() {
     setSigningIn(true);
     setError(null);
-    try { setAccounts(await native.signIn()); onAuthStateChanged?.(); }
+    try { applyAccounts(await native.signIn()); }
     catch (reason) { setError(errorMessage(reason)); }
     finally { setSigningIn(false); }
   }
   async function selectAccount(id: string) {
     setAccountBusy(true);
     setError(null);
-    try { setAccounts(await native.selectAccount(id)); onAuthStateChanged?.(); }
+    try { applyAccounts(await native.selectAccount(id)); }
     catch (reason) { setError(errorMessage(reason)); }
     finally { setAccountBusy(false); }
   }
   async function createLocalTestAccount() {
     setAccountBusy(true);
     setError(null);
-    try { setAccounts(await native.createTestAccount()); onAuthStateChanged?.(); }
+    try { applyAccounts(await native.createTestAccount()); }
+    catch (reason) { setError(errorMessage(reason)); }
+    finally { setAccountBusy(false); }
+  }
+  async function signOut(id: string) {
+    setAccountBusy(true);
+    setError(null);
+    try { applyAccounts(await native.signOut(id)); }
     catch (reason) { setError(errorMessage(reason)); }
     finally { setAccountBusy(false); }
   }
@@ -63,7 +74,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
     if (!accounts) return;
     setChangingOffline(true);
     setError(null);
-    try { setAccounts(await native.setOfflineMode(offline)); onAuthStateChanged?.(); }
+    try { applyAccounts(await native.setOfflineMode(offline)); }
     catch (reason) { setError(errorMessage(reason)); }
     finally { setChangingOffline(false); }
   }
@@ -98,6 +109,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
         </div>
         <div className="notice"><Info size={16} /><span>Sign-in needs an approved Microsoft app registration configured as ROCKET_MICROSOFT_CLIENT_ID. Tokens are stored in Windows Credential Manager.</span></div>
         {import.meta.env.DEV && <div className="inline-actions"><button type="button" className="button secondary small-button" onClick={() => void createLocalTestAccount()} disabled={busy || accountBusy || signingIn}>{accountBusy ? <Spinner size={15} /> : <UserRound size={15} />}Create Test Account</button></div>}
+        {activeAccount?.type === 'microsoft' && <button type="button" className="button secondary small-button" disabled={accountBusy || signingIn || changingOffline} onClick={() => void signOut(activeAccount.id)}>Sign out</button>}
         <Toggle label="Offline mode" description="Use a saved verified profile without contacting Microsoft. Multiplayer and online services are unavailable." checked={accounts?.offline ?? false} disabled={!accounts || changingOffline || accountBusy || activeAccount?.type !== 'microsoft'} onChange={(value) => void setOfflineMode(value)} />
       </section>
     </fieldset>

@@ -1,4 +1,5 @@
 export type Page = 'launchpad' | 'instances' | 'mods' | 'downloads' | 'settings';
+export type Loader = 'vanilla' | 'fabric';
 export type Theme = 'dark' | 'light' | 'system';
 export type Readiness = 'checking' | 'requires_download' | 'missing_files' | 'downloading' | 'installing' | 'java_required' | 'authentication_required' | 'ready' | 'launching' | 'running' | 'error';
 export interface GameStatus { instanceId: string; readiness: Readiness; message: string; exitCode: number | null }
@@ -22,7 +23,8 @@ export interface Instance {
   name: string;
   version: string;
   versionType: 'release' | 'snapshot';
-  loader: 'vanilla';
+  loader: Loader;
+  loaderVersion: string | null;
   gameDirectory: string;
   ramMb: number;
   javaPath: string | null;
@@ -46,10 +48,13 @@ export interface AccountsSummary {
 export interface InstanceInput {
   name: string;
   version: string;
+  loader: Loader;
+  loaderVersion: string | null;
   ramMb: number;
   javaPath: string | null;
   parentDirectory: string | null;
 }
+export interface FabricLoaderVersion { version: string; stable: boolean }
 export interface MinecraftVersion {
   id: string;
   type: 'release' | 'snapshot';
@@ -66,3 +71,21 @@ export interface VersionCatalog {
 }
 export interface InstalledMod { fileName: string; sizeBytes: number }
 export interface Toast { message: string; kind: 'success' | 'error' }
+export interface ModrinthProject {
+  projectId: string;
+  title: string;
+  description: string;
+  author: string;
+  downloads: number;
+}
+export interface ModrinthPage {
+  hits: ModrinthProject[];
+  totalHits: number;
+}
+export interface ModrinthVersion {
+  id: string;
+  versionNumber: string;
+  versionType: string;
+  fileName: string;
+  requiredDependencies: string[];
+}

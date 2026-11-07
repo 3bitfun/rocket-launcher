@@ -1,7 +1,10 @@
 use crate::{
     auth::accounts::{self, AccountJobs, Accounts, AccountsSummary},
     errors::{AppError, Result},
-    minecraft::versions::{self, VersionCatalog},
+    minecraft::{
+        fabric::{self, FabricLoaderVersion},
+        versions::{self, VersionCatalog},
+    },
     models::*,
     storage::Store,
 };
@@ -53,6 +56,17 @@ pub async fn select_account(
     let _guard = jobs.0.try_lock().map_err(|_| accounts::busy())?;
     let data = state.store()?.paths.data.clone();
     Ok(accounts::select(&data, id)?.summary())
+}
+
+#[tauri::command]
+pub fn sign_out_account(
+    state: State<'_, LauncherState>,
+    jobs: State<'_, AccountJobs>,
+    id: String,
+) -> Result<AccountsSummary> {
+    let _guard = jobs.0.try_lock().map_err(|_| accounts::busy())?;
+    let data = state.store()?.paths.data.clone();
+    Ok(accounts::sign_out(&data, id)?.summary())
 }
 
 #[cfg(debug_assertions)]
@@ -144,12 +158,30 @@ pub async fn get_versions(
     let _fetch_guard = state.catalog_lock.lock().await;
     let (path, timeout) = {
         let store = state.store()?;
+        if Accounts::read(&store.paths.data)?.offline {
+            return versions::cached_catalog(&store.paths.cache.join("versions.json"));
+        }
         (
             store.paths.cache.join("versions.json"),
             store.config.settings.request_timeout_seconds,
         )
     };
     versions::load_catalog(&path, refresh, timeout).await
+}
+
+#[tauri::command]
+pub async fn get_fabric_loaders(
+    state: State<'_, LauncherState>,
+    game_version: String,
+) -> Result<Vec<FabricLoaderVersion>> {
+    let timeout = {
+        let store = state.store()?;
+        if Accounts::read(&store.paths.data)?.offline {
+            return Err(accounts::offline_error());
+        }
+        store.config.settings.request_timeout_seconds
+    };
+    fabric::loader_versions(&game_version, timeout).await
 }
 
 #[tauri::command]

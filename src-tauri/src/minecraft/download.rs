@@ -59,11 +59,14 @@ fn official_url(url: &str) -> Result<reqwest::Url> {
                     | "launcher.mojang.com"
                     | "libraries.minecraft.net"
                     | "resources.download.minecraft.net"
+                    | "meta.fabricmc.net"
+                    | "maven.fabricmc.net"
+                    | "cdn.modrinth.com"
             )
         )
     {
         return Err(invalid(
-            "Minecraft download is not on an approved Mojang HTTPS host.",
+            "Download is not on an approved HTTPS host.",
         ));
     }
     Ok(url)
@@ -154,7 +157,7 @@ async fn fetch(
         return Err(AppError::new(
             "DOWNLOAD",
             format!(
-                "Mojang returned HTTP {} for {}.",
+                "The download server returned HTTP {} for {}.",
                 response.status(),
                 spec.relative.display()
             ),

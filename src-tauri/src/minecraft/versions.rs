@@ -209,6 +209,16 @@ fn catalogue(
     }
 }
 
+pub fn cached_catalog(path: &Path) -> Result<VersionCatalog> {
+    let cache = read_cache(path).map_err(|_| {
+        AppError::new(
+            "OFFLINE_MODE",
+            "No version catalogue is cached. Turn off Offline Mode to download one.",
+        )
+    })?;
+    Ok(catalogue(cache, "cache", None))
+}
+
 pub async fn load_catalog(path: &Path, refresh: bool, timeout: u64) -> Result<VersionCatalog> {
     let cached = read_cache(path).ok();
     if !refresh {

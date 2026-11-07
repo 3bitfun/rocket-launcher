@@ -2,9 +2,9 @@
 
 **Beyond the Built Limit.** A native Windows Minecraft Java Edition launcher built with Tauri 2, Rust, React, TypeScript, Vite, Tailwind CSS, Motion, and Lucide.
 
-## Current milestone: Phase 3 sign-in integration
+## Launcher features
 
-Rocket Launcher installs, verifies, and can launch vanilla Minecraft Java Edition on Windows after Microsoft sign-in and Minecraft Java ownership verification.
+Rocket Launcher installs, verifies, and launches Vanilla and Fabric instances on Windows after Microsoft sign-in and Minecraft Java ownership verification.
 
 - Launch Pad, Instances, Mods, Downloads, and Settings navigation.
 - Create, rename, edit, select, duplicate, and remove instances.
@@ -17,11 +17,16 @@ Rocket Launcher installs, verifies, and can launch vanilla Minecraft Java Editio
 - Launch Pad install and repair actions, measured Downloads progress, and native launch preparation behind an ownership-verified session boundary.
 - Microsoft OAuth sign-in, Xbox/Minecraft ownership verification, Windows Credential Manager refresh-token storage, and authenticated launch sessions.
 - Dark, light, and system themes; custom accent colours; animation and reduced-motion preferences.
-- Actual `.jar` file listing from each instance's mods directory.
+- Built-in Modrinth search for Fabric instances, matching Minecraft versions and loader. Choose a release to install the verified JAR and its required Modrinth dependencies.
+- Local `.jar` file listing from each instance's mods directory.
 - Local rotating structured logs and an in-app log viewer.
 - Keyboard-accessible controls, native modal focus management, responsive desktop layout.
 
-**Unavailable:** Automatic Java installation, mod loaders, Modrinth downloads, updates, and crash reporting.
+Java runtimes are selected from installed runtimes. Automatic launcher updates and crash reporting are outside this build.
+
+## Install mods
+
+Create or select a Fabric instance, then open **Mods**. Pick a project in **Browse Modrinth**, select a compatible version, and click **Install mod**. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, move its old JAR out of the mods folder before installing the replacement. Offline Mode keeps local mod files available and pauses catalogue requests and downloads.
 
 ## Run locally on Windows 10/11
 
@@ -51,7 +56,7 @@ $env:ROCKET_MICROSOFT_CLIENT_ID = '<approved application client ID>'
 npm run desktop
 ```
 
-The client ID is not a secret, but this project does not ship an app registration. Without it, Settings reports `AUTH_CONFIGURATION`. Sign in with an account that owns Minecraft Java Edition; the launcher verifies ownership before enabling launch. Refresh tokens are stored in Windows Credential Manager. After a successful sign-in, Offline mode can use the saved verified profile for local play without contacting Microsoft. Multiplayer and other online services require an online session.
+For your own registration, enable personal Microsoft accounts and add `http://localhost/callback` under the **Mobile and desktop applications** platform. Sign in with an account that owns Minecraft Java Edition. The launcher verifies ownership before enabling launch and stores refresh tokens in Windows Credential Manager. After a successful sign-in, Offline Mode uses the saved verified profile for local play without contacting Microsoft. Multiplayer and other online services require an online session.
 
 Build a standalone executable:
 
@@ -76,6 +81,12 @@ cargo test --manifest-path src-tauri/Cargo.toml live_manifest_fetch -- --ignored
 # Download to an isolated temporary directory, verify locally, delete one test JAR, and repair.
 $env:ROCKET_TEST_VERSION = '1.21.1'
 cargo test --manifest-path src-tauri/Cargo.toml live_install_and_offline_repair -- --ignored
+# Search real Modrinth projects and install matched mods and dependencies into temporary instances.
+cargo test --manifest-path src-tauri/Cargo.toml live_modrinth_matching_and_installation -- --ignored
+# With Java 21 installed, also start the isolated Fabric client and check renderer initialization.
+$env:ROCKET_SMOKE_GAME = '1'
+cargo test --manifest-path src-tauri/Cargo.toml live_modrinth_matching_and_installation -- --ignored --nocapture
+Remove-Item Env:ROCKET_SMOKE_GAME
 ```
 
 Rust tests exercise configuration replacement/reopening, corruption preservation, validation, the instance lifecycle, file preservation, local mod listing, manifest parsing, and cache lookup. Frontend tests exercise submission, error/retry states, preferences, and feature availability. Mock data exists only under `src/test`.

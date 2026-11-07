@@ -569,6 +569,62 @@ fn windows_job(child: &Child) -> Result<std::os::windows::io::OwnedHandle> {
     }
 }
 
+#[cfg(all(test, windows, debug_assertions))]
+pub(super) async fn smoke_render(
+    installed: &Installed,
+    instance: &Instance,
+    platform: &Platform,
+    java: Java,
+) {
+    let identity = LaunchIdentity::local_test(
+        "RocketSmoke".into(),
+        uuid::Uuid::new_v4().simple().to_string(),
+    );
+    let args = resolve_args(installed, instance, platform, &identity).unwrap();
+    let error_log = tempfile::tempfile().unwrap();
+    let mut command = Command::new(java.executable);
+    java::configure(&mut command);
+    command
+        .current_dir(&instance.game_directory)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::from(error_log.try_clone().unwrap()));
+    let mut child = spawn(&mut command).unwrap();
+    let job = windows_job(&child).unwrap();
+    let mut lines = BufReader::new(child.stdout.take().unwrap()).lines();
+    let mut tail = std::collections::VecDeque::with_capacity(16);
+    let rendered = tokio::time::timeout(std::time::Duration::from_secs(90), async {
+        while let Some(line) = lines.next_line().await.unwrap() {
+            if line.contains("Created: ") && line.contains("blocks.png-atlas") {
+                println!("{line}");
+                return true;
+            }
+            if tail.len() == 16 {
+                tail.pop_front();
+            }
+            tail.push_back(line);
+        }
+        false
+    })
+    .await
+    .unwrap_or(false);
+    let _ = child.kill().await;
+    let _ = child.wait().await;
+    drop(job);
+    if !rendered {
+        use std::io::{Read, Seek};
+        let mut error_log = error_log;
+        error_log.rewind().unwrap();
+        let mut stderr = Vec::new();
+        error_log.take(8192).read_to_end(&mut stderr).unwrap();
+        panic!(
+            "Minecraft did not initialize the block atlas: {tail:#?}\n{}",
+            String::from_utf8_lossy(&stderr)
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

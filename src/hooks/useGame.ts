@@ -3,7 +3,7 @@ import { listen } from '@tauri-apps/api/event';
 import { errorMessage, isDesktop, native } from '../services/native';
 import type { AppSnapshot, DownloadProgress, GameStatus, Instance, Toast } from '../types';
 
-export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => void) {
+export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => void, accountRevision?: object | null) {
   const [statuses, setStatuses] = useState<Record<string, GameStatus>>({});
   const [download, setDownload] = useState<DownloadProgress | null>(null);
   const [working, setWorking] = useState(false);
@@ -49,10 +49,10 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
 
   // A rename/selection does not re-hash the shared game cache. Version and Java edits do.
   const profiles = JSON.stringify(snapshot?.instances.map((instance) =>
-    [instance.id, instance.version, instance.javaPath ?? snapshot.settings.javaPath]) ?? []);
+    [instance.id, instance.version, instance.loader, instance.loaderVersion, instance.javaPath ?? snapshot.settings.javaPath]) ?? []);
   useEffect(() => {
     let stopped = false;
-    const entries = JSON.parse(profiles) as [string, string, string | null][];
+    const entries = JSON.parse(profiles) as [string][];
     setStatuses((previous) => Object.fromEntries(entries.map<[string, GameStatus]>(([id]) => [id, {
       instanceId: id, readiness: 'checking', message: 'Checking local files…', exitCode: null,
     } satisfies GameStatus]).concat(Object.entries(previous).filter(([id, status]) =>
@@ -68,7 +68,7 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
       stopped = true;
       for (const [id] of entries) revisions.current.set(id, (revisions.current.get(id) ?? 0) + 1);
     };
-  }, [profiles, check]);
+  }, [profiles, check, accountRevision]);
 
   async function run(instance: Instance, action: 'install' | 'launch') {
     if (operation.current) return;
@@ -85,7 +85,8 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
       }
     } catch (error) {
       const message = errorMessage(error);
-      publish({ instanceId: instance.id, readiness: 'error', message, exitCode: null });
+      const missing = typeof error === 'object' && error !== null && 'code' in error && error.code === 'MISSING_FILES';
+      publish({ instanceId: instance.id, readiness: missing ? 'missing_files' : 'error', message, exitCode: null });
       notify({ kind: 'error', message });
     } finally {
       if (action === 'install') {
