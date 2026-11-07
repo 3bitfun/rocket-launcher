@@ -77,6 +77,9 @@ export interface ModrinthProject {
   description: string;
   author: string;
   downloads: number;
+  iconUrl?: string | null;
+  featuredGallery?: string | null;
+  displayCategories?: string[];
 }
 export interface ModrinthPage {
   hits: ModrinthProject[];

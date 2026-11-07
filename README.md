@@ -26,9 +26,15 @@ Java runtimes are selected from installed runtimes. Automatic launcher updates a
 
 ## Install mods
 
+In **Mods**, select **Create Rocket Pack instance** to download the recommended Minecraft 1.21.11 pack with Fabric Loader 0.20.1. It uses pinned Modrinth downloads selected from the supplied Tuff pack, including Sodium, Iris, Mod Menu and UI mods. It downloads the selected mods into a new instance. Install the Minecraft files and launch it from **Launch Pad** with Java 21.
+
+For a custom Minecraft title screen or pause menu, install the matching Fabric release of [FancyMenu](https://modrinth.com/mod/fancymenu), open Minecraft and create a layout from the FancyMenu toolbar. Share your layout by copying its [configuration folder](https://docs.fancymenu.net/docs/en-US/modpacks) into the pack. [ImproperUI](https://modrinth.com/mod/improperui) is also available for scripted in-game screens.
+
 Create or select a Fabric instance, then open **Mods**. Pick a project in **Browse Modrinth**, select a compatible version, and click **Install mod**. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, move its old JAR out of the mods folder before installing the replacement. Offline Mode keeps local mod files available and pauses catalogue requests and downloads.
 
 ## Run locally on Windows 10/11
+
+The **Launcher updates** row in Settings checks the project's GitHub releases for a newer Windows installer. **Open release** opens the download page in your browser.
 
 Prerequisites:
 

@@ -1,6 +1,6 @@
 //! Native account authentication and offline session handling.
 pub mod accounts;
-mod browser;
+pub(crate) mod browser;
 #[cfg(windows)]
 mod credential_store;
 mod microsoft;

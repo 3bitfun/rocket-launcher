@@ -1,5 +1,7 @@
 # Rocket Launcher progress
 
+Version 0.1.1 adds a GitHub release check in Settings, Modrinth project images and sorting, and a recommended Rocket Pack with 18 pinned mods from the supplied Tuff pack. An isolated Windows test downloaded the pack, installed Minecraft 1.21.11 with Fabric Loader 0.20.1, and reached renderer initialization on Java 21.
+
 The Windows x64 NSIS installer built successfully. The packaged executable opened a Rocket Launcher window in a Windows startup smoke test. This build is unsigned. The public release roadmap still includes Forge, NeoForge, modpack installation, automatic updates, and crash reporting with privacy controls.
 
 An isolated Windows smoke test installed Minecraft 1.21.1, Fabric, Iris, and Sodium, started the client on Java 21 using a debug-only local profile, and reached renderer initialization. The test closed Minecraft after it created the block texture atlas.

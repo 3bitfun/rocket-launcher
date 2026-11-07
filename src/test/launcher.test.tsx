@@ -122,7 +122,9 @@ it('installs the chosen Modrinth version into the selected Fabric instance', asy
     const user = userEvent.setup();
     await user.type(screen.getByLabelText('Search mods'), 'example');
     await user.click(screen.getByRole('button', { name: /^Search$/ }));
-    await waitFor(() => expect(search).toHaveBeenLastCalledWith(instance.id, 'example', 0));
+    await waitFor(() => expect(search).toHaveBeenLastCalledWith(instance.id, 'example', 0, undefined));
+    await user.selectOptions(screen.getByLabelText('Sort by'), 'updated');
+    await waitFor(() => expect(search).toHaveBeenLastCalledWith(instance.id, 'example', 0, 'updated'));
     await user.click(await screen.findByRole('button', { name: 'View versions of Example Mod' }));
     expect(versions).toHaveBeenCalledWith(instance.id, 'Project1');
     await user.selectOptions(await screen.findByLabelText('Compatible version'), 'Version2');

@@ -59,34 +59,54 @@ impl Store {
             let _ = fs::remove_dir(&directory);
             return Err(AppError::io("create the instance mods folder", error));
         }
+        match self.register_instance(input, version_type, &id, directory.clone()) {
+            Ok(snapshot) => Ok(snapshot),
+            Err(error) => {
+                let _ = fs::remove_dir(directory.join("mods"));
+                let _ = fs::remove_dir(directory);
+                Err(error)
+            }
+        }
+    }
+
+    pub fn create_pack_instance(
+        &mut self,
+        input: InstanceInput,
+        directory: tempfile::TempDir,
+    ) -> Result<AppSnapshot> {
+        validate_input(&input)?;
+        let id = uuid::Uuid::new_v4().to_string();
+        let snapshot = self.register_instance(input, "release", &id, directory.path().into())?;
+        let _ = directory.keep();
+        Ok(snapshot)
+    }
+
+    fn register_instance(
+        &mut self,
+        input: InstanceInput,
+        version_type: &str,
+        id: &str,
+        directory: PathBuf,
+    ) -> Result<AppSnapshot> {
         let mut next = self.config.clone();
         next.instances.push(Instance {
-            id: id.clone(),
+            id: id.into(),
             name: input.name.trim().into(),
             version: input.version,
             version_type: version_type.into(),
             loader: input.loader,
             loader_version: input.loader_version.clone(),
-            game_directory: directory.clone(),
+            game_directory: directory,
             ram_mb: input.ram_mb,
             java_path: input.java_path,
             created_at: now(),
             updated_at: now(),
             last_selected_at: now(),
         });
-        next.active_instance_id = Some(id.clone());
-        match self.commit(next) {
-            Ok(snapshot) => {
-                tracing::info!(event = "instance_created", instance_id = %id);
-                Ok(snapshot)
-            }
-            Err(error) => {
-                // Only the newly-created empty directories; never recursive deletion.
-                let _ = fs::remove_dir(directory.join("mods"));
-                let _ = fs::remove_dir(directory);
-                Err(error)
-            }
-        }
+        next.active_instance_id = Some(id.into());
+        let snapshot = self.commit(next)?;
+        tracing::info!(event = "instance_created", instance_id = %id);
+        Ok(snapshot)
     }
 
     pub fn update_instance(

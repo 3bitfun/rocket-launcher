@@ -7,9 +7,9 @@ use crate::{
         java,
         launch::{self, GameStatus, ProcessManager, Readiness},
         metadata::Platform,
-        modrinth, versions,
+        modrinth, pack::Pack, versions,
     },
-    models::{Instance, Loader},
+    models::{AppSnapshot, Instance, Loader},
 };
 use std::{collections::HashMap, path::PathBuf, sync::Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -53,6 +53,40 @@ fn input(state: &LauncherState, id: &str) -> Result<Input> {
         catalogue: store.paths.cache.join("versions.json"),
         timeout: store.config.settings.request_timeout_seconds,
     })
+}
+
+#[tauri::command]
+pub async fn install_rocket_pack(
+    state: State<'_, LauncherState>,
+    jobs: State<'_, GameJobs>,
+) -> Result<AppSnapshot> {
+    use crate::{auth::accounts, storage::validate_path};
+    let _guard = jobs
+        .operation
+        .try_lock()
+        .map_err(|_| AppError::new("BUSY", "Another Minecraft operation is in progress."))?;
+    let (parent, timeout) = {
+        let store = state.store()?;
+        if accounts::Accounts::read(&store.paths.data)?.offline {
+            return Err(accounts::offline_error());
+        }
+        let settings = &store.config.settings;
+        (settings.minecraft_directory.clone(), settings.request_timeout_seconds)
+    };
+    validate_path(&parent)?;
+    std::fs::create_dir_all(&parent).map_err(|e| AppError::io("create the instance parent directory", e))?;
+    let directory = tempfile::Builder::new()
+        .prefix("rocket-pack-")
+        .tempdir_in(parent)
+        .map_err(|e| AppError::io("create the Rocket Pack directory", e))?;
+    let pack = Pack::recommended()?;
+    pack.download(directory.path(), timeout).await?;
+    let mut store = state.store()?;
+    if accounts::Accounts::read(&store.paths.data)?.offline {
+        return Err(accounts::offline_error());
+    }
+    let ram = store.config.settings.default_ram_mb;
+    store.create_pack_instance(pack.instance_input(ram), directory)
 }
 async fn verify(input: &Input, full: bool) -> Result<Option<Installed>> {
     let platform = Platform::windows()?;
@@ -108,10 +142,11 @@ pub async fn search_modrinth(
     instance_id: String,
     query: String,
     offset: u32,
+    sort: Option<String>,
 ) -> Result<modrinth::SearchPage> {
     let input = input(&state, &instance_id)?;
     require_online(&input)?;
-    modrinth::search(&input.instance, &query, offset, input.timeout).await
+    modrinth::search(&input.instance, &query, offset, input.timeout, sort.as_deref()).await
 }
 
 #[tauri::command]

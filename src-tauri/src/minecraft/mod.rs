@@ -6,3 +6,4 @@ pub mod launch;
 pub mod metadata;
 pub mod versions;
 pub mod modrinth;
+pub mod pack;

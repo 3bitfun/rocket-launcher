@@ -4,6 +4,7 @@ import type { AccountsSummary, AppSnapshot, Settings as SettingsModel } from '..
 import { native, errorMessage } from '../../services/native';
 import { Modal } from '../../components/ui/Modal';
 import { PathField, Spinner, Toggle } from '../../components/ui/Primitives';
+import { LauncherUpdates } from './LauncherUpdates';
 
 const accents = ['#FF704D', '#E4B75E', '#66BD9E', '#78A5EF', '#B19AE8', '#E68DA8'];
 
@@ -96,6 +97,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
       </section>
 
       <section className="panel settings-section"><div className="settings-section-title"><Settings2 size={19} /><div><h2>Launcher</h2><p>Everything has its place.</p></div></div>
+        {accounts && <LauncherUpdates offline={accounts.offline} />}
         <div className="setting-row"><div><strong>Network request timeout</strong><small>Applies to catalogue requests. Failed requests retry once.</small></div><label className="number-unit"><input aria-label="Network request timeout in seconds" type="number" min="5" max="120" value={draft.requestTimeoutSeconds} onChange={(e) => update('requestTimeoutSeconds', Number(e.target.value))} required /><span>sec</span></label></div>
         <div className="stored-path"><Folder size={16} /><div><strong>Shared cache</strong><code>{snapshot.paths.cache}</code></div></div>
         <div className="stored-path"><Folder size={16} /><div><strong>Configuration</strong><code>{snapshot.paths.config}</code></div></div>

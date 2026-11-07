@@ -217,3 +217,4 @@ pub fn read_logs(state: State<'_, LauncherState>) -> Result<String> {
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 pub mod game;
+pub mod updates;

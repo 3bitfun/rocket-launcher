@@ -7,6 +7,7 @@ mod models;
 mod storage;
 
 use commands::game::*;
+use commands::updates::*;
 use commands::*;
 use tauri::Manager;
 
@@ -74,6 +75,9 @@ pub fn run() {
         search_modrinth,
         modrinth_versions,
         install_modrinth,
+        install_rocket_pack,
+        check_launcher_update,
+        open_launcher_release,
     ]);
 
     #[cfg(not(debug_assertions))]
@@ -101,6 +105,9 @@ pub fn run() {
         search_modrinth,
         modrinth_versions,
         install_modrinth,
+        install_rocket_pack,
+        check_launcher_update,
+        open_launcher_release,
     ]);
 
     app.run(tauri::generate_context!())

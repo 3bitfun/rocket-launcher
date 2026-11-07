@@ -27,6 +27,10 @@ pub struct Project {
     description: String,
     author: String,
     downloads: u64,
+    icon_url: Option<String>,
+    featured_gallery: Option<String>,
+    #[serde(default)]
+    display_categories: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -147,6 +151,7 @@ pub async fn search(
     query: &str,
     offset: u32,
     timeout: u64,
+    sort: Option<&str>,
 ) -> Result<SearchPage> {
     let loader = loader(instance)?;
     if query.len() > 300 || offset > 980 || offset % PAGE_SIZE != 0 {
@@ -161,10 +166,12 @@ pub async fn search(
         ["client_side:required", "client_side:optional"]
     ])
     .to_string();
-    let sort = if query.trim().is_empty() {
-        "downloads"
-    } else {
-        "relevance"
+    let sort = match sort {
+        Some("updated") => "updated",
+        Some("downloads") => "downloads",
+        None if query.trim().is_empty() => "downloads",
+        None => "relevance",
+        _ => return Err(error("Unknown Modrinth sort order.")),
     };
     get(client(timeout)?.get(format!("{BASE}/search")).query(&[
         ("query", query.trim()),
@@ -528,7 +535,7 @@ mod tests {
             updated_at: 0,
             last_selected_at: 0,
         };
-        let page = search(&instance, "Sodium", 0, 20).await.unwrap();
+        let page = search(&instance, "Sodium", 0, 20, None).await.unwrap();
         let project = page.hits.iter().find(|hit| hit.title == "Sodium").unwrap();
         let version = versions(&instance, &project.project_id, 20)
             .await
@@ -554,7 +561,7 @@ mod tests {
         let iris_game = tempfile::tempdir().unwrap();
         let mut iris_instance = instance.clone();
         iris_instance.game_directory = iris_game.path().to_path_buf();
-        let iris_page = search(&iris_instance, "Iris Shaders", 0, 20).await.unwrap();
+        let iris_page = search(&iris_instance, "Iris Shaders", 0, 20, None).await.unwrap();
         let iris = iris_page
             .hits
             .iter()

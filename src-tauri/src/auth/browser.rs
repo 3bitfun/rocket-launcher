@@ -50,7 +50,7 @@ async fn read_code(stream: &mut TcpStream, host: &str, expected: &reqwest::Url, 
     None
 }
 
-fn open(url: reqwest::Url) -> Result<()> {
+pub(crate) fn open(url: reqwest::Url) -> Result<()> {
     use windows_sys::Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL};
     let wide: Vec<u16> = url.as_str().encode_utf16().chain(Some(0)).collect();
     let verb: Vec<u16> = "open".encode_utf16().chain(Some(0)).collect();
