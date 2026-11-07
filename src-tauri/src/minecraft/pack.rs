@@ -8,7 +8,10 @@ use crate::{
 };
 use futures_util::{stream, StreamExt, TryStreamExt};
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 #[derive(Deserialize)]
 pub struct Pack {
@@ -43,20 +46,29 @@ impl Pack {
         }
     }
 
-    pub async fn download(&self, directory: &Path, timeout: u64) -> Result<()> {
+    pub async fn download(
+        &self,
+        directory: &Path,
+        timeout: u64,
+        progress: &(impl Fn(usize, usize) + Sync),
+    ) -> Result<()> {
         let client = download::client(timeout)?;
         let specs = self
             .files
             .iter()
             .map(|file| {
-                let filename = file
+                let (folder, filename) = file
                     .path
-                    .strip_prefix("mods/")
-                    .filter(|name| name.ends_with(".jar"))
+                    .split_once('/')
+                    .filter(|(folder, name)| match *folder {
+                        "mods" => name.ends_with(".jar"),
+                        "resourcepacks" | "shaderpacks" => name.ends_with(".zip"),
+                        _ => false,
+                    })
                     .ok_or_else(|| AppError::new("PACK", "Invalid Rocket Pack file path."))?;
                 segment(filename)?;
                 FileSpec::new(
-                    PathBuf::from(&file.path),
+                    PathBuf::from(folder).join(filename),
                     Artifact {
                         path: None,
                         url: file.url.clone(),
@@ -66,10 +78,18 @@ impl Pack {
                 )
             })
             .collect::<Result<Vec<_>>>()?;
+        let total = specs.len();
+        let completed = AtomicUsize::new(0);
+        progress(0, total);
         stream::iter(specs)
             .map(|spec| {
                 let client = &client;
-                async move { download::ensure(client, directory, &spec, &|_| {}).await }
+                let completed = &completed;
+                async move {
+                    download::ensure(client, directory, &spec, &|_| {}).await?;
+                    progress(completed.fetch_add(1, Ordering::Relaxed) + 1, total);
+                    Ok(())
+                }
             })
             .buffer_unordered(6)
             .try_collect::<Vec<_>>()
@@ -83,16 +103,19 @@ pub async fn install_for_version(
     directory: &Path,
     ram: u32,
     timeout: u64,
+    progress: impl Fn(usize, usize) + Sync,
 ) -> Result<InstanceInput> {
     let pinned = Pack::recommended()?;
     if game == pinned.minecraft {
-        pinned.download(directory, timeout).await?;
+        pinned.download(directory, timeout, &progress).await?;
         tokio::fs::write(
-            directory.join("mods").join("rocket-companion-1.0.0.jar"),
-            include_bytes!("../../resources/rocket-companion-1.0.0.jar"),
+            directory
+                .join("mods")
+                .join("rocketlauncher-client-1.1.0.jar"),
+            include_bytes!("../../resources/rocketlauncher-client-1.1.0.jar"),
         )
         .await
-        .map_err(|e| AppError::io("install Rocket Companion", e))?;
+        .map_err(|e| AppError::io("install Rocket Launcher Client", e))?;
         return Ok(pinned.instance_input(ram));
     }
     let loaders = super::fabric::loader_versions(game, timeout).await?;
@@ -155,7 +178,7 @@ async fn live_rocket_pack_renders() {
     let mut store = Store::open(root.path().join("launcher")).unwrap();
     let folder = tempfile::tempdir_in(root.path()).unwrap();
     let pack = Pack::recommended().unwrap();
-    pack.download(folder.path(), 30).await.unwrap();
+    pack.download(folder.path(), 30, &|_, _| {}).await.unwrap();
     let snapshot = store
         .create_pack_instance(pack.instance_input(4096), folder)
         .unwrap();

@@ -76,6 +76,7 @@ pub async fn install_rocket_pack(
     state: State<'_, LauncherState>,
     jobs: State<'_, GameJobs>,
     version: String,
+    progress: tauri::ipc::Channel<[usize; 2]>,
 ) -> Result<AppSnapshot> {
     use crate::{auth::accounts, storage::validate_path};
     let _guard = jobs
@@ -101,7 +102,9 @@ pub async fn install_rocket_pack(
         .prefix("rocket-pack-")
         .tempdir_in(parent)
         .map_err(|e| AppError::io("create the Rocket Pack directory", e))?;
-    let input = pack::install_for_version(&version, directory.path(), ram, timeout).await?;
+    let input = pack::install_for_version(&version, directory.path(), ram, timeout, |completed, total| {
+        let _ = progress.send([completed, total]);
+    }).await?;
     let mut store = state.store()?;
     if accounts::Accounts::read(&store.paths.data)?.offline {
         return Err(accounts::offline_error());

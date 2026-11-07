@@ -399,8 +399,8 @@ main:focus { outline: none; }
 }
 .launch-status { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; margin: 6px 0; }
 .play-panel { position: relative; isolation: isolate; overflow: hidden; min-height: 300px; border: 1px solid #3c514c; border-radius: 16px; background: #182521; color: #f5f8f6; }
-.play-panel > .landscape { width: 70%; z-index: -2; }
-.play-panel::before { position: absolute; inset: 0; z-index: -1; content: ''; background: linear-gradient(90deg, #182521 28%, #182521e8 51%, #18252138 85%); }
+.play-scenery { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: center; animation: scenery-drift 22s ease-in-out infinite alternate; }
+.play-panel::before { position: absolute; inset: 0; z-index: -1; content: ''; background: linear-gradient(90deg, #101716f5 5%, #101716dc 36%, #1017166e 68%, #10171613 100%); }
 .play-content { max-width: 660px; padding: clamp(22px, 4vw, 39px); }
 .play-context, .play-actions, .play-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .play-context .eyebrow { color: #c9d7d0; }
@@ -443,4 +443,12 @@ main:focus { outline: none; }
 .rocket-pack-content p { margin: 0 0 12px; color: #ebedf4; }
 .rocket-pack-content .field { max-width: 280px; margin-bottom: 12px; }
 .rocket-pack-content .field > span { color: #ebedf4; }
+.instance-scenery { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .42s ease; }
+.instance-select:hover .instance-scenery, .instance-select:focus-visible .instance-scenery { transform: scale(1.075); }
+.play-content { animation: panel-arrive .36s ease-out both; }
+.rocket-pack > img { animation: scenery-drift 24s ease-in-out infinite alternate; }
+.pack-progress { width: min(100%, 320px); margin-top: 14px; }
+.pack-progress p { margin-bottom: 5px; }
+@keyframes scenery-drift { from { transform: scale(1); } to { transform: scale(1.07); } }
+@keyframes panel-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .modrinth-version { margin-top: 16px; }

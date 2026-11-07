@@ -2,13 +2,16 @@
   "schemaVersion": 1,
   "id": "rocket_companion",
   "version": "${version}",
-  "name": "Rocket Companion",
-  "description": "A Rocket menu for Minecraft Java Edition.",
+  "name": "Rocket Launcher Client",
+  "description": "A Rocket menu and configurable performance HUD for Minecraft Java Edition.",
   "environment": "client",
   "entrypoints": { "client": ["com.rocketlauncher.companion.RocketCompanion"] },
   "depends": {
     "fabricloader": ">=0.18.2",
     "fabric-screen-api-v1": "*",
+    "fabric-rendering-v1": "*",
+    "fabric-key-binding-api-v1": "*",
+    "fabric-lifecycle-events-v1": "*",
     "minecraft": "1.21.11",
     "java": ">=21"
   }

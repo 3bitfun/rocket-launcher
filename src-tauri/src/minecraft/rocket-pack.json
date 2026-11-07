@@ -9,6 +9,24 @@
       "size": 873443
     },
     {
+      "path": "mods/playerlocator-1.0.0+mc-1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/YUNfeUFf/versions/xOZSkJ4g/playerlocator-1.0.0%2Bmc-1.21.11.jar",
+      "sha1": "be5aa5a4bd2ea1d9f1c1572592f5ae53709bb3b6",
+      "size": 11484
+    },
+    {
+      "path": "shaderpacks/Clarity 1.1.3.zip",
+      "url": "https://cdn.modrinth.com/data/rinvvngy/versions/BOa5cSU4/Clarity%201.1.3.zip",
+      "sha1": "11202ee317924962416e89617148b1755fec5cdd",
+      "size": 66796
+    },
+    {
+      "path": "mods/Clumps-fabric-1.21.11-29.0.0.1.jar",
+      "url": "https://cdn.modrinth.com/data/Wnxd13zP/versions/OgBE8Rz4/Clumps-fabric-1.21.11-29.0.0.1.jar",
+      "sha1": "626fde9e970030cfc8cb64cd0a1abfc03d37ecc2",
+      "size": 20355
+    },
+    {
       "path": "mods/fabric-language-kotlin-1.14.2+kotlin.2.4.21.jar",
       "url": "https://cdn.modrinth.com/data/Ha28R6CL/versions/SKW1BTL3/fabric-language-kotlin-1.14.2%2Bkotlin.2.4.21.jar",
       "sha1": "f1d4ab6ecd54d9782521333a87eb50724ecb03e0",
@@ -21,10 +39,142 @@
       "size": 1148427
     },
     {
+      "path": "shaderpacks/BSL_v10.1.8.zip",
+      "url": "https://cdn.modrinth.com/data/Q1vvjJYV/versions/Y68yiql9/BSL_v10.1.8.zip",
+      "sha1": "e89818c8827d0131c102fb480c3c3446624db0df",
+      "size": 1134153
+    },
+    {
+      "path": "mods/ViaFabric-0.4.22+184-1.14-1.21.jar",
+      "url": "https://cdn.modrinth.com/data/YlKdE5VK/versions/lQ51eydS/ViaFabric-0.4.22%2B184-1.14-1.21.jar",
+      "sha1": "2ceaee3b68f95e0ef086ec2255dde87021063ba7",
+      "size": 6453065
+    },
+    {
+      "path": "mods/mezz_config-1.21.11-fabric-0.6.11.jar",
+      "url": "https://cdn.modrinth.com/data/7tEfOcA7/versions/EjsbBLrg/mezz_config-1.21.11-fabric-0.6.11.jar",
+      "sha1": "c8a6407df0817ec341f8a6f24df5eefaf4d78540",
+      "size": 394734
+    },
+    {
+      "path": "mods/geckolib-fabric-1.21.11-5.4.5.jar",
+      "url": "https://cdn.modrinth.com/data/8BmcQJ2H/versions/G1BvHQDL/geckolib-fabric-1.21.11-5.4.5.jar",
+      "sha1": "41cd2e142e48a8b6604d85764a6466fe5edb70c3",
+      "size": 822664
+    },
+    {
+      "path": "mods/More-QoL-1.4.0-1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/iyi3Pjfp/versions/kE5U4bVs/More-QoL-1.4.0-1.21.11.jar",
+      "sha1": "ef4eee11716675d5ca37dac0b90c3eba780c2427",
+      "size": 111534
+    },
+    {
+      "path": "mods/prickle-fabric-1.21.11-21.11.1.jar",
+      "url": "https://cdn.modrinth.com/data/aaRl8GiW/versions/fgUon9A6/prickle-fabric-1.21.11-21.11.1.jar",
+      "sha1": "ba448b0b274abd54ad24332055fbb1cdc66e43c0",
+      "size": 87236
+    },
+    {
+      "path": "mods/boatiview-fabric-0.0.8-1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/BdKIyOLe/versions/zgsaYcVL/boatiview-fabric-0.0.8-1.21.11.jar",
+      "sha1": "127307fef38f9e99b014f4ad7eb39031e00eb4c7",
+      "size": 1051768
+    },
+    {
+      "path": "shaderpacks/Mellow v3.5.zip",
+      "url": "https://cdn.modrinth.com/data/BUxf36AP/versions/DmXr7SxM/Mellow%20v3.5.zip",
+      "sha1": "9c309a5170ae555990cf2adfde71c7ac755f560c",
+      "size": 1955122
+    },
+    {
+      "path": "resourcepacks/Bare Bones x Particle Effects 1.20.1.zip",
+      "url": "https://cdn.modrinth.com/data/rjTq6O2Z/versions/M63sGGmo/Bare%20Bones%20x%20Particle%20Effects%201.20.1.zip",
+      "sha1": "330c7b7d18b579a978e20cdd12021cf3def270ae",
+      "size": 30756
+    },
+    {
+      "path": "mods/notenoughanimations-fabric-1.12.7-mc1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/MPCX6s5C/versions/qr1Bu9qK/notenoughanimations-fabric-1.12.7-mc1.21.11.jar",
+      "sha1": "6af0c07e9963a45a5d4673b1f7f519437fa21fb7",
+      "size": 1886773
+    },
+    {
+      "path": "mods/chat_heads-1.3.2-fabric-1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/Wb5oqrBJ/versions/905FjRkG/chat_heads-1.3.2-fabric-1.21.11.jar",
+      "sha1": "4eceb683cbe8c9ec2ba354825f8076ab2370d4d1",
+      "size": 100191
+    },
+    {
+      "path": "resourcepacks/Fullbright-UB-1.21 fub-6.0.zip",
+      "url": "https://cdn.modrinth.com/data/ItHr72Fy/versions/bjc4gBmv/Fullbright-UB-1.21%20fub-6.0.zip",
+      "sha1": "b2068548fdd851920a8407c83b65276545689843",
+      "size": 238845
+    },
+    {
+      "path": "resourcepacks/Bare Bones Low On Fire 1.21.11.zip",
+      "url": "https://cdn.modrinth.com/data/vcDllg0H/versions/jbdwjGu8/Bare%20Bones%20Low%20On%20Fire%201.21.11.zip",
+      "sha1": "38ca8640242a38bf841f943f9f9499153d859202",
+      "size": 9364
+    },
+    {
+      "path": "resourcepacks/FA+Player-v1.1.zip",
+      "url": "https://cdn.modrinth.com/data/TAIMVZCL/versions/Wj7NeGjP/FA%2BPlayer-v1.1.zip",
+      "sha1": "122e397af111e3dc5fb6b60004aad9464980f13a",
+      "size": 110203
+    },
+    {
+      "path": "mods/malilib-fabric-1.21.11-0.27.20.jar",
+      "url": "https://cdn.modrinth.com/data/GcWjdA9I/versions/loabWpyU/malilib-fabric-1.21.11-0.27.20.jar",
+      "sha1": "ba18a2c6664b4136006090e3cd0263a2703edb75",
+      "size": 2161348
+    },
+    {
+      "path": "mods/HealthIndicators-1.21.11-0.0.1.jar",
+      "url": "https://cdn.modrinth.com/data/5uHXoloI/versions/w5iWcfnZ/HealthIndicators-1.21.11-0.0.1.jar",
+      "sha1": "fc2230c4c11e57363fe1fc6873e74fdaf707a191",
+      "size": 79702
+    },
+    {
+      "path": "mods/freecam-fabric-1.5.1+mc1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/XeEZ3fK2/versions/OXHA8heF/freecam-fabric-1.5.1%2Bmc1.21.11.jar",
+      "sha1": "994e384b7839eb285c4dcb8d84de8cef8a8e6294",
+      "size": 2046612
+    },
+    {
+      "path": "resourcepacks/FA+All_Extensions-v1.10.1.zip",
+      "url": "https://cdn.modrinth.com/data/YAVTU8mK/versions/zphVu6Oe/FA%2BAll_Extensions-v1.10.1.zip",
+      "sha1": "33c6cc4d621ba7f27e2d5c45269ac28f2287deae",
+      "size": 548952
+    },
+    {
       "path": "mods/ferritecore-8.2.0-fabric.jar",
       "url": "https://cdn.modrinth.com/data/uXXizFIs/versions/Ii0gP3D8/ferritecore-8.2.0-fabric.jar",
       "sha1": "c2e2f5e008f5bc9f401dfad8ca94909917006b65",
       "size": 80138
+    },
+    {
+      "path": "mods/Flashback-0.39.10-for-MC1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/4das1Fjq/versions/JTAZ57qO/Flashback-0.39.10-for-MC1.21.11.jar",
+      "sha1": "6435f1924b06d53dfc119c20d16eb5248f082cdd",
+      "size": 210513938
+    },
+    {
+      "path": "mods/clearviews-2.0.6+1.21.11-fabric.jar",
+      "url": "https://cdn.modrinth.com/data/TwYypE5e/versions/3fOqx0Bd/clearviews-2.0.6%2B1.21.11-fabric.jar",
+      "sha1": "a8a5795c7eb93ae89604e7820e18b26f80536bad",
+      "size": 130761
+    },
+    {
+      "path": "mods/eyevector-1.0.1.jar",
+      "url": "https://cdn.modrinth.com/data/B935ekmn/versions/pEZlLCdr/eyevector-1.0.1.jar",
+      "sha1": "c40cc7f15001375b90b572e7f11e60b1f1d9cd0e",
+      "size": 15865
+    },
+    {
+      "path": "mods/shulkerboxtooltip-fabric-5.2.16+1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/2M01OLQq/versions/rZovgkWT/shulkerboxtooltip-fabric-5.2.16%2B1.21.11.jar",
+      "sha1": "3f889de77a0aec69ffcfd28bf6fb2c077443788a",
+      "size": 389259
     },
     {
       "path": "mods/entityculling-fabric-1.11.3-mc1.21.11.jar",
@@ -33,16 +183,76 @@
       "size": 1529094
     },
     {
+      "path": "mods/architectury-19.0.1-fabric.jar",
+      "url": "https://cdn.modrinth.com/data/lhGA9TYQ/versions/uNdfrcQ8/architectury-19.0.1-fabric.jar",
+      "sha1": "2d40563f7e36f7a03f094031aeaacb175117928e",
+      "size": 568474
+    },
+    {
+      "path": "mods/skinlayers3d-fabric-1.11.4-mc1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/zV5r3pPn/versions/DsBJ7HB2/skinlayers3d-fabric-1.11.4-mc1.21.11.jar",
+      "sha1": "38e389c21847593e447f3af341135ba0ca8829fc",
+      "size": 1914056
+    },
+    {
+      "path": "mods/pneumonocore-1.3.1+1.21.11+A.jar",
+      "url": "https://cdn.modrinth.com/data/ZLKQjA7t/versions/jroJhBqO/pneumonocore-1.3.1%2B1.21.11%2BA.jar",
+      "sha1": "84468cbf8a3bf5b7d4ad0c4747350693908e35d1",
+      "size": 165031
+    },
+    {
       "path": "mods/dynamic-fps-3.11.6+minecraft-1.21.11-fabric.jar",
       "url": "https://cdn.modrinth.com/data/LQ3K71Q1/versions/Fab7e5Th/dynamic-fps-3.11.6%2Bminecraft-1.21.11-fabric.jar",
       "sha1": "2e5ab45e69b43812491cfa34f8f7a4ce7623c233",
       "size": 219961
     },
     {
+      "path": "mods/journeymap-fabric-1.21.11-6.0.0.jar",
+      "url": "https://cdn.modrinth.com/data/lfHFW1mp/versions/6Np0S5K2/journeymap-fabric-1.21.11-6.0.0.jar",
+      "sha1": "901dbdf7e50605a53cb3d1232e625c445b428b08",
+      "size": 4193594
+    },
+    {
+      "path": "mods/locator_lodestones-1.5.3+1.21.9+A.jar",
+      "url": "https://cdn.modrinth.com/data/pMBcsVIg/versions/Bxvtiw39/locator_lodestones-1.5.3%2B1.21.9%2BA.jar",
+      "sha1": "b0373478b16a239a6222f37ecf93c048d127ce9a",
+      "size": 36117
+    },
+    {
       "path": "mods/sodium-fabric-0.8.14+mc1.21.11.jar",
       "url": "https://cdn.modrinth.com/data/AANobbMI/versions/rkdTcxoT/sodium-fabric-0.8.14%2Bmc1.21.11.jar",
       "sha1": "4a8733fe544168068d12fa94b2ab03e6c0c7bf91",
       "size": 1909150
+    },
+    {
+      "path": "mods/herobot-1.21.11-1.4.3+v260315.jar",
+      "url": "https://cdn.modrinth.com/data/wt23fpWX/versions/9ig2SGA7/herobot-1.21.11-1.4.3%2Bv260315.jar",
+      "sha1": "17aba207e6bd906cae58b1c804f455955a9036b5",
+      "size": 249703
+    },
+    {
+      "path": "resourcepacks/Bare Bones 1.21.11.zip",
+      "url": "https://cdn.modrinth.com/data/rox3U8B6/versions/jQBWn2Q3/Bare%20Bones%201.21.11.zip",
+      "sha1": "2023465d2bac693b009c65c4e2566c2d58e2c2c6",
+      "size": 5488875
+    },
+    {
+      "path": "resourcepacks/Bare Bones x Armor Trim Item Fix 1.21.11.zip",
+      "url": "https://cdn.modrinth.com/data/mrrwMD47/versions/WXnJC42b/Bare%20Bones%20x%20Armor%20Trim%20Item%20Fix%201.21.11.zip",
+      "sha1": "8aa824b38a9c45f996dc02b8144281d58ab8de8e",
+      "size": 58384
+    },
+    {
+      "path": "mods/ViaVersion-5.12.3-SNAPSHOT.jar",
+      "url": "https://cdn.modrinth.com/data/P1OZGk5p/versions/U67Oeg8q/ViaVersion-5.12.3-SNAPSHOT.jar",
+      "sha1": "c4d9cc033222ed12eb563292a3bd3136a8e639ff",
+      "size": 6518457
+    },
+    {
+      "path": "resourcepacks/Faithful 32x - 1.21.11.zip",
+      "url": "https://cdn.modrinth.com/data/w0TnApzs/versions/WpkfQiw9/Faithful%2032x%20-%201.21.11.zip",
+      "sha1": "f89622843bd3b1faa8ac18d9a6a948684ff2afc4",
+      "size": 10133843
     },
     {
       "path": "mods/sodium-extra-fabric-0.9.5+mc1.21.11.jar",
@@ -57,10 +267,112 @@
       "size": 258250
     },
     {
+      "path": "mods/voicechat-fabric-1.21.11-2.6.27.jar",
+      "url": "https://cdn.modrinth.com/data/9eGKb6K1/versions/arpQQSyx/voicechat-fabric-1.21.11-2.6.27.jar",
+      "sha1": "44f9697b0cbbd66201dba295093cdb758cffc029",
+      "size": 5609606
+    },
+    {
+      "path": "mods/cwb-5.0.0+1.21.11.fabric.jar",
+      "url": "https://cdn.modrinth.com/data/ETlrkaYF/versions/AUqG5Vea/cwb-5.0.0%2B1.21.11.fabric.jar",
+      "sha1": "3097e866abb675d73d9ec3b00f43078d6e8ae831",
+      "size": 88896
+    },
+    {
+      "path": "mods/litematica-fabric-1.21.11-0.26.16.jar",
+      "url": "https://cdn.modrinth.com/data/bEpr0Arc/versions/mengBR9D/litematica-fabric-1.21.11-0.26.16.jar",
+      "sha1": "6faf0156520bc951a3a57681914228ea9354cc64",
+      "size": 1966804
+    },
+    {
+      "path": "resourcepacks/Bare Bones x Fresh Animations 1.10.4.zip",
+      "url": "https://cdn.modrinth.com/data/DCHWs5EF/versions/QDcOd0qk/Bare%20Bones%20x%20Fresh%20Animations%201.10.4.zip",
+      "sha1": "ae9de15cdb4fadcce880661ed3850c0462aca05a",
+      "size": 190836
+    },
+    {
+      "path": "mods/fullbrightnesstoggle-1.21.11-4.5.jar",
+      "url": "https://cdn.modrinth.com/data/aEK1KhsC/versions/4PhWRSH8/fullbrightnesstoggle-1.21.11-4.5.jar",
+      "sha1": "86d798ac69bc23503ed75ceeda539ab12040564b",
+      "size": 42025
+    },
+    {
+      "path": "mods/PresenceFootsteps-1.12.4+1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/rcTfTZr3/versions/xjmToylJ/PresenceFootsteps-1.12.4%2B1.21.11.jar",
+      "sha1": "65d1454890b23f339da0dd95519f824aaa11bb35",
+      "size": 5757598
+    },
+    {
+      "path": "mods/collective-1.21.11-8.32.jar",
+      "url": "https://cdn.modrinth.com/data/e0M1UDsY/versions/e4SDY5SX/collective-1.21.11-8.32.jar",
+      "sha1": "d8fcd71c03ae68b8f5b057e689f5e23fe30b6f21",
+      "size": 1046147
+    },
+    {
       "path": "mods/iris-fabric-1.10.8+mc1.21.11.jar",
       "url": "https://cdn.modrinth.com/data/YL57xq9U/versions/ka9PDlsN/iris-fabric-1.10.8%2Bmc1.21.11.jar",
       "sha1": "acfbe6d065b6c35d85c14da04d35e073363f3acf",
       "size": 2807718
+    },
+    {
+      "path": "resourcepacks/Bare Bones Better Leaves 1.21.11.zip",
+      "url": "https://cdn.modrinth.com/data/m4qArYal/versions/sPjKQbhb/Bare%20Bones%20Better%20Leaves%201.21.11.zip",
+      "sha1": "c2393a1fd4ba46b9067e40f7f0945c06d262bd9d",
+      "size": 804358
+    },
+    {
+      "path": "mods/jei-1.21.11-fabric-27.54.0.116.jar",
+      "url": "https://cdn.modrinth.com/data/u6dRKJwZ/versions/e56U66Sq/jei-1.21.11-fabric-27.54.0.116.jar",
+      "sha1": "e019cd29296933f6b0266adf9a045311bf97afe3",
+      "size": 4856988
+    },
+    {
+      "path": "resourcepacks/Bare Bones Emissive Ores 1.21.11.zip",
+      "url": "https://cdn.modrinth.com/data/rXblLI7L/versions/vOagEmXc/Bare%20Bones%20Emissive%20Ores%201.21.11.zip",
+      "sha1": "49216e6ecf06a59b8ecc4859c627286ae6101594",
+      "size": 60905
+    },
+    {
+      "path": "mods/konkrete_fabric_1.9.18_MC_1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/J81TRJWm/versions/6ypTGwlP/konkrete_fabric_1.9.18_MC_1.21.11.jar",
+      "sha1": "734866bdeed1af0b1fa23b131bd841648af96f69",
+      "size": 771623
+    },
+    {
+      "path": "mods/Jade-1.21.11-Fabric-21.1.6.jar",
+      "url": "https://cdn.modrinth.com/data/nvQzSEkH/versions/swJhAyak/Jade-1.21.11-Fabric-21.1.6.jar",
+      "sha1": "b48b23fe3b9175641bd63ce5c3373977f8f15723",
+      "size": 950484
+    },
+    {
+      "path": "mods/entity_model_features-3.3.12-1.21.11-fabric.jar",
+      "url": "https://cdn.modrinth.com/data/4I1XuqiY/versions/x4GbWVyx/entity_model_features-3.3.12-1.21.11-fabric.jar",
+      "sha1": "38770851102cbb23e2de7b55baa7530422d09349",
+      "size": 669397
+    },
+    {
+      "path": "mods/Controlling-fabric-1.21.11-29.0.1.jar",
+      "url": "https://cdn.modrinth.com/data/xv94TkTM/versions/A6W4m3vi/Controlling-fabric-1.21.11-29.0.1.jar",
+      "sha1": "afbbbb9248d9afe6224886c62ee1b35732f056f3",
+      "size": 83259
+    },
+    {
+      "path": "mods/enchdesc-fabric-1.21.11-21.11.2.jar",
+      "url": "https://cdn.modrinth.com/data/UVtY3ZAC/versions/NvvMHtHw/enchdesc-fabric-1.21.11-21.11.2.jar",
+      "sha1": "4b3b3151a64170435294e3939b4e120328b9c9ea",
+      "size": 82178
+    },
+    {
+      "path": "mods/ptp+1.21.11-1.0.35.jar",
+      "url": "https://cdn.modrinth.com/data/preyrsIh/versions/JssUtDBU/ptp%2B1.21.11-1.0.35.jar",
+      "sha1": "3448afd36a324125aaa272f00bd6b017bcb6ea4b",
+      "size": 95173
+    },
+    {
+      "path": "mods/entity_texture_features-7.2.7-1.21.11-fabric.jar",
+      "url": "https://cdn.modrinth.com/data/BVzZfTc1/versions/itjOkghQ/entity_texture_features-7.2.7-1.21.11-fabric.jar",
+      "sha1": "88cc388617f63c15a8a2771288cd62aa05878a35",
+      "size": 808818
     },
     {
       "path": "mods/ImmediatelyFast-Fabric-1.14.3+1.21.11.jar",
@@ -69,10 +381,82 @@
       "size": 302709
     },
     {
+      "path": "resourcepacks/FreshAnimations_v1.11.2_1.20+.zip",
+      "url": "https://cdn.modrinth.com/data/50dA9Sha/versions/HC1XRKGD/FreshAnimations_v1.11.2_1.20%2B.zip",
+      "sha1": "c0f564f3b9c12762923015eefad53edbdbbd3d96",
+      "size": 742790
+    },
+    {
+      "path": "resourcepacks/Bare Bones 3D Mace 1.21.11.zip",
+      "url": "https://cdn.modrinth.com/data/gGsfBpXX/versions/2vwcaVTD/Bare%20Bones%203D%20Mace%201.21.11.zip",
+      "sha1": "21a03ddedd02b6ce7d0b76a302152a3b8e425585",
+      "size": 57119
+    },
+    {
+      "path": "shaderpacks/Mello 0.56.zip",
+      "url": "https://cdn.modrinth.com/data/EJ1dyMxD/versions/s4j1i734/Mello%200.56.zip",
+      "sha1": "8cd2c8438e91442f6a029c994f11844d8ae15009",
+      "size": 164318
+    },
+    {
+      "path": "resourcepacks/PvP Utils 1.2.2.zip",
+      "url": "https://cdn.modrinth.com/data/U95n28SF/versions/AjntKsW7/PvP%20Utils%201.2.2.zip",
+      "sha1": "166f45a500fe91422b06ac176cf68a9898aff11f",
+      "size": 415032
+    },
+    {
+      "path": "resourcepacks/Bare Bones Hold My Item v.3.zip",
+      "url": "https://cdn.modrinth.com/data/78FtquDN/versions/4CT5t6mW/Bare%20Bones%20Hold%20My%20Item%20v.3.zip",
+      "sha1": "7728aa80065665f920d2fbc3ba31dae25f960555",
+      "size": 38766
+    },
+    {
+      "path": "resourcepacks/Spunky Pack Classic.zip",
+      "url": "https://cdn.modrinth.com/data/I1HDemew/versions/iGR1ooWQ/Spunky%20Pack%20Classic.zip",
+      "sha1": "02619691d4fc70698d98e47b8d54ad69bb12fd47",
+      "size": 1748120
+    },
+    {
+      "path": "shaderpacks/Solas Shader V3.9.zip",
+      "url": "https://cdn.modrinth.com/data/EpQFjzrQ/versions/IsqhVpb8/Solas%20Shader%20V3.9.zip",
+      "sha1": "7130b2ef691aa90f117231ba9ab01e7f6fca6fab",
+      "size": 1243081
+    },
+    {
+      "path": "mods/immortal-locator-1.0-SNAPSHOT.jar",
+      "url": "https://cdn.modrinth.com/data/sBg3juda/versions/9asmqAMg/immortal-locator-1.0-SNAPSHOT.jar",
+      "sha1": "6c7a6454d223fbe54337017dd298267f59f3705c",
+      "size": 811157
+    },
+    {
+      "path": "mods/locator-heads-1.6.4.jar",
+      "url": "https://cdn.modrinth.com/data/L4pt5egz/versions/nRYY2Vc3/locator-heads-1.6.4.jar",
+      "sha1": "d9498ba3cec62668ccb7bf4b7c5978b2f82ab613",
+      "size": 32630
+    },
+    {
+      "path": "mods/pingview-fabric-1.3.1.jar",
+      "url": "https://cdn.modrinth.com/data/gvl7lVcV/versions/MJvLIu4N/pingview-fabric-1.3.1.jar",
+      "sha1": "8315ee36631bb675fe9b06bb8383b368b354e6ae",
+      "size": 9311
+    },
+    {
       "path": "mods/yet_another_config_lib_v3-3.8.2+1.21.11-fabric.jar",
       "url": "https://cdn.modrinth.com/data/1eAoo2KR/versions/pHWDw3Vc/yet_another_config_lib_v3-3.8.2%2B1.21.11-fabric.jar",
       "sha1": "f99cda70903f16dd6927a276150b2762b4d5ab66",
       "size": 1126948
+    },
+    {
+      "path": "mods/showkeybinds-21.11.0.3-v21.11.0.3-fabric.jar",
+      "url": "https://cdn.modrinth.com/data/zaElPFa3/versions/5PV9Yvfj/showkeybinds-21.11.0.3-v21.11.0.3-fabric.jar",
+      "sha1": "0501b5c0086c9546b05f55267e85608067500b8a",
+      "size": 89385
+    },
+    {
+      "path": "shaderpacks/miniature-shader-2.19.zip",
+      "url": "https://cdn.modrinth.com/data/UaS8ROxa/versions/LWmZ94RG/miniature-shader-2.19.zip",
+      "sha1": "f66501ebcc5197f72ef19065eb0fa851707d7f9f",
+      "size": 43913
     },
     {
       "path": "mods/SnowyGUI-[0.4.4+1.21.11]-fabric.jar",
@@ -87,6 +471,12 @@
       "size": 219233
     },
     {
+      "path": "mods/continuity-3.0.1-beta.1+1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/1IjD5062/versions/mX1iknM1/continuity-3.0.1-beta.1%2B1.21.11.jar",
+      "sha1": "51d34c3f2035db0c7fca321b2d94f01b5167707c",
+      "size": 997125
+    },
+    {
       "path": "mods/fabric-api-0.141.6+1.21.11.jar",
       "url": "https://cdn.modrinth.com/data/P7dR8mSH/versions/6qAuTtLR/fabric-api-0.141.6%2B1.21.11.jar",
       "sha1": "c98467cbbaf4d197377266795ae015f4130d65b6",
@@ -99,16 +489,100 @@
       "size": 900462
     },
     {
+      "path": "shaderpacks/ComplementaryReimagined_r5.9.3.zip",
+      "url": "https://cdn.modrinth.com/data/HVnmMxH1/versions/Bqen1mJX/ComplementaryReimagined_r5.9.3.zip",
+      "sha1": "838139b54cddb56b2e83cd260d8efd960ac536d6",
+      "size": 553397
+    },
+    {
+      "path": "mods/ViaBackwards-5.12.3-SNAPSHOT.jar",
+      "url": "https://cdn.modrinth.com/data/NpvuJQoq/versions/q78xuJu0/ViaBackwards-5.12.3-SNAPSHOT.jar",
+      "sha1": "a59c2dbe007d99030487b40d54cf3f2e42d221be",
+      "size": 1439656
+    },
+    {
+      "path": "mods/keybindprofiles-1.1.0+fabric-mc1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/6g9J441m/versions/CmvXFo7F/keybindprofiles-1.1.0%2Bfabric-mc1.21.11.jar",
+      "sha1": "7d795f577d619a6ceab04df262130f81e8919d3f",
+      "size": 99763
+    },
+    {
+      "path": "mods/accessible-step-fabric-1.21.11-2.4.0+1.21.11.jar",
+      "url": "https://cdn.modrinth.com/data/z6d6n7ve/versions/gBLmRpoZ/accessible-step-fabric-1.21.11-2.4.0%2B1.21.11.jar",
+      "sha1": "65e7d381a6d26c24b045b751dedf13b76cc5d416",
+      "size": 64387
+    },
+    {
+      "path": "mods/krypton-0.2.10.jar",
+      "url": "https://cdn.modrinth.com/data/fQEb0iXm/versions/O9LmWYR7/krypton-0.2.10.jar",
+      "sha1": "94ddaeeae6ca7fecc79e54a0aa02a5438a775a99",
+      "size": 270195
+    },
+    {
       "path": "mods/modmenu-17.0.1.jar",
       "url": "https://cdn.modrinth.com/data/mOgUt4GM/versions/cLkYaVuL/modmenu-17.0.1.jar",
       "sha1": "d5612d70bda58e0179b177ca9990e57471e67d19",
       "size": 960882
     },
     {
+      "path": "resourcepacks/Bare Bones Eating Animations 2.1.1 - 1.21.11.zip",
+      "url": "https://cdn.modrinth.com/data/NjmqYWiU/versions/mGsHoUNU/Bare%20Bones%20Eating%20Animations%202.1.1%20-%201.21.11.zip",
+      "sha1": "030d3dcecd28c46d9c09ac2f4e9477918fdb5ef4",
+      "size": 332590
+    },
+    {
+      "path": "resourcepacks/PvP Crosshair.zip",
+      "url": "https://cdn.modrinth.com/data/uFGhGxal/versions/vSay7e9U/PvP%20Crosshair.zip",
+      "sha1": "ae1f1ba942ca282505667786d68fd252a6fd263e",
+      "size": 1863
+    },
+    {
       "path": "mods/placeholder-api-2.8.2+1.21.10.jar",
       "url": "https://cdn.modrinth.com/data/eXts2L7r/versions/qxjzQ9xY/placeholder-api-2.8.2%2B1.21.10.jar",
       "sha1": "bbdc920ecff993148cd6e81a208536132245ce40",
       "size": 268662
+    },
+    {
+      "path": "resourcepacks/shorterswords.zip",
+      "url": "https://cdn.modrinth.com/data/BpaObV8j/versions/TSnvYpcx/shorterswords.zip",
+      "sha1": "02aa5e247cf3a909ed69aea588a51edb0f62cec5",
+      "size": 5236
+    },
+    {
+      "path": "mods/appleskin-fabric-mc1.21.11-3.0.8.jar",
+      "url": "https://cdn.modrinth.com/data/EsAfCjCV/versions/59ti1rvg/appleskin-fabric-mc1.21.11-3.0.8.jar",
+      "sha1": "441fdbf4e9c34fb61517ceb8e15618950dc4d314",
+      "size": 180107
+    },
+    {
+      "path": "resourcepacks/Bare Bones Connected Glass 1.21.11.zip",
+      "url": "https://cdn.modrinth.com/data/7vuMiTHm/versions/ylN5Dyo6/Bare%20Bones%20Connected%20Glass%201.21.11.zip",
+      "sha1": "ab8fe49e8ac0d3e27f7358710327151132750e47",
+      "size": 365292
+    },
+    {
+      "path": "mods/Searchables-fabric-1.21.11-1.0.4.jar",
+      "url": "https://cdn.modrinth.com/data/fuuu3xnx/versions/8t7XWQgt/Searchables-fabric-1.21.11-1.0.4.jar",
+      "sha1": "32d0edf6f65aa9d7b33312a14cd5125aad189850",
+      "size": 79919
+    },
+    {
+      "path": "mods/radial-1.0.5+1.21.10.jar",
+      "url": "https://cdn.modrinth.com/data/g52fu7eA/versions/AKjeHzu6/radial-1.0.5%2B1.21.10.jar",
+      "sha1": "516111ec3f4f69deb4883755a0a3bd270ffcf00d",
+      "size": 74527
+    },
+    {
+      "path": "mods/moreculling-fabric-1.21.11-1.6.2.jar",
+      "url": "https://cdn.modrinth.com/data/51shyZVL/versions/wOzykoLV/moreculling-fabric-1.21.11-1.6.2.jar",
+      "sha1": "11a929de62650cc536244d4c2ba889fa84c1c0f2",
+      "size": 340975
+    },
+    {
+      "path": "resourcepacks/System 98 (Windows 98 Themed GUI) 1.21.9 - .10.zip",
+      "url": "https://cdn.modrinth.com/data/QQeB437y/versions/5zs51rnw/System%2098%20%28Windows%2098%20Themed%20GUI%29%201.21.9%20-%20.10.zip",
+      "sha1": "2919a222eff2ef1b5ee1395e5ddfcee74166ca64",
+      "size": 571475
     }
   ]
 }

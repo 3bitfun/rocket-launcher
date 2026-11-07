@@ -1,8 +1,14 @@
 {
   "rocket_companion.button": "Rocket",
-  "rocket_companion.title": "Rocket Companion",
-  "rocket_companion.subtitle": "Your game, your way.",
+  "rocket_companion.title": "Rocket Launcher Client",
+  "rocket_companion.subtitle": "Minecraft 1.21.11 · Fabric",
   "rocket_companion.video": "Video settings",
   "rocket_companion.controls": "Controls",
-  "rocket_companion.back": "Back to Minecraft"
+  "rocket_companion.back": "Back to Minecraft",
+  "rocket_companion.hud.on": "Rocket HUD: On",
+  "rocket_companion.hud.off": "Rocket HUD: Off",
+  "rocket_companion.hud.fps": "%s FPS",
+  "rocket_companion.hud.position": "XYZ  %s  %s  %s",
+  "key.categories.rocket_companion.client": "Rocket Launcher Client",
+  "key.rocket_companion.menu": "Open Rocket menu"
 }

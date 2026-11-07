@@ -7,7 +7,7 @@ import { ModrinthBrowser } from './ModrinthBrowser';
 
 const recommendedVersion = '1.21.11';
 
-export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }: { snapshot: AppSnapshot; catalog: VersionCatalog | null; offline: boolean; busy: boolean; onPlay: () => void; onInstallPack: (version: string) => Promise<boolean> }) {
+export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }: { snapshot: AppSnapshot; catalog: VersionCatalog | null; offline: boolean; busy: boolean; onPlay: () => void; onInstallPack: (version: string, progress: (files: [number, number]) => void) => Promise<boolean> }) {
   const [view, setView] = useState<'browse' | 'installed' | 'pack'>(snapshot.instances.length ? 'browse' : 'pack');
   const [id, setId] = useState(snapshot.activeInstanceId ?? '');
   const [mods, setMods] = useState<InstalledMod[]>([]);
@@ -16,6 +16,7 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
   const [revision, setRevision] = useState(0);
   const [installingPack, setInstallingPack] = useState(false);
   const [packInstalled, setPackInstalled] = useState(false);
+  const [packProgress, setPackProgress] = useState<[number, number] | null>(null);
   const [packVersion, setPackVersion] = useState(recommendedVersion);
   const [fabricVersions, setFabricVersions] = useState<string[]>([]);
   const [packListError, setPackListError] = useState('');
@@ -41,7 +42,8 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
 
   async function installPack() {
     setInstallingPack(true);
-    try { setPackInstalled(await onInstallPack(packVersion)); }
+    setPackProgress(null);
+    try { setPackInstalled(await onInstallPack(packVersion, setPackProgress)); }
     finally { setInstallingPack(false); }
   }
 
@@ -61,7 +63,7 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
       <div className="rocket-pack-content">
         <span className="tag">Recommended</span>
         <h2>Rocket Pack</h2>
-        <p>{packVersion === recommendedVersion ? 'Fabric · Performance mods and the Rocket Companion menu' : 'Fabric · A starter pack assembled from compatible performance mods'}</p>
+        <p>{packVersion === recommendedVersion ? 'Fabric · 69 mods, resource packs, shaders, and Rocket Launcher Client · About 304 MiB' : 'Fabric · A starter pack assembled from compatible performance mods'}</p>
         <label className="field"><span>Rocket Pack Minecraft version</span><select value={packVersion} disabled={busy || installingPack} onChange={(event) => { setPackVersion(event.target.value); setPackInstalled(false); }}>
           <option value={recommendedVersion}>{recommendedVersion} · Full pack</option>
           {packVersions.map((version) => <option key={version.id} value={version.id}>{version.id} · Starter pack</option>)}
@@ -73,6 +75,10 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
         </button>
         {offline && <p>Go online to download the pack.</p>}
         {packInstalled && <button className="button secondary small-button" onClick={onPlay}>Open Launch Pad</button>}
+        {installingPack && packProgress && <div className="pack-progress">
+          <p role="status">{packProgress[0]} of {packProgress[1]} files verified</p>
+          <progress className="game-progress" aria-label="Rocket Pack files verified" value={packProgress[0]} max={packProgress[1]} />
+        </div>}
       </div>
     </section>}
     {view === 'installed' && <section className="panel mods-panel"><div className="section-heading"><h2>Installed mod files</h2><button className="icon-button" title="Refresh mod list" aria-label="Refresh local mods" onClick={() => setRevision((value) => value + 1)} disabled={!id || loading}><RefreshCw size={16} /></button></div>

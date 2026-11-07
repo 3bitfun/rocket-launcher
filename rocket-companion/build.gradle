@@ -3,7 +3,11 @@ plugins {
 }
 
 group = 'com.rocketlauncher'
-version = '1.0.0'
+version = '1.1.0'
+
+base {
+    archivesName = 'rocketlauncher-client'
+}
 
 dependencies {
     minecraft 'com.mojang:minecraft:1.21.11'

@@ -2,7 +2,6 @@ import { ArrowRight, Box, Cpu, Download, Pencil, Plus, Puzzle, Rocket, Settings2
 import type { AppSnapshot, GameStatus, Instance, Page } from '../../types';
 import { loaderName } from '../../services/loaders';
 import { readinessLabel } from '../../services/readiness';
-import { Landscape } from '../../components/launcher/Landscape';
 import { InstanceCard } from '../../components/instances/InstanceCard';
 import { formatRam } from '../../components/ui/Primitives';
 
@@ -27,7 +26,7 @@ export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onSelect, 
 
   return <>
     <section className="play-panel" aria-label={selected ? 'Selected instance' : 'Getting started'}>
-      <Landscape />
+      <img className="play-scenery" src="/herobanner.png" alt="" fetchPriority="high" />
       <div className="play-content">
         <div className="play-context">
           {selected ? <label className="play-picker">
