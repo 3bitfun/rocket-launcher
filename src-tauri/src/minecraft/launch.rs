@@ -327,6 +327,7 @@ pub struct LaunchRequest {
     pub platform: Platform,
     pub auth: LaunchAuth,
     pub log_root: PathBuf,
+    pub sync: Option<(PathBuf, super::sync::PendingSync)>,
 }
 
 pub async fn start(
@@ -341,6 +342,7 @@ pub async fn start(
         platform,
         auth,
         log_root,
+        sync,
     } = request;
     let (identity, access_token, expires_at, local_test) = match auth {
         LaunchAuth::Offline { player, uuid } => (
@@ -445,8 +447,22 @@ pub async fn start(
             out.abort();
             err.abort();
         }
+        let sync_error = if let Some((root, pending)) = sync {
+            match tokio::task::spawn_blocking(move || super::sync::finish(&root, &pending)).await {
+                Ok(Ok(())) => None,
+                Ok(Err(error)) => Some(error.message),
+                Err(error) => Some(format!("Could not save shared instance settings: {error}")),
+            }
+        } else {
+            None
+        };
         drop(reservation);
         let (readiness, message, exit_code) = match exit {
+            Ok(status) if sync_error.is_some() => (
+                Readiness::Error,
+                format!("Minecraft exited. Instance sync will retry on the next launch: {}", sync_error.unwrap_or_default()),
+                status.code(),
+            ),
             Ok(status) if status.success() => (
                 Readiness::Ready,
                 "Minecraft exited normally.".into(),

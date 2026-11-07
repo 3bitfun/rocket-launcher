@@ -513,6 +513,28 @@ pub fn verify(
     vanilla: &Installed,
     full: bool,
 ) -> Result<Option<Installed>> {
+    verify_with_options(root, game_version, loader_version, platform, vanilla, full, false)
+}
+
+pub fn verify_for_launch(
+    root: &Path,
+    game_version: &str,
+    loader_version: &str,
+    platform: &Platform,
+    vanilla: &Installed,
+) -> Result<Option<Installed>> {
+    verify_with_options(root, game_version, loader_version, platform, vanilla, false, true)
+}
+
+fn verify_with_options(
+    root: &Path,
+    game_version: &str,
+    loader_version: &str,
+    platform: &Platform,
+    vanilla: &Installed,
+    full: bool,
+    allow_missing: bool,
+) -> Result<Option<Installed>> {
     let id = profile_id(game_version, loader_version)?;
     let directory = root.join("versions").join(segment(&id)?);
     let receipt_path = directory.join(format!("fabric-{}.json", platform.arch.name()));
@@ -556,6 +578,7 @@ pub fn verify(
     let mut classpath = Vec::with_capacity(receipt.libraries.len() + vanilla.classpath.len());
     for record in &receipt.libraries {
         let path = library_path(root, record)?;
+        if !allow_missing {
         let meta = fs::metadata(&path).map_err(|_| missing(&path))?;
         if !meta.is_file()
             || meta.len() == 0
@@ -570,6 +593,7 @@ pub fn verify(
                 ))
         {
             return Err(missing(&path));
+        }
         }
         classpath.push(path);
     }

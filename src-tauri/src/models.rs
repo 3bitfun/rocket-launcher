@@ -28,7 +28,13 @@ pub struct Settings {
     pub minecraft_directory: PathBuf,
     pub show_snapshots: bool,
     pub request_timeout_seconds: u64,
+    #[serde(default = "enabled")]
+    pub sync_servers: bool,
+    #[serde(default = "enabled")]
+    pub sync_keybinds: bool,
 }
+
+fn enabled() -> bool { true }
 
 impl Settings {
     pub fn defaults(data_dir: &std::path::Path) -> Self {
@@ -42,6 +48,8 @@ impl Settings {
             minecraft_directory: data_dir.join("instances"),
             show_snapshots: false,
             request_timeout_seconds: 20,
+            sync_servers: true,
+            sync_keybinds: true,
         }
     }
 }

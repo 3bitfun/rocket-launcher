@@ -313,6 +313,20 @@ pub fn inspect_installed(
     platform: &Platform,
     full: bool,
 ) -> Result<Option<Installed>> {
+    inspect_with_options(root, id, platform, full, false)
+}
+
+pub fn inspect_for_launch(root: &Path, id: &str, platform: &Platform) -> Result<Option<Installed>> {
+    inspect_with_options(root, id, platform, false, true)
+}
+
+fn inspect_with_options(
+    root: &Path,
+    id: &str,
+    platform: &Platform,
+    full: bool,
+    allow_missing: bool,
+) -> Result<Option<Installed>> {
     let path = receipt_path(root, id, platform)?;
     if !path.exists() {
         return Ok(None);
@@ -356,6 +370,9 @@ pub fn inspect_installed(
     // Asset objects can number in the thousands. They were checked during
     // installation; don't stat or hash them again for routine launch readiness.
     for spec in plan.files.values() {
+        if allow_missing {
+            break;
+        }
         if !full && spec.relative.starts_with("assets/objects") {
             continue;
         }
@@ -385,18 +402,23 @@ pub fn inspect_installed(
         }
     }
     let natives = path.parent().unwrap().join(segment(&receipt.natives)?);
-    if !receipt.natives.starts_with("natives-") || !natives.is_dir() {
+    if !receipt.natives.starts_with("natives-") || (!allow_missing && !natives.is_dir()) {
         return Err(missing(&natives));
     }
-    for item in fs::read_dir(&natives).map_err(|e| AppError::io("read extracted natives", e))? {
-        let item = item.map_err(|e| AppError::io("inspect extracted native", e))?;
-        let name = item.file_name().to_string_lossy().into_owned();
-        if !receipt.native_hashes.contains_key(&name) {
-            return Err(missing(&item.path()));
+    if !allow_missing {
+        for item in fs::read_dir(&natives).map_err(|e| AppError::io("read extracted natives", e))? {
+            let item = item.map_err(|e| AppError::io("inspect extracted native", e))?;
+            let name = item.file_name().to_string_lossy().into_owned();
+            if !receipt.native_hashes.contains_key(&name) {
+                return Err(missing(&item.path()));
+            }
         }
     }
     for (name, hash) in &receipt.native_hashes {
         let file = natives.join(segment(name)?);
+        if allow_missing {
+            continue;
+        }
         let valid = if full {
             download::verify(&file, hash, None, 256 * 1024 * 1024)
         } else {

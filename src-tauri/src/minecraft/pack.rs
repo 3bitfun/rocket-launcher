@@ -87,6 +87,12 @@ pub async fn install_for_version(
     let pinned = Pack::recommended()?;
     if game == pinned.minecraft {
         pinned.download(directory, timeout).await?;
+        tokio::fs::write(
+            directory.join("mods").join("rocket-companion-1.0.0.jar"),
+            include_bytes!("../../resources/rocket-companion-1.0.0.jar"),
+        )
+        .await
+        .map_err(|e| AppError::io("install Rocket Companion", e))?;
         return Ok(pinned.instance_input(ram));
     }
     let loaders = super::fabric::loader_versions(game, timeout).await?;

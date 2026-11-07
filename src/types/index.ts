@@ -17,6 +17,8 @@ export interface Settings {
   minecraftDirectory: string;
   showSnapshots: boolean;
   requestTimeoutSeconds: number;
+  syncServers: boolean;
+  syncKeybinds: boolean;
 }
 export interface Instance {
   id: string;

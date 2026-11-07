@@ -77,7 +77,7 @@ it('shows actual catalogue failure and offers a working retry action', async () 
   expect(retry).toHaveBeenCalledOnce();
 });
 
-it('offers installation, then keeps IGNITE disabled until authentication', async () => {
+it('offers installation, then directs players to profile setup', async () => {
   const profile: Instance = { id: 'test', name: 'Test World', version: '1.21.1', versionType: 'release', loader: 'vanilla', loaderVersion: null, gameDirectory: 'C:\\test', ramMb: 4096, javaPath: null, createdAt: 0, updatedAt: 0, lastSelectedAt: 0, readiness: 'requires_download' };
   const onInstall = vi.fn();
   const onIgnite = vi.fn();
@@ -87,7 +87,8 @@ it('offers installation, then keeps IGNITE disabled until authentication', async
   await userEvent.click(screen.getByRole('button', { name: 'Install Minecraft' }));
   expect(onInstall).toHaveBeenCalledWith(profile);
   rerender(<LaunchPad {...props} snapshot={{ ...selected, instances: [{ ...profile, readiness: 'authentication_required' }] }} status={{ instanceId: profile.id, readiness: 'authentication_required', message: 'Files verified; sign-in required.', exitCode: null }} />);
-  expect(screen.getByRole('button', { name: 'IGNITE' })).toBeDisabled();
+  await userEvent.click(screen.getByRole('button', { name: 'Set up a player profile' }));
+  expect(props.onNavigate).toHaveBeenCalledWith('settings');
   expect(screen.getByText('Files verified; sign-in required.')).toBeInTheDocument();
   expect(onIgnite).not.toHaveBeenCalled();
 });

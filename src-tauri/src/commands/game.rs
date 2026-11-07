@@ -41,6 +41,8 @@ struct Input {
     catalogue: PathBuf,
     java: Option<PathBuf>,
     timeout: u64,
+    sync_servers: bool,
+    sync_keybinds: bool,
 }
 
 fn require_online(input: &Input) -> Result<()> {
@@ -64,6 +66,8 @@ fn input(state: &LauncherState, id: &str) -> Result<Input> {
         logs: store.paths.logs.clone(),
         catalogue: store.paths.cache.join("versions.json"),
         timeout: store.config.settings.request_timeout_seconds,
+        sync_servers: store.config.settings.sync_servers,
+        sync_keybinds: store.config.settings.sync_keybinds,
     })
 }
 
@@ -104,13 +108,15 @@ pub async fn install_rocket_pack(
     }
     store.create_pack_instance(input, directory)
 }
-async fn verify(input: &Input, full: bool) -> Result<Option<Installed>> {
+async fn verify(input: &Input, full: bool, allow_missing: bool) -> Result<Option<Installed>> {
     let platform = Platform::windows()?;
     let root = input.root.clone();
     let version = input.instance.version.clone();
     // The vanilla game version is always verified first; Fabric layers on top of it.
     let vanilla = tokio::task::spawn_blocking(move || {
-        if full {
+        if allow_missing {
+            install::inspect_for_launch(&root, &version, &platform)
+        } else if full {
             install::verify_installed(&root, &version, &platform)
         } else {
             install::inspect_installed(&root, &version, &platform, false)
@@ -128,7 +134,10 @@ async fn verify(input: &Input, full: bool) -> Result<Option<Installed>> {
             let root = input.root.clone();
             let game = input.instance.version.clone();
             let platform = Platform::windows()?;
-            tokio::task::spawn_blocking(move || forge::verify(&root, &game, &loader, &platform, vanilla, full))
+            tokio::task::spawn_blocking(move || {
+                if allow_missing { forge::verify_for_launch(&root, &game, &loader, &platform, vanilla) }
+                else { forge::verify(&root, &game, &loader, &platform, vanilla, full) }
+            })
                 .await.map_err(|e| AppError::new("FORGE", format!("Could not verify Forge: {e}")))?
         }
         Loader::Fabric => {
@@ -142,6 +151,9 @@ async fn verify(input: &Input, full: bool) -> Result<Option<Installed>> {
             let game_version = input.instance.version.clone();
             let platform = Platform::windows()?;
             let fabric = tokio::task::spawn_blocking(move || {
+                if allow_missing {
+                    fabric::verify_for_launch(&root, &game_version, &loader_version, &platform, &vanilla)
+                } else {
                 fabric::verify(
                     &root,
                     &game_version,
@@ -150,6 +162,7 @@ async fn verify(input: &Input, full: bool) -> Result<Option<Installed>> {
                     &vanilla,
                     full,
                 )
+                }
             })
             .await
             .map_err(|e| {
@@ -290,7 +303,7 @@ pub async fn check_game(
             "The instance game directory is missing. Install to recreate it.",
         ));
     }
-    let installed = match missing_status(&id, verify(&input, false).await) {
+    let installed = match missing_status(&id, verify(&input, false, false).await) {
         Ok(installed) => installed,
         Err(status) => return Ok(status),
     };
@@ -486,17 +499,20 @@ pub async fn ignite_game(
         .operation
         .try_lock()
         .map_err(|_| AppError::new("BUSY", "Another Minecraft operation is in progress."))?;
+    if (input.sync_servers || input.sync_keybinds) && jobs.processes.busy() {
+        return Err(AppError::new("BUSY", "Close other Minecraft instances before launching with shared servers or keybinds."));
+    }
     let reservation = jobs.processes.reserve(&id)?;
     publish_game(
         &app,
         GameStatus::new(
             &id,
             Readiness::Launching,
-            "Verifying game files before launch…",
+            "Preparing Minecraft…",
         ),
     );
     let result = async {
-        let installed = verify(&input, true)
+        let installed = verify(&input, false, true)
             .await?
             .ok_or_else(|| AppError::new("MISSING_FILES", "Install Minecraft before launching."))?;
         let platform = Platform::windows()?;
@@ -533,11 +549,24 @@ pub async fn ignite_game(
                 launch::LaunchAuth::Offline { player, uuid }
             }
         };
+        let sync = if input.sync_servers || input.sync_keybinds {
+            let root = input.data.join("instance-sync");
+            let game = input.instance.game_directory.clone();
+            let servers = input.sync_servers;
+            let keybinds = input.sync_keybinds;
+            let result = tokio::task::spawn_blocking({
+                let root = root.clone();
+                move || crate::minecraft::sync::prepare(&root, &game, servers, keybinds)
+            }).await.map_err(|e| AppError::new("SYNC", format!("Could not prepare instance sync: {e}")))??;
+            Some((root, result))
+        } else {
+            None
+        };
         let launch_message =
             if matches!(account_mode, crate::auth::accounts::AccountMode::LocalTest) {
                 "Local Offline Test — Unauthenticated. Starting Minecraft…"
             } else {
-                "Verifying game files before launch…"
+                "Preparing Minecraft…"
             };
         publish_game(
             &app,
@@ -553,6 +582,7 @@ pub async fn ignite_game(
                 platform,
                 auth,
                 log_root: input.logs,
+                sync,
             },
             move |status| publish_game(&event_app, status),
         )

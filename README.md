@@ -15,6 +15,7 @@ Rocket Launcher manages Vanilla, Fabric, and Forge instances on Windows. Choose 
 - Mojang client, libraries, assets, logging configuration and native archives, with streaming downloads, SHA-1 verification, shared cache reuse, and offline repair checks.
 - Java discovery with exact version and architecture matching. A manually selected executable takes priority.
 - Launch Pad install and repair actions, measured Downloads progress, and native launch preparation behind an ownership-verified session boundary.
+- Optional server-list and keybind sync across instances, enabled by default. Settings unrelated to key assignments stay instance-specific.
 - Microsoft OAuth sign-in, Xbox/Minecraft ownership verification, Windows Credential Manager refresh-token storage, and authenticated launch sessions.
 - Dark, light, and system themes; custom accent colours; animation and reduced-motion preferences.
 - Built-in Modrinth search for Fabric and Forge instances, matching Minecraft versions and loader. Install directly from search results or choose a specific release. Rocket Launcher verifies the JAR and resolves required Modrinth dependencies.
@@ -28,9 +29,13 @@ Java runtimes are selected from installed runtimes. Launcher updates are applied
 
 In **Mods**, pick a Minecraft version and select **Create Rocket Pack instance**. The full 1.21.11 pack uses Fabric Loader 0.20.1 and pinned mods from the supplied Tuff pack. Other Fabric releases use starter packs assembled from matching versions of Sodium, Lithium, and Fabric API, depending on availability. Install the Minecraft files from **Launch Pad** and use the Java version it requests.
 
+The full pack includes Rocket Companion, a client mod for Fabric 1.21.11. Click **Rocket** on Minecraft’s title or pause menu for Controls and Video Settings. For another Fabric 1.21.11 instance, install Fabric API and add the release JAR to its `mods` folder. Build the mod from `rocket-companion` with `.\gradlew.bat remapJar` on JDK 21. To bundle a rebuilt mod, copy the JAR from `rocket-companion/build/libs` to `src-tauri/resources`.
+
 For a custom Minecraft title screen or pause menu, install the matching Fabric release of [FancyMenu](https://modrinth.com/mod/fancymenu), open Minecraft and create a layout from the FancyMenu toolbar. Share your layout by copying its [configuration folder](https://docs.fancymenu.net/docs/en-US/modpacks) into the pack. [ImproperUI](https://modrinth.com/mod/improperui) is also available for scripted in-game screens.
 
 Create or select a Fabric or Forge instance, then open **Mods**. Click **Install** on a result to choose a compatible release automatically, or use **Versions** to pick one yourself. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, move its old JAR out of the mods folder before installing the replacement. Offline Mode keeps local mod files available and pauses catalogue requests and downloads.
+
+Settings can share the server list and key assignments between instances. Rocket Launcher keeps a copy of an instance's original files before applying shared values. Only one instance can launch with sync enabled at a time. **Repair files** is available next to IGNITE when needed.
 
 ## Run locally on Windows 10/11
 

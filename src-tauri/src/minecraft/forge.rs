@@ -127,6 +127,7 @@ fn library_paths(
     child: &Version,
     platform: &Platform,
     full: bool,
+    allow_missing: bool,
 ) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
     for library in &child.libraries {
@@ -148,9 +149,9 @@ fn library_paths(
         let size_ok = path
             .metadata()
             .is_ok_and(|meta| meta.is_file() && meta.len() == artifact.size);
-        if !size_ok
+        if !allow_missing && (!size_ok
             || (full && !download::verify(&path, &artifact.sha1, Some(artifact.size), MAX_JAR))
-        {
+        ) {
             return Err(AppError::new(
                 "MISSING_FILES",
                 format!("Repair Forge to restore {relative}."),
@@ -168,6 +169,28 @@ pub fn verify(
     platform: &Platform,
     vanilla: Installed,
     full: bool,
+) -> Result<Option<Installed>> {
+    verify_with_options(root, game, loader, platform, vanilla, full, false)
+}
+
+pub fn verify_for_launch(
+    root: &Path,
+    game: &str,
+    loader: &str,
+    platform: &Platform,
+    vanilla: Installed,
+) -> Result<Option<Installed>> {
+    verify_with_options(root, game, loader, platform, vanilla, false, true)
+}
+
+fn verify_with_options(
+    root: &Path,
+    game: &str,
+    loader: &str,
+    platform: &Platform,
+    vanilla: Installed,
+    full: bool,
+    allow_missing: bool,
 ) -> Result<Option<Installed>> {
     let id = profile_id(game, loader)?;
     let directory = root.join("forge").join(&id);
@@ -189,7 +212,7 @@ pub fn verify(
             ));
         }
     }
-    let mut classpath = library_paths(&directory, &child, platform, full)?;
+    let mut classpath = library_paths(&directory, &child, platform, full, allow_missing)?;
     let version = vanilla.version.clone().inherit(child);
     for library in &version.libraries {
         if !metadata::allowed(library.rules.as_deref(), platform)? {
@@ -288,7 +311,7 @@ pub async fn install(
         return Err(error(format!("The Forge installer exited with {status}.")));
     }
     let child = profile(stage, &id, game)?;
-    library_paths(stage, &child, platform, true)?;
+    library_paths(stage, &child, platform, true, false)?;
     let profile_path = stage.join("versions").join(&id).join(format!("{id}.json"));
     let hash = download::file_hash(&profile_path)
         .map_err(|e| AppError::io("hash the Forge profile", e))?;

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react';
-import { AlertCircle, ArrowUpRight, CheckCircle2, Monitor, Rocket, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Download, Monitor, Rocket, X } from 'lucide-react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { InstanceEditor } from '../components/instances/InstanceEditor';
 import { Modal } from '../components/ui/Modal';
@@ -16,11 +16,11 @@ import { isDesktop, native } from '../services/native';
 import type { AccountsSummary, Instance, Page } from '../types';
 
 const pageDetails: Record<Page, { title: string; subtitle: string }> = {
-  launchpad: { title: 'Launch Pad', subtitle: 'Good to have you on board.' },
-  instances: { title: 'Instances', subtitle: 'Your own little multiverse.' },
-  mods: { title: 'Mods', subtitle: 'New ways to play.' },
-  downloads: { title: 'Downloads', subtitle: 'Mission supply station.' },
-  settings: { title: 'Settings', subtitle: 'Fine-tune your experience.' },
+  launchpad: { title: 'Launch Pad', subtitle: 'Choose an instance and play.' },
+  instances: { title: 'Instances', subtitle: 'Manage your Minecraft versions, loaders, and game folders.' },
+  mods: { title: 'Mods', subtitle: 'Find compatible mods or start with Rocket Pack.' },
+  downloads: { title: 'Downloads', subtitle: 'Track game installs and refresh the version catalogue.' },
+  settings: { title: 'Settings', subtitle: 'Manage accounts, game defaults, and launcher updates.' },
 };
 
 function accentInk(hex: string) {
@@ -36,6 +36,7 @@ export default function App() {
   const game = useGame(stored, launcher.setToast, accounts);
   const busy = launcher.busy || game.working || game.download?.stage === 'installing' || game.download?.stage === 'downloading';
   const [page, setPage] = useState<Page>('launchpad');
+  const main = useRef<HTMLElement>(null);
   const [editor, setEditor] = useState<Instance | 'new' | null>(null);
   const [removing, setRemoving] = useState<Instance | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -44,6 +45,8 @@ export default function App() {
   const reduced = Boolean(systemReduced || stored?.settings.reducedMotion === 'always' || stored?.settings.animations === false);
   const snapshot = stored && { ...stored, instances: stored.instances.map((instance) => ({ ...instance, readiness: game.status(instance).readiness })) };
   const activeAccount = accounts?.profiles.find((account) => account.id === accounts.activeId);
+
+  useEffect(() => { main.current?.scrollTo(0, 0); }, [page]);
 
   useEffect(() => {
     let active = true;
@@ -82,18 +85,22 @@ export default function App() {
   if (!snapshot) return <div className="startup-screen"><span className="brand-mark"><Rocket size={30} /></span><h1>Rocket Launcher</h1>{launcher.startupError ? <><p role="alert" className="form-error">{launcher.startupError}</p><button className="button primary" onClick={() => void launcher.load()}>Try again</button></> : <><Spinner size={25} /><p>Preparing your launch pad…</p></>}</div>;
   const selected = snapshot.instances.find((instance) => instance.id === snapshot.activeInstanceId);
   const retry = snapshot.instances.find((instance) => instance.id === game.download?.instanceId && instance.version === game.download.version);
+  const downloading = game.download?.stage === 'downloading' || game.download?.stage === 'installing';
 
   return <MotionConfig reducedMotion={reduced ? 'always' : 'user'} transition={{ duration: reduced ? 0 : 0.2 }}>
     <div className="app-shell"><a className="skip-link" href="#main-content">Skip to content</a><Sidebar page={page} onNavigate={navigate} count={snapshot.instances.length} version={snapshot.appVersion} account={activeAccount} offline={accounts?.offline ?? false} />
-      <main id="main-content" tabIndex={-1}><header className="page-header"><div><div className="eyebrow">YOUR ADVENTURE, REIMAGINED</div><h1>{pageDetails[page].title}</h1><p>{pageDetails[page].subtitle}</p></div><div className="header-status"><span className="status-dot online" />Minecraft installer<span className="header-version">v{snapshot.appVersion}</span></div></header>
+      <main ref={main} id="main-content" tabIndex={-1}><header className="page-header">
+        <div><h1>{pageDetails[page].title}</h1><p>{pageDetails[page].subtitle}</p></div>
+        {downloading ? <button className="button secondary small-button" onClick={() => navigate('downloads')}><Download size={15} /> View download</button>
+          : accounts?.offline && <span className="tag">Offline mode</span>}
+      </header>
         <AnimatePresence mode="wait" initial={false}><motion.div key={page} className="page-content" initial={{ opacity: 0, y: reduced ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : -4 }} transition={{ duration: reduced ? 0 : 0.16 }}>
-          {page === 'launchpad' && <LaunchPad snapshot={snapshot} catalog={catalog} busy={busy} status={selected && game.status(selected)} onCreate={() => openEditor('new')} onEdit={openEditor} onSelect={select} onNavigate={navigate} onInstall={(instance) => void game.run(instance, 'install')} onIgnite={(instance) => void game.run(instance, 'launch')} onCheck={(instance) => void game.check(instance.id)} />}
+          {page === 'launchpad' && <LaunchPad snapshot={snapshot} busy={busy} status={selected && game.status(selected)} onCreate={() => openEditor('new')} onEdit={openEditor} onSelect={select} onNavigate={navigate} onInstall={(instance) => void game.run(instance, 'install')} onIgnite={(instance) => void game.run(instance, 'launch')} onCheck={(instance) => void game.check(instance.id)} />}
           {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onSelect={select} onDuplicate={(instance) => void mutate(() => native.duplicate(instance.id), 'Configuration duplicated into a new, empty instance.')} onDelete={openRemoval} />}
           {page === 'downloads' && <Downloads catalog={catalog} error={catalogError} fetching={fetching} onRefresh={() => void launcher.refreshVersions()} progress={game.download} onRetry={!busy && retry ? () => void game.run(retry, 'install') : undefined} />}
-          {page === 'mods' && <Mods snapshot={snapshot} catalog={catalog} offline={accounts?.offline ?? false} busy={busy} onInstallPack={(version) => mutate(() => native.installRocketPack(version), 'Rocket Pack instance created.')} />}
+          {page === 'mods' && <Mods snapshot={snapshot} catalog={catalog} offline={accounts?.offline ?? false} busy={busy} onPlay={() => navigate('launchpad')} onInstallPack={(version) => mutate(() => native.installRocketPack(version), 'Rocket Pack instance created.')} />}
           {page === 'settings' && <Settings snapshot={snapshot} busy={busy} onSave={(settings) => mutate(() => native.settings(settings), 'Preferences saved. Make yourself at home.')} onDirtyChange={setSettingsDirty} onAuthStateChanged={setAccounts} />}
         </motion.div></AnimatePresence>
-        <footer className="app-footer"><span>BEYOND THE BUILT LIMIT.</span><span>Made for the worlds you make.<ArrowUpRight size={12} /></span></footer>
       </main>
     </div>
     {editor && <InstanceEditor instance={editor === 'new' ? undefined : editor} settings={snapshot.settings} catalog={catalog} catalogError={catalogError} saveError={launcher.toast?.kind === 'error' ? launcher.toast.message : null} fetching={fetching} busy={busy} onRefresh={() => void launcher.refreshVersions()} onClose={() => setEditor(null)} onSave={(input) => mutate(() => editor === 'new' ? native.create(input) : native.update(editor.id, input), editor === 'new' ? 'Instance created. Your next world has a home.' : 'Instance updated.')} />}
