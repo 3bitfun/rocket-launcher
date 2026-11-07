@@ -287,6 +287,9 @@ pub async fn check_game(
                 Readiness::Ready,
                 "Local Offline Test — Unauthenticated. Ready to start Minecraft locally.",
             )),
+            Ok(crate::auth::accounts::AccountMode::Offline) => Ok(GameStatus::new(
+                &id, Readiness::Ready, "Offline profile ready for local play.",
+            )),
             Err(error) => Ok(GameStatus::new(
                 &id,
                 Readiness::AuthenticationRequired,
@@ -487,6 +490,10 @@ pub async fn ignite_game(
                 {
                     return Err(launch::authentication_required());
                 }
+            }
+            crate::auth::accounts::AccountMode::Offline => {
+                let (player, uuid) = crate::auth::accounts::offline_identity(&input.data)?;
+                launch::LaunchAuth::Offline { player, uuid }
             }
         };
         let launch_message =

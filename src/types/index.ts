@@ -41,7 +41,7 @@ export interface AppSnapshot {
   paths: { data: string; cache: string; logs: string; config: string };
 }
 export interface AccountsSummary {
-  profiles: { id: string; name: string; type: 'microsoft' | 'local_test' }[];
+  profiles: { id: string; name: string; type: 'microsoft' | 'local_test' | 'offline' }[];
   activeId: string | null;
   offline: boolean;
 }

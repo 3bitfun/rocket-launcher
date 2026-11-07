@@ -14,6 +14,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
   const [accounts, setAccounts] = useState<AccountsSummary | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
+  const [offlineName, setOfflineName] = useState('');
   const [changingOffline, setChangingOffline] = useState(false);
   const [logs, setLogs] = useState<string | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(false);
@@ -64,6 +65,15 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
     catch (reason) { setError(errorMessage(reason)); }
     finally { setAccountBusy(false); }
   }
+  async function createOfflineAccount() {
+    setAccountBusy(true);
+    setError(null);
+    try {
+      applyAccounts(await native.createOfflineAccount(offlineName));
+      setOfflineName('');
+    } catch (reason) { setError(errorMessage(reason)); }
+    finally { setAccountBusy(false); }
+  }
   async function signOut(id: string) {
     setAccountBusy(true);
     setError(null);
@@ -104,15 +114,16 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
         <div className="setting-row"><div><strong>Launcher logs</strong><small>Local structured logs. Keeps the seven most recent daily files.</small></div><button type="button" className="button secondary small-button" onClick={() => void showLogs()} disabled={loadingLogs}>{loadingLogs && <Spinner size={14} />}View logs</button></div>
       </section>
 
-      <section className="panel settings-section"><div className="settings-section-title"><UserRound size={19} /><div><h2>Accounts</h2><p>Verified Microsoft identity for launching Minecraft.</p></div></div>
-        <div className="account-state"><span className="avatar"><UserRound size={22} /></span><div><strong>{activeAccount?.type === 'local_test' ? 'Local Test — Not Authenticated' : activeAccount ? `Connected as ${activeAccount.name}` : 'No Minecraft account connected'}</strong><p>{activeAccount?.type === 'local_test' ? 'Developer profile for testing account UI, instance management, and launch preparation only.' : activeAccount ? accounts?.offline ? 'Offline mode is active. Turn it off to sign in or switch accounts.' : 'Ownership was verified. Sign in again to switch accounts.' : 'Sign in with the Microsoft account that owns Minecraft Java Edition.'}</p></div>
-          {accounts && accounts.profiles.length > 1 && <select aria-label="Active account" value={accounts.activeId ?? ''} disabled={accountBusy || signingIn || changingOffline} onChange={(event) => void selectAccount(event.target.value)}>{accounts.profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.type === 'local_test' ? `Local Test — Not Authenticated · ${profile.name}` : `Microsoft · ${profile.name}`}</option>)}</select>}
+      <section className="panel settings-section"><div className="settings-section-title"><UserRound size={19} /><div><h2>Accounts</h2><p>Choose an offline profile or sign in with Microsoft.</p></div></div>
+        <div className="account-state"><span className="avatar"><UserRound size={22} /></span><div><strong>{activeAccount?.type === 'offline' ? `Offline · ${activeAccount.name}` : activeAccount?.type === 'local_test' ? 'Local Test — Not Authenticated' : activeAccount ? `Connected as ${activeAccount.name}` : 'No Minecraft account connected'}</strong><p>{activeAccount?.type === 'offline' ? 'Ready for local play. Online Minecraft services require Microsoft sign-in.' : activeAccount?.type === 'local_test' ? 'Developer profile for testing account UI, instance management, and launch preparation only.' : activeAccount ? accounts?.offline ? 'Offline mode is active. Turn it off to sign in or switch accounts.' : 'Ownership was verified. Sign in again to switch accounts.' : 'Create an offline profile or sign in with Microsoft.'}</p></div>
+          {accounts && accounts.profiles.length > 1 && <select aria-label="Active account" value={accounts.activeId ?? ''} disabled={accountBusy || signingIn || changingOffline} onChange={(event) => void selectAccount(event.target.value)}>{accounts.profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.type === 'local_test' ? `Local Test · ${profile.name}` : profile.type === 'offline' ? `Offline · ${profile.name}` : `Microsoft · ${profile.name}`}</option>)}</select>}
           <button type="button" className="button secondary small-button" onClick={() => void signIn()} disabled={busy || signingIn || accountBusy || Boolean(accounts?.offline)}>{signingIn ? <Spinner size={15} /> : <LogIn size={15} />}{activeAccount ? 'Sign in / switch' : 'Sign in'}</button>
         </div>
+        <div className="setting-row"><label className="field"><span>Offline username</span><input value={offlineName} onChange={(event) => setOfflineName(event.target.value)} maxLength={16} placeholder="Your Minecraft name" /></label><button type="button" className="button secondary small-button" onClick={() => void createOfflineAccount()} disabled={busy || accountBusy || signingIn || !/^[A-Za-z0-9_]{3,16}$/.test(offlineName)}>{accountBusy ? <Spinner size={15} /> : <UserRound size={15} />}Use offline username</button></div>
         <div className="notice"><Info size={16} /><span>Sign-in needs an approved Microsoft app registration configured as ROCKET_MICROSOFT_CLIENT_ID. Tokens are stored in Windows Credential Manager.</span></div>
         {import.meta.env.DEV && <div className="inline-actions"><button type="button" className="button secondary small-button" onClick={() => void createLocalTestAccount()} disabled={busy || accountBusy || signingIn}>{accountBusy ? <Spinner size={15} /> : <UserRound size={15} />}Create Test Account</button></div>}
-        {activeAccount?.type === 'microsoft' && <button type="button" className="button secondary small-button" disabled={accountBusy || signingIn || changingOffline} onClick={() => void signOut(activeAccount.id)}>Sign out</button>}
-        <Toggle label="Offline mode" description="Use a saved verified profile without contacting Microsoft. Multiplayer and online services are unavailable." checked={accounts?.offline ?? false} disabled={!accounts || changingOffline || accountBusy || activeAccount?.type !== 'microsoft'} onChange={(value) => void setOfflineMode(value)} />
+        {activeAccount && activeAccount.type !== 'local_test' && <button type="button" className="button secondary small-button" disabled={accountBusy || signingIn || changingOffline} onClick={() => void signOut(activeAccount.id)}>{activeAccount.type === 'offline' ? 'Remove offline profile' : 'Sign out'}</button>}
+        <Toggle label="Offline mode" description="Pause launcher downloads and use your selected profile without contacting Microsoft." checked={accounts?.offline ?? false} disabled={!accounts || changingOffline || accountBusy || !activeAccount || activeAccount.type === 'local_test'} onChange={(value) => void setOfflineMode(value)} />
       </section>
     </fieldset>
     {error && <p role="alert" className="form-error">{error}</p>}

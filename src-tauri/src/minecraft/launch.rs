@@ -32,6 +32,7 @@ pub struct ValidatedSession {
 
 pub enum LaunchAuth {
     Microsoft(ValidatedSession),
+    Offline { player: String, uuid: String },
     #[cfg(debug_assertions)]
     LocalTest { player: String, uuid: String },
 }
@@ -59,7 +60,6 @@ impl LaunchIdentity {
         }
     }
 
-    #[cfg(debug_assertions)]
     fn local_test(player: String, uuid: String) -> Self {
         Self {
             player,
@@ -74,7 +74,7 @@ impl LaunchIdentity {
 }
 
 pub fn authentication_required() -> AppError {
-    AppError::new("AUTH_REQUIRED", "Sign in from Settings with a Microsoft account that owns Minecraft Java Edition before launching.")
+    AppError::new("AUTH_REQUIRED", "Create an offline profile or sign in with a Microsoft account in Settings before launching.")
 }
 
 fn expand(template: &str, values: &BTreeMap<&str, String>) -> Result<String> {
@@ -343,6 +343,12 @@ pub async fn start(
         log_root,
     } = request;
     let (identity, access_token, expires_at, local_test) = match auth {
+        LaunchAuth::Offline { player, uuid } => (
+            LaunchIdentity::local_test(player, uuid),
+            String::new(),
+            None,
+            true,
+        ),
         LaunchAuth::Microsoft(session) => {
             let expires_at = (!session.offline).then_some(session.expires_at);
             if expires_at.is_some_and(|expires_at| expires_at <= now()) {
@@ -413,7 +419,7 @@ pub async fn start(
     let err = child.stderr.take().expect("piped stderr");
     let running_message = if local_test {
         format!(
-            "Local Offline Test — Unauthenticated. Minecraft is running (PID {}).",
+            "Offline profile. Minecraft is running (PID {}).",
             child.id().unwrap_or_default()
         )
     } else {

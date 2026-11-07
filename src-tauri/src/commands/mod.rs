@@ -38,6 +38,13 @@ pub fn get_accounts(state: State<'_, LauncherState>) -> Result<AccountsSummary> 
 }
 
 #[tauri::command]
+pub async fn create_offline_account(state: State<'_, LauncherState>, jobs: State<'_, AccountJobs>, name: String) -> Result<AccountsSummary> {
+    let _guard = jobs.0.try_lock().map_err(|_| accounts::busy())?;
+    let data = state.store()?.paths.data.clone();
+    Ok(accounts::create_offline_account(&data, name)?.summary())
+}
+
+#[tauri::command]
 pub async fn microsoft_sign_in(
     state: State<'_, LauncherState>,
     jobs: State<'_, AccountJobs>,

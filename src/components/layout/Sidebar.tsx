@@ -11,7 +11,7 @@ const navigation = [
 ] as const;
 
 export function Sidebar({ page, onNavigate, count, version, account, offline }: { page: Page; onNavigate: (page: Page) => void; count: number; version: string; account?: AccountsSummary['profiles'][number]; offline: boolean }) {
-  const status = offline ? 'Offline mode' : account?.type === 'local_test' ? 'Local test profile' : account ? 'Microsoft account' : 'Local workspace';
+  const status = offline ? 'Offline mode' : account?.type === 'offline' ? 'Offline profile' : account?.type === 'local_test' ? 'Local test profile' : account ? 'Microsoft account' : 'Local workspace';
   return <aside className="sidebar">
     <div className="brand"><span className="brand-mark"><Rocket size={23} strokeWidth={1.8} /></span><div>rocket<span>LAUNCHER</span></div></div>
     <div className="nav-label">YOUR WORKSPACE</div>

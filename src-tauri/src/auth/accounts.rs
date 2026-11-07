@@ -29,6 +29,7 @@ pub enum AccountType {
     #[default]
     Microsoft,
     LocalTest,
+    Offline,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -60,6 +61,7 @@ pub struct AccountSummaryProfile {
 pub enum AccountMode {
     Microsoft { offline: bool },
     LocalTest,
+    Offline,
 }
 
 impl Accounts {
@@ -141,9 +143,29 @@ pub fn select(data: &Path, id: String) -> Result<Accounts> {
             return Err(crate::minecraft::launch::authentication_required());
         }
         accounts.offline = false;
-    } else if VerifiedCache::load(&id)?.is_none() {
+    } else if profile.account_type == AccountType::Microsoft && VerifiedCache::load(&id)?.is_none() {
         return Err(crate::minecraft::launch::authentication_required());
     }
+    accounts.active_id = Some(id);
+    accounts.save(data)?;
+    Ok(accounts)
+}
+
+pub fn create_offline_account(data: &Path, name: String) -> Result<Accounts> {
+    use md5::{Digest, Md5};
+    let name = name.trim();
+    if !(3..=16).contains(&name.len())
+        || !name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_')
+    {
+        return Err(AppError::new("VALIDATION", "Username must be 3–16 letters, numbers, or underscores."));
+    }
+    let mut digest: [u8; 16] = Md5::digest(format!("OfflinePlayer:{name}").as_bytes()).into();
+    digest[6] = (digest[6] & 0x0f) | 0x30;
+    digest[8] = (digest[8] & 0x3f) | 0x80;
+    let id = uuid::Uuid::from_bytes(digest).simple().to_string();
+    let mut accounts = Accounts::read(data)?;
+    accounts.profiles.retain(|p| !(p.id == id && p.account_type == AccountType::Offline));
+    accounts.profiles.push(Account { id: id.clone(), name: name.into(), account_type: AccountType::Offline, client_id: String::new() });
     accounts.active_id = Some(id);
     accounts.save(data)?;
     Ok(accounts)
@@ -169,7 +191,7 @@ pub fn set_offline(data: &Path, offline: bool) -> Result<Accounts> {
     let mut accounts = Accounts::read(data)?;
     if offline {
         let active = accounts.active()?;
-        if VerifiedCache::load(&active.id)?.is_none() {
+        if active.account_type != AccountType::Offline && VerifiedCache::load(&active.id)?.is_none() {
             return Err(crate::minecraft::launch::authentication_required());
         }
     }
@@ -183,8 +205,10 @@ pub fn sign_out(data: &Path, id: String) -> Result<Accounts> {
     if !accounts.profiles.iter().any(|p| p.id == id) {
         return Err(crate::minecraft::launch::authentication_required());
     }
-    credential_store::delete(&id)?;
-    credential_store::delete(&refresh_key(&id))?;
+    if accounts.profiles.iter().any(|p| p.id == id && p.account_type == AccountType::Microsoft) {
+        credential_store::delete(&id)?;
+        credential_store::delete(&refresh_key(&id))?;
+    }
     accounts.profiles.retain(|p| p.id != id);
     if accounts.active_id.as_ref() == Some(&id) {
         accounts.active_id = accounts.profiles.first().map(|p| p.id.clone());
@@ -225,6 +249,9 @@ pub async fn sign_in(data: &Path) -> Result<Accounts> {
 pub fn readiness(data: &Path) -> Result<AccountMode> {
     let accounts = Accounts::read(data)?;
     let active = accounts.active()?;
+    if active.account_type == AccountType::Offline {
+        return Ok(AccountMode::Offline);
+    }
     if active.account_type == AccountType::LocalTest {
         return if cfg!(debug_assertions) {
             Ok(AccountMode::LocalTest)
@@ -238,6 +265,15 @@ pub fn readiness(data: &Path) -> Result<AccountMode> {
     Ok(AccountMode::Microsoft {
         offline: accounts.offline,
     })
+}
+
+pub fn offline_identity(data: &Path) -> Result<(String, String)> {
+    let accounts = Accounts::read(data)?;
+    let active = accounts.active()?;
+    if active.account_type != AccountType::Offline {
+        return Err(crate::minecraft::launch::authentication_required());
+    }
+    Ok((active.name.clone(), active.id.clone()))
 }
 
 #[cfg(debug_assertions)]
@@ -328,6 +364,22 @@ pub async fn launch_session(data: &Path) -> Result<ValidatedSession> {
 #[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn offline_profiles_have_stable_minecraft_identity_and_need_no_login() {
+        let directory = tempfile::tempdir().unwrap();
+        let accounts = create_offline_account(directory.path(), "Notch".into()).unwrap();
+        let profile = &accounts.profiles[0];
+        assert_eq!(profile.id, "b50ad385829d3141a2167e7d7539ba7f");
+        assert_eq!(offline_identity(directory.path()).unwrap(), ("Notch".into(), profile.id.clone()));
+        assert!(matches!(readiness(directory.path()), Ok(AccountMode::Offline)));
+        assert_eq!(create_offline_account(directory.path(), "Notch".into()).unwrap().profiles.len(), 1);
+        assert!(set_offline(directory.path(), true).unwrap().offline);
+        assert!(create_offline_account(directory.path(), "Alex".into()).unwrap().offline);
+        assert!(select(directory.path(), profile.id.clone()).unwrap().offline);
+        assert!(create_offline_account(directory.path(), "bad name".into()).is_err());
+        assert!(matches!(readiness(directory.path()), Ok(AccountMode::Offline)));
+    }
 
     #[test]
     fn local_test_accounts_are_persisted_unverified_and_selectable() {

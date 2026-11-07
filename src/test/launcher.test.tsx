@@ -153,6 +153,28 @@ it('saves changed preferences and tracks unsaved state', async () => {
   await waitFor(() => expect(dirty).toHaveBeenLastCalledWith(false));
 });
 
+it('creates and selects a chosen offline username', async () => {
+  const account = { id: 'offline-id', name: 'RocketPlayer', type: 'offline' as const };
+  const accounts = vi.spyOn(native, 'accounts').mockResolvedValue({ profiles: [], activeId: null, offline: false });
+  const create = vi.spyOn(native, 'createOfflineAccount').mockResolvedValue({ profiles: [account], activeId: account.id, offline: false });
+  const updates = vi.spyOn(native, 'checkUpdate').mockResolvedValue(null);
+  const changed = vi.fn();
+  try {
+    render(<Settings snapshot={snapshot} busy={false} onSave={vi.fn()} onDirtyChange={vi.fn()} onAuthStateChanged={changed} />);
+    await screen.findByText('No Minecraft account connected');
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Offline username'), 'RocketPlayer');
+    await user.click(screen.getByRole('button', { name: 'Use offline username' }));
+    expect(create).toHaveBeenCalledWith('RocketPlayer');
+    expect(await screen.findByText('Offline · RocketPlayer')).toBeInTheDocument();
+    expect(changed).toHaveBeenCalledWith(expect.objectContaining({ activeId: account.id }));
+  } finally {
+    accounts.mockRestore();
+    create.mockRestore();
+    updates.mockRestore();
+  }
+});
+
 it('preserves actionable Rust error messages', () => {
   expect(errorMessage({ code: 'FILESYSTEM', message: 'Access denied to the selected directory.' })).toBe('Access denied to the selected directory.');
   expect(errorMessage(new Error('Connection refused'))).toBe('Connection refused');

@@ -62,7 +62,7 @@ $env:ROCKET_MICROSOFT_CLIENT_ID = '<approved application client ID>'
 npm run desktop
 ```
 
-For your own registration, enable personal Microsoft accounts and add `http://localhost/callback` under the **Mobile and desktop applications** platform. Sign in with an account that owns Minecraft Java Edition. The launcher verifies ownership before enabling launch and stores refresh tokens in Windows Credential Manager. After a successful sign-in, Offline Mode uses the saved verified profile for local play without contacting Microsoft. Multiplayer and other online services require an online session.
+For your own registration, enable personal Microsoft accounts and add `http://localhost/callback` under the **Mobile and desktop applications** platform. Sign in with an account that owns Minecraft Java Edition. The launcher verifies ownership and stores refresh tokens in Windows Credential Manager. You can also create a local profile in Settings using an offline username. Local profiles use a stable offline identity for single-player. Download the game files and Java before playing without a network connection.
 
 Build a standalone executable:
 
@@ -147,6 +147,6 @@ The frontend has no filesystem or shell plugin permissions. Rust downloads from 
 
 ## Remaining authentication work
 
-Offline mode is limited to a previously verified cached profile and local play. A real Microsoft app registration is required for end-to-end sign-in and launch testing. No app registration is needed to install or verify game files.
+Microsoft sign-in and authenticated online services require a working Microsoft app registration. Local offline profiles can launch installed game files without signing in.
 
 Rocket Launcher is an independent project, not an official Minecraft product or approved by Mojang or Microsoft.

@@ -11,6 +11,7 @@ function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
 
 export const native = {
   accounts: () => call<AccountsSummary>('get_accounts'),
+  createOfflineAccount: (name: string) => call<AccountsSummary>('create_offline_account', { name }),
   signIn: () => call<AccountsSummary>('microsoft_sign_in'),
   selectAccount: (id: string) => call<AccountsSummary>('select_account', { id }),
   createTestAccount: () => call<AccountsSummary>('create_local_test_account'),
