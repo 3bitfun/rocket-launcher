@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     errors::{AppError, Result},
-    models::{InstanceInput, Loader},
+    models::{Instance, InstanceInput, Loader},
 };
 use futures_util::{stream, StreamExt, TryStreamExt};
 use serde::Deserialize;
@@ -76,6 +76,66 @@ impl Pack {
             .await?;
         Ok(())
     }
+}
+
+pub async fn install_for_version(
+    game: &str,
+    directory: &Path,
+    ram: u32,
+    timeout: u64,
+) -> Result<InstanceInput> {
+    let pinned = Pack::recommended()?;
+    if game == pinned.minecraft {
+        pinned.download(directory, timeout).await?;
+        return Ok(pinned.instance_input(ram));
+    }
+    let loaders = super::fabric::loader_versions(game, timeout).await?;
+    let loader = loaders
+        .iter()
+        .find(|loader| loader.stable)
+        .or_else(|| loaders.first())
+        .ok_or_else(|| AppError::new("PACK", "Fabric has no loader for this Minecraft version."))?;
+    let instance = Instance {
+        id: "rocket-pack".into(),
+        name: format!("Rocket Pack {game}"),
+        version: game.into(),
+        version_type: "release".into(),
+        loader: Loader::Fabric,
+        loader_version: Some(loader.version.clone()),
+        game_directory: directory.into(),
+        ram_mb: ram,
+        java_path: None,
+        created_at: 0,
+        updated_at: 0,
+        last_selected_at: 0,
+    };
+    // Sodium, Lithium, and Fabric API are selected independently for each Minecraft version.
+    let mut installed = 0;
+    for project in ["AANobbMI", "gvQqBUqZ", "P7dR8mSH"] {
+        if let Some(version) =
+            super::modrinth::preferred_version(&instance, project, timeout).await?
+        {
+            super::modrinth::stage(&instance, project, &version, timeout)
+                .await?
+                .publish(directory)?;
+            installed += 1;
+        }
+    }
+    if installed == 0 {
+        return Err(AppError::new(
+            "PACK",
+            "No Rocket Pack mods are available for this Minecraft version.",
+        ));
+    }
+    Ok(InstanceInput {
+        name: instance.name,
+        version: instance.version,
+        loader: instance.loader,
+        loader_version: instance.loader_version,
+        ram_mb: ram,
+        java_path: None,
+        parent_directory: None,
+    })
 }
 
 #[cfg(all(test, windows, debug_assertions))]

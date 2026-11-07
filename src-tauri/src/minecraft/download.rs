@@ -61,6 +61,7 @@ fn official_url(url: &str) -> Result<reqwest::Url> {
                     | "resources.download.minecraft.net"
                     | "meta.fabricmc.net"
                     | "maven.fabricmc.net"
+                    | "maven.minecraftforge.net"
                     | "cdn.modrinth.com"
             )
         )

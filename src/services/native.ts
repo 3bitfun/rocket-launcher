@@ -1,4 +1,4 @@
-import { invoke, isTauri } from '@tauri-apps/api/core';
+import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { AccountsSummary, AppSnapshot, DownloadProgress, FabricLoaderVersion, GameStatus, InstanceInput, InstalledMod, ModrinthPage, ModrinthVersion, Settings, VersionCatalog } from '../types';
 
@@ -24,6 +24,8 @@ export const native = {
   snapshot: () => call<AppSnapshot>('get_snapshot'),
   versions: (refresh = false) => call<VersionCatalog>('get_versions', { refresh }),
   fabricLoaders: (gameVersion: string) => call<FabricLoaderVersion[]>('get_fabric_loaders', { gameVersion }),
+  fabricGameVersions: () => call<string[]>('get_fabric_game_versions'),
+  forgeLoaders: (gameVersion: string) => call<FabricLoaderVersion[]>('get_forge_loaders', { gameVersion }),
   create: (input: InstanceInput) => call<AppSnapshot>('create_instance', { input }),
   update: (id: string, input: InstanceInput) => call<AppSnapshot>('update_instance', { id, input }),
   select: (id: string) => call<AppSnapshot>('select_instance', { id }),
@@ -33,10 +35,14 @@ export const native = {
   mods: (id: string) => call<InstalledMod[]>('list_installed_mods', { id }),
   searchMods: (instanceId: string, query: string, offset: number, sort?: string) => call<ModrinthPage>('search_modrinth', { instanceId, query, offset, sort }),
   modVersions: (instanceId: string, projectId: string) => call<ModrinthVersion[]>('modrinth_versions', { instanceId, projectId }),
-  installMod: (instanceId: string, projectId: string, versionId: string) => call<string>('install_modrinth', { instanceId, projectId, versionId }),
-  installRocketPack: () => call<AppSnapshot>('install_rocket_pack'),
+  installMod: (instanceId: string, projectId: string, versionId?: string) => call<string>('install_modrinth', { instanceId, projectId, versionId }),
+  installRocketPack: (version: string) => call<AppSnapshot>('install_rocket_pack', { version }),
   checkUpdate: () => call<string | null>('check_launcher_update'),
-  openRelease: (releaseVersion: string) => call<void>('open_launcher_release', { releaseVersion }),
+  installUpdate: (releaseVersion: string, onProgress: (percent: number) => void) => {
+    const progress = new Channel<number>();
+    progress.onmessage = onProgress;
+    return call<void>('install_launcher_update', { releaseVersion, progress });
+  },
   logs: () => call<string>('read_logs'),
   chooseDirectory: () => open({ directory: true, multiple: false, title: 'Choose an instance parent directory' }),
   chooseJava: () => open({ multiple: false, title: 'Choose a Java executable', filters: [{ name: 'Java executable', extensions: ['exe'] }] }),

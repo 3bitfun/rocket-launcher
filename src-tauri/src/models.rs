@@ -52,6 +52,7 @@ pub enum Loader {
     #[default]
     Vanilla,
     Fabric,
+    Forge,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

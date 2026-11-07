@@ -1,5 +1,5 @@
 import type { Loader } from '../types';
 
 export function loaderName(loader: Loader): string {
-  return loader === 'fabric' ? 'Fabric' : 'Vanilla';
+  return { vanilla: 'Vanilla', fabric: 'Fabric', forge: 'Forge' }[loader];
 }

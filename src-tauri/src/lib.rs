@@ -26,6 +26,7 @@ pub fn run() {
         .manage(auth::accounts::AccountJobs::default())
         .setup(|app| {
             let store = storage::Store::open(app.path().app_local_data_dir()?)?;
+            clean_staged_installers(&store.paths.cache);
             let appender = tracing_appender::rolling::Builder::new()
                 .rotation(tracing_appender::rolling::Rotation::DAILY)
                 .filename_prefix("launcher.log")
@@ -68,6 +69,8 @@ pub fn run() {
         list_installed_mods,
         get_versions,
         get_fabric_loaders,
+        get_forge_loaders,
+        get_fabric_game_versions,
         read_logs,
         check_game,
         install_game,
@@ -78,7 +81,7 @@ pub fn run() {
         install_modrinth,
         install_rocket_pack,
         check_launcher_update,
-        open_launcher_release,
+        install_launcher_update,
     ]);
 
     #[cfg(not(debug_assertions))]
@@ -99,6 +102,8 @@ pub fn run() {
         list_installed_mods,
         get_versions,
         get_fabric_loaders,
+        get_forge_loaders,
+        get_fabric_game_versions,
         read_logs,
         check_game,
         install_game,
@@ -109,7 +114,7 @@ pub fn run() {
         install_modrinth,
         install_rocket_pack,
         check_launcher_update,
-        open_launcher_release,
+        install_launcher_update,
     ]);
 
     app.run(tauri::generate_context!())

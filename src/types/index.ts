@@ -1,5 +1,5 @@
 export type Page = 'launchpad' | 'instances' | 'mods' | 'downloads' | 'settings';
-export type Loader = 'vanilla' | 'fabric';
+export type Loader = 'vanilla' | 'fabric' | 'forge';
 export type Theme = 'dark' | 'light' | 'system';
 export type Readiness = 'checking' | 'requires_download' | 'missing_files' | 'downloading' | 'installing' | 'java_required' | 'authentication_required' | 'ready' | 'launching' | 'running' | 'error';
 export interface GameStatus { instanceId: string; readiness: Readiness; message: string; exitCode: number | null }

@@ -2,12 +2,12 @@ use super::LauncherState;
 use crate::{
     errors::{AppError, Result},
     minecraft::{
-        fabric,
+        fabric, forge,
         install::{self, Installed, Progress, Stage},
         java,
         launch::{self, GameStatus, ProcessManager, Readiness},
         metadata::Platform,
-        modrinth, pack::Pack, versions,
+        modrinth, pack, versions,
     },
     models::{AppSnapshot, Instance, Loader},
 };
@@ -20,6 +20,18 @@ pub struct GameJobs {
     progress: Mutex<Option<Progress>>,
     statuses: Mutex<HashMap<String, GameStatus>>,
     processes: ProcessManager,
+}
+
+impl GameJobs {
+    pub(super) fn lock_for_update(&self) -> Result<tokio::sync::MutexGuard<'_, ()>> {
+        let guard = self.operation.try_lock().map_err(|_| {
+            AppError::new("BUSY", "Wait for the current Minecraft operation to finish before updating.")
+        })?;
+        if self.processes.busy() {
+            return Err(AppError::new("BUSY", "Close Minecraft before updating Rocket Launcher."));
+        }
+        Ok(guard)
+    }
 }
 struct Input {
     instance: Instance,
@@ -59,19 +71,25 @@ fn input(state: &LauncherState, id: &str) -> Result<Input> {
 pub async fn install_rocket_pack(
     state: State<'_, LauncherState>,
     jobs: State<'_, GameJobs>,
+    version: String,
 ) -> Result<AppSnapshot> {
     use crate::{auth::accounts, storage::validate_path};
     let _guard = jobs
         .operation
         .try_lock()
         .map_err(|_| AppError::new("BUSY", "Another Minecraft operation is in progress."))?;
-    let (parent, timeout) = {
+    let (parent, timeout, ram) = {
         let store = state.store()?;
         if accounts::Accounts::read(&store.paths.data)?.offline {
             return Err(accounts::offline_error());
         }
         let settings = &store.config.settings;
-        (settings.minecraft_directory.clone(), settings.request_timeout_seconds)
+        if version != "1.21.11"
+            && versions::version_type(&store.paths.cache.join("versions.json"), &version)? != "release"
+        {
+            return Err(AppError::new("PACK", "Choose a Minecraft release for Rocket Pack."));
+        }
+        (settings.minecraft_directory.clone(), settings.request_timeout_seconds, settings.default_ram_mb)
     };
     validate_path(&parent)?;
     std::fs::create_dir_all(&parent).map_err(|e| AppError::io("create the instance parent directory", e))?;
@@ -79,14 +97,12 @@ pub async fn install_rocket_pack(
         .prefix("rocket-pack-")
         .tempdir_in(parent)
         .map_err(|e| AppError::io("create the Rocket Pack directory", e))?;
-    let pack = Pack::recommended()?;
-    pack.download(directory.path(), timeout).await?;
+    let input = pack::install_for_version(&version, directory.path(), ram, timeout).await?;
     let mut store = state.store()?;
     if accounts::Accounts::read(&store.paths.data)?.offline {
         return Err(accounts::offline_error());
     }
-    let ram = store.config.settings.default_ram_mb;
-    store.create_pack_instance(pack.instance_input(ram), directory)
+    store.create_pack_instance(input, directory)
 }
 async fn verify(input: &Input, full: bool) -> Result<Option<Installed>> {
     let platform = Platform::windows()?;
@@ -107,6 +123,14 @@ async fn verify(input: &Input, full: bool) -> Result<Option<Installed>> {
     };
     match input.instance.loader {
         Loader::Vanilla => Ok(Some(vanilla)),
+        Loader::Forge => {
+            let loader = input.instance.loader_version.clone().ok_or_else(|| AppError::new("VALIDATION", "Choose a Forge loader version in the instance editor."))?;
+            let root = input.root.clone();
+            let game = input.instance.version.clone();
+            let platform = Platform::windows()?;
+            tokio::task::spawn_blocking(move || forge::verify(&root, &game, &loader, &platform, vanilla, full))
+                .await.map_err(|e| AppError::new("FORGE", format!("Could not verify Forge: {e}")))?
+        }
         Loader::Fabric => {
             let loader_version = input.instance.loader_version.clone().ok_or_else(|| {
                 AppError::new(
@@ -166,7 +190,7 @@ pub async fn install_modrinth(
     jobs: State<'_, GameJobs>,
     instance_id: String,
     project_id: String,
-    version_id: String,
+    version_id: Option<String>,
 ) -> Result<String> {
     let _guard = jobs
         .operation
@@ -180,6 +204,13 @@ pub async fn install_modrinth(
     }
     let original = input(&state, &instance_id)?;
     require_online(&original)?;
+    let version_id = match version_id {
+        Some(id) => id,
+        None => {
+            modrinth::preferred_version(&original.instance, &project_id, original.timeout).await?
+                .ok_or_else(|| AppError::new("MODRINTH", "No downloadable version matches this instance."))?
+        }
+    };
     let staged = modrinth::stage(
         &original.instance,
         &project_id,
@@ -191,6 +222,7 @@ pub async fn install_modrinth(
     let current = store.find_instance(&instance_id)?;
     if current.version != original.instance.version
         || current.loader != original.instance.loader
+        || current.loader_version != original.instance.loader_version
         || current.game_directory != original.instance.game_directory
     {
         return Err(AppError::new(
@@ -338,14 +370,14 @@ pub async fn install_game(
         ));
     }
     let input = input(&state, &id)?;
-    let fabric = input.instance.loader == Loader::Fabric;
+    let modded = input.instance.loader != Loader::Vanilla;
     require_online(&input)?;
     let initial = Progress {
         instance_id: id.clone(),
         version: input.instance.version.clone(),
         stage: Stage::Downloading,
-        current: if fabric {
-            "Preparing Fabric installation".into()
+        current: if modded {
+            "Preparing modded installation".into()
         } else {
             "Preparing Minecraft installation".into()
         },
@@ -380,31 +412,36 @@ pub async fn install_game(
             &id,
             input.timeout,
             |progress| {
-                if !fabric || !matches!(progress.stage, Stage::Complete) {
+                if !modded || !matches!(progress.stage, Stage::Complete) {
                     publish_progress(&app, progress);
                 }
             },
         )
         .await?;
-        // Fabric rides on top of the installed vanilla version: profile, libraries, receipt.
-        let loader_version = match input.instance.loader {
-            Loader::Vanilla => return Ok(()),
-            Loader::Fabric => input
-                .instance
-                .loader_version
-                .as_deref()
-                .ok_or_else(|| {
-                    AppError::new(
-                        "VALIDATION",
-                        "This Fabric instance has no loader version. Edit the instance and choose one.",
-                    )
-                })?
-                .to_owned(),
-        };
+        if !modded {
+            return Ok(());
+        }
+        let loader_version = input.instance.loader_version.as_deref().ok_or_else(||
+            AppError::new("VALIDATION", "Choose a loader version in the instance editor."))?;
+        if input.instance.loader == Loader::Forge {
+            let platform = Platform::windows()?;
+            let vanilla = install::inspect_installed(&input.root, &input.instance.version, &platform, false)?
+                .ok_or_else(|| AppError::new("MISSING_FILES", "Minecraft installation is missing."))?;
+            let java = java::resolve(input.java, &input.data, vanilla.version.java_major(), platform.arch).await?;
+            let mut progress = initial.clone();
+            progress.stage = Stage::Installing;
+            progress.current = "Running the Forge client installer".into();
+            publish_progress(&app, progress.clone());
+            forge::install(&input.root, &input.instance.version, loader_version, &platform, &java, input.timeout).await?;
+            progress.stage = Stage::Complete;
+            progress.current = "Forge installation complete".into();
+            publish_progress(&app, progress);
+            return Ok(());
+        }
         fabric::install(
             &input.root,
             &input.instance.version,
-            &loader_version,
+            loader_version,
             &id,
             input.timeout,
             |progress| publish_progress(&app, progress),

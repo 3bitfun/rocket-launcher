@@ -4,7 +4,7 @@
 
 ## Launcher features
 
-Rocket Launcher installs, verifies, and launches Vanilla and Fabric instances on Windows after Microsoft sign-in and Minecraft Java ownership verification.
+Rocket Launcher manages Vanilla, Fabric, and Forge instances on Windows. Choose a local offline profile for single-player or sign in with Microsoft for authenticated play. Forge offers recommended and latest builds for Minecraft 1.20.1 and newer releases when listed by Forge.
 
 - Launch Pad, Instances, Mods, Downloads, and Settings navigation.
 - Create, rename, edit, select, duplicate, and remove instances.
@@ -17,24 +17,24 @@ Rocket Launcher installs, verifies, and launches Vanilla and Fabric instances on
 - Launch Pad install and repair actions, measured Downloads progress, and native launch preparation behind an ownership-verified session boundary.
 - Microsoft OAuth sign-in, Xbox/Minecraft ownership verification, Windows Credential Manager refresh-token storage, and authenticated launch sessions.
 - Dark, light, and system themes; custom accent colours; animation and reduced-motion preferences.
-- Built-in Modrinth search for Fabric instances, matching Minecraft versions and loader. Choose a release to install the verified JAR and its required Modrinth dependencies.
+- Built-in Modrinth search for Fabric and Forge instances, matching Minecraft versions and loader. Install directly from search results or choose a specific release. Rocket Launcher verifies the JAR and resolves required Modrinth dependencies.
 - Local `.jar` file listing from each instance's mods directory.
 - Local rotating structured logs and an in-app log viewer.
 - Keyboard-accessible controls, native modal focus management, responsive desktop layout.
 
-Java runtimes are selected from installed runtimes. Automatic launcher updates and crash reporting are outside this build.
+Java runtimes are selected from installed runtimes. Launcher updates are applied from Settings.
 
 ## Install mods
 
-In **Mods**, select **Create Rocket Pack instance** to download the recommended Minecraft 1.21.11 pack with Fabric Loader 0.20.1. It uses pinned Modrinth downloads selected from the supplied Tuff pack, including Sodium, Iris, Mod Menu and UI mods. It downloads the selected mods into a new instance. Install the Minecraft files and launch it from **Launch Pad** with Java 21.
+In **Mods**, pick a Minecraft version and select **Create Rocket Pack instance**. The full 1.21.11 pack uses Fabric Loader 0.20.1 and pinned mods from the supplied Tuff pack. Other Fabric releases use starter packs assembled from matching versions of Sodium, Lithium, and Fabric API, depending on availability. Install the Minecraft files from **Launch Pad** and use the Java version it requests.
 
 For a custom Minecraft title screen or pause menu, install the matching Fabric release of [FancyMenu](https://modrinth.com/mod/fancymenu), open Minecraft and create a layout from the FancyMenu toolbar. Share your layout by copying its [configuration folder](https://docs.fancymenu.net/docs/en-US/modpacks) into the pack. [ImproperUI](https://modrinth.com/mod/improperui) is also available for scripted in-game screens.
 
-Create or select a Fabric instance, then open **Mods**. Pick a project in **Browse Modrinth**, select a compatible version, and click **Install mod**. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, move its old JAR out of the mods folder before installing the replacement. Offline Mode keeps local mod files available and pauses catalogue requests and downloads.
+Create or select a Fabric or Forge instance, then open **Mods**. Click **Install** on a result to choose a compatible release automatically, or use **Versions** to pick one yourself. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, move its old JAR out of the mods folder before installing the replacement. Offline Mode keeps local mod files available and pauses catalogue requests and downloads.
 
 ## Run locally on Windows 10/11
 
-The **Launcher updates** row in Settings checks the project's GitHub releases for a newer Windows installer. **Open release** opens the download page in your browser.
+The **Launcher updates** row in Settings checks the project's GitHub releases for a newer Windows x64 installer. Select **Download and install** to stream it to disk and verify its size and SHA-256 checksum against GitHub's release metadata. Rocket Launcher closes while the installer applies the update, then reopens. Close Minecraft before updating.
 
 Prerequisites:
 
@@ -70,7 +70,7 @@ Build a standalone executable:
 npm run desktop:build
 ```
 
-Output: `src-tauri\target\release\rocket-launcher.exe`. This executable embeds the frontend and does not need Vite. An unsigned NSIS installer can also be generated with `npm run tauri -- build`; signing, updater configuration, and distribution hardening remain Phase 5 work.
+Output: `src-tauri\target\release\rocket-launcher.exe`. This executable embeds the frontend and does not need Vite. Generate the unsigned Windows NSIS installer with `npm run tauri -- build`.
 
 ## Validation
 

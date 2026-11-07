@@ -10,8 +10,8 @@ export function InstanceCard({ instance, active, busy, onSelect, onEdit, onDupli
 }) {
   return <motion.article layout className={`instance-card ${active ? 'selected' : ''} ${compact ? 'compact' : ''}`}>
     <button className="instance-select" onClick={onSelect} disabled={busy} aria-label={`Select ${instance.name}`} aria-pressed={active}>
-      <div className="instance-art"><Landscape small /><span className="instance-loader">{instance.loader === 'fabric' ? <><Puzzle size={12} /> Fabric</> : <><Box size={12} /> Vanilla</>}</span>{active && <span className="selected-check"><Check size={14} /></span>}</div>
-      <div className="instance-details"><h3>{instance.name}</h3><p>Minecraft {instance.version} {instance.loader === 'fabric' && instance.loaderVersion && <>· Fabric {instance.loaderVersion}</>}<span>·</span>{formatRam(instance.ramMb)}</p><span className="readiness"><span className="status-dot" />{readinessLabel[instance.readiness]}</span></div>
+      <div className="instance-art"><Landscape small /><span className="instance-loader">{instance.loader !== 'vanilla' ? <><Puzzle size={12} /> {loaderName(instance.loader)}</> : <><Box size={12} /> Vanilla</>}</span>{active && <span className="selected-check"><Check size={14} /></span>}</div>
+      <div className="instance-details"><h3>{instance.name}</h3><p>Minecraft {instance.version} {instance.loaderVersion && <>· {loaderName(instance.loader)} {instance.loaderVersion}</>}<span>·</span>{formatRam(instance.ramMb)}</p><span className="readiness"><span className="status-dot" />{readinessLabel[instance.readiness]}</span></div>
     </button>
     <div className="instance-actions"><span>{active ? 'Selected instance' : `${loaderName(instance.loader)} · Java Edition`}</span><div>
       <button className="icon-button" onClick={onEdit} disabled={busy} aria-label={`Edit ${instance.name}`}>{compact ? <ArrowUpRight size={16} /> : <Pencil size={15} />}</button>

@@ -79,9 +79,9 @@ struct Dependency {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModVersion {
-    id: String,
+    pub id: String,
     version_number: String,
-    version_type: String,
+    pub version_type: String,
     file_name: String,
     required_dependencies: Vec<String>,
 }
@@ -93,8 +93,9 @@ fn error(message: impl Into<String>) -> AppError {
 fn loader(instance: &Instance) -> Result<&'static str> {
     match instance.loader {
         Loader::Fabric => Ok("fabric"),
+        Loader::Forge => Ok("forge"),
         Loader::Vanilla => Err(error(
-            "Choose a Fabric instance to browse and install mods.",
+            "Choose a Fabric or Forge instance to browse and install mods.",
         )),
     }
 }
@@ -273,6 +274,12 @@ pub async fn versions(instance: &Instance, project: &str, timeout: u64) -> Resul
             })
         })
         .collect())
+}
+
+pub async fn preferred_version(instance: &Instance, project: &str, timeout: u64) -> Result<Option<String>> {
+    let versions = versions(instance, project, timeout).await?;
+    Ok(versions.iter().find(|version| version.version_type == "release")
+        .or_else(|| versions.first()).map(|version| version.id.clone()))
 }
 
 pub struct StagedMod {

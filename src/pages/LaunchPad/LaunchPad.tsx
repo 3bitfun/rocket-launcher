@@ -28,7 +28,7 @@ export function LaunchPad({ snapshot, catalog, busy, status, onCreate, onEdit, o
 
     <section className="launch-console panel" aria-label="Selected instance">
       <div className="launch-details"><span className="eyebrow">ON THE LAUNCH PAD</span><h2>{selected?.name ?? 'Your next adventure awaits'}</h2><div className="launch-meta">
-        <span><Box size={14} />{selected ? `Minecraft ${selected.version}` : 'No instance selected'}</span>{selected && <><span className="separator">/</span><span>{loaderName(selected.loader)}{selected.loader === 'fabric' && selected.loaderVersion ? ` ${selected.loaderVersion}` : ''}</span><span className="separator">/</span><span><Cpu size={14} />{formatRam(selected.ramMb)}</span></>}
+        <span><Box size={14} />{selected ? `Minecraft ${selected.version}` : 'No instance selected'}</span>{selected && <><span className="separator">/</span><span>{loaderName(selected.loader)}{selected.loaderVersion ? ` ${selected.loaderVersion}` : ''}</span><span className="separator">/</span><span><Cpu size={14} />{formatRam(selected.ramMb)}</span></>}
       </div><span className="readiness"><span className="status-dot" />{readiness ? readinessLabel[readiness] : 'Create an instance to get started'}</span>
       {status?.message && <p className="launch-status" id="launch-status" role="status">{status.message}{status.exitCode !== null && <span> Exit code: {status.exitCode}</span>}</p>}</div>
       <div className="launch-action"><button className={action.label === 'IGNITE' ? 'ignite-button' : 'ignite-button task'} disabled={!action.run || busy} onClick={action.run} aria-describedby={status?.message ? 'launch-status' : undefined}><Rocket size={18} />{action.label}<ArrowUpRight size={15} /></button>

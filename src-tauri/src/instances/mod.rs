@@ -20,10 +20,13 @@ fn validate_input(input: &InstanceInput) -> Result<()> {
     validate_java(&input.java_path)?;
     match (&input.loader, input.loader_version.as_deref()) {
         (Loader::Fabric, Some(loader_version)) => fabric::validate_component(loader_version)?,
-        (Loader::Fabric, None) => {
+        (Loader::Forge, Some(loader_version)) => {
+            crate::minecraft::forge::validate_instance(&input.version, loader_version)?
+        }
+        (Loader::Fabric | Loader::Forge, None) => {
             return Err(AppError::new(
                 "VALIDATION",
-                "Choose a Fabric loader version for Fabric instances.",
+                "Choose a loader version for this modded instance.",
             ))
         }
         (Loader::Vanilla, None) => {}

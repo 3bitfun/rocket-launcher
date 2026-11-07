@@ -228,6 +228,18 @@ pub async fn loader_versions(game_version: &str, timeout: u64) -> Result<Vec<Fab
     Ok(loaders)
 }
 
+pub async fn game_versions(timeout: u64) -> Result<Vec<String>> {
+    #[derive(Deserialize)]
+    struct Game {
+        version: String,
+        stable: bool,
+    }
+    let client = download::client(timeout)?;
+    let bytes = fetch_bytes(&client, &format!("{META_HOST}/versions/game"), "Fabric's game catalogue").await?;
+    let games: Vec<Game> = serde_json::from_slice(&bytes).map_err(|e| invalid(format!("Invalid Fabric game catalogue: {e}")))?;
+    Ok(games.into_iter().filter(|game| game.stable).map(|game| game.version).collect())
+}
+
 async fn fetch_bytes(client: &reqwest::Client, url: &str, label: &str) -> Result<Vec<u8>> {
     let url: reqwest::Url = url.parse().map_err(|_| invalid("Invalid Fabric URL."))?;
     let fabric_meta = url.host_str() == Some("meta.fabricmc.net");

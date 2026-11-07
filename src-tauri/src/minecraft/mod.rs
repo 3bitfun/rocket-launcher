@@ -1,5 +1,6 @@
 pub mod download;
 pub mod fabric;
+pub mod forge;
 pub mod install;
 pub mod java;
 pub mod launch;

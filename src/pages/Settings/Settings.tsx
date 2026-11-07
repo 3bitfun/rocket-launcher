@@ -18,6 +18,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
   const [changingOffline, setChangingOffline] = useState(false);
   const [logs, setLogs] = useState<string | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
   useEffect(() => {
     let active = true;
     void native.accounts().then((value) => { if (active) setAccounts(value); })
@@ -92,7 +93,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
 
   return <form className="settings-form" onSubmit={(event) => void save(event)}>
     <div className="page-intro"><div><h2>A launcher that feels like you.</h2><p>The small details, just how you like them.</p></div><span className="tag">v{snapshot.appVersion}</span></div>
-    <fieldset disabled={busy} className="settings-fields">
+    <fieldset disabled={busy || installingUpdate} className="settings-fields">
       <section className="panel settings-section"><div className="settings-section-title"><Palette size={19} /><div><h2>Appearance</h2><p>Set the mood for your launch pad.</p></div></div>
         <div className="setting-row"><div><strong>Theme</strong><small>Choose your preferred light level.</small></div><div className="segmented" role="group" aria-label="Theme">{(['dark', 'light', 'system'] as const).map((theme) => <button type="button" key={theme} aria-pressed={draft.theme === theme} className={draft.theme === theme ? 'active' : ''} onClick={() => update('theme', theme)}>{theme[0].toUpperCase() + theme.slice(1)}</button>)}</div></div>
         <div className="setting-row"><div><strong>Accent colour</strong><small>A personal touch. Rocket coral by default.</small></div><div className="accent-options">{accents.map((accent) => <button type="button" key={accent} style={{ background: accent }} aria-label={`Accent ${accent}`} aria-pressed={draft.accentColor.toUpperCase() === accent} onClick={() => update('accentColor', accent)}>{draft.accentColor.toUpperCase() === accent && <Check size={16} />}</button>)}<label className="custom-colour" title="Choose a custom accent colour"><input type="color" aria-label="Custom accent colour" value={draft.accentColor} onChange={(e) => update('accentColor', e.target.value)} /><span>+</span></label></div></div>
@@ -107,7 +108,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
       </section>
 
       <section className="panel settings-section"><div className="settings-section-title"><Settings2 size={19} /><div><h2>Launcher</h2><p>Everything has its place.</p></div></div>
-        {accounts && <LauncherUpdates offline={accounts.offline} />}
+        {accounts && <LauncherUpdates offline={accounts.offline} blocked={dirty || signingIn || accountBusy || changingOffline} onInstallingChange={setInstallingUpdate} />}
         <div className="setting-row"><div><strong>Network request timeout</strong><small>Applies to catalogue requests. Failed requests retry once.</small></div><label className="number-unit"><input aria-label="Network request timeout in seconds" type="number" min="5" max="120" value={draft.requestTimeoutSeconds} onChange={(e) => update('requestTimeoutSeconds', Number(e.target.value))} required /><span>sec</span></label></div>
         <div className="stored-path"><Folder size={16} /><div><strong>Shared cache</strong><code>{snapshot.paths.cache}</code></div></div>
         <div className="stored-path"><Folder size={16} /><div><strong>Configuration</strong><code>{snapshot.paths.config}</code></div></div>

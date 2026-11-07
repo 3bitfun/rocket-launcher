@@ -192,6 +192,33 @@ pub async fn get_fabric_loaders(
 }
 
 #[tauri::command]
+pub async fn get_forge_loaders(
+    state: State<'_, LauncherState>,
+    game_version: String,
+) -> Result<Vec<FabricLoaderVersion>> {
+    let timeout = {
+        let store = state.store()?;
+        if Accounts::read(&store.paths.data)?.offline {
+            return Err(accounts::offline_error());
+        }
+        store.config.settings.request_timeout_seconds
+    };
+    crate::minecraft::forge::loader_versions(&game_version, timeout).await
+}
+
+#[tauri::command]
+pub async fn get_fabric_game_versions(state: State<'_, LauncherState>) -> Result<Vec<String>> {
+    let timeout = {
+        let store = state.store()?;
+        if Accounts::read(&store.paths.data)?.offline {
+            return Err(accounts::offline_error());
+        }
+        store.config.settings.request_timeout_seconds
+    };
+    fabric::game_versions(timeout).await
+}
+
+#[tauri::command]
 pub fn read_logs(state: State<'_, LauncherState>) -> Result<String> {
     let directory = state.store()?.paths.logs.clone();
     let mut paths = std::fs::read_dir(directory)
