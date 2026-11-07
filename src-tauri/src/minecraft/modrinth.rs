@@ -4,6 +4,7 @@ use super::{
 };
 use crate::{
     errors::{AppError, Result},
+    instances::mods_directory,
     models::{Instance, Loader},
     storage::atomic_json,
 };
@@ -11,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, VecDeque},
     fs,
-    path::{Path, PathBuf},
+    path::Path,
     time::Duration,
 };
 
@@ -351,6 +352,10 @@ pub async fn stage(
         }
         let file = jar(&version).ok_or_else(|| error("A required mod version has no JAR file."))?;
         let spec = jar_spec(file)?;
+        ensure_enabled(&folder, &file.filename)?;
+        if let Some(old) = installed.get(&version.project_id) {
+            ensure_enabled(&folder, segment(&old.filename)?)?;
+        }
         for (_, previous) in files.values() {
             if previous
                 .relative
@@ -452,23 +457,11 @@ pub async fn stage(
     })
 }
 
-fn mods_directory(game: &Path) -> Result<PathBuf> {
-    let game =
-        fs::canonicalize(game).map_err(|e| AppError::io("open the instance directory", e))?;
-    let folder = game.join("mods");
-    match fs::create_dir(&folder) {
-        Ok(()) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(e) => return Err(AppError::io("create the mods folder", e)),
+fn ensure_enabled(folder: &Path, filename: &str) -> Result<()> {
+    if folder.join(format!("{filename}.disabled")).is_file() {
+        return Err(error(format!("{filename} is disabled. Enable it in Installed mods first.")));
     }
-    let resolved =
-        fs::canonicalize(&folder).map_err(|e| AppError::io("open the mods folder", e))?;
-    if resolved != folder || !resolved.is_dir() {
-        return Err(error(
-            "The mods folder must be inside the selected instance.",
-        ));
-    }
-    Ok(resolved)
+    Ok(())
 }
 
 impl StagedMod {
@@ -478,7 +471,9 @@ impl StagedMod {
         let mut added = Vec::new();
         let result = (|| {
             for (project, (version, spec)) in &self.files {
+                ensure_enabled(&folder, &spec.relative.to_string_lossy())?;
                 if let Some(old) = installed.get(project) {
+                    ensure_enabled(&folder, segment(&old.filename)?)?;
                     if &old.id != version && folder.join(segment(&old.filename)?).is_file() {
                         return Err(error(format!("{} is already installed. Move that JAR out of the mods folder before choosing another version.", old.filename)));
                     }

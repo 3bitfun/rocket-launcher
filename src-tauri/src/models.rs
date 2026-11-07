@@ -145,6 +145,7 @@ pub struct AppSnapshot {
 pub struct InstalledMod {
     pub file_name: String,
     pub size_bytes: u64,
+    pub enabled: bool,
 }
 
 pub fn now() -> u64 {

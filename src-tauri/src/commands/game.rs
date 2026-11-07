@@ -72,6 +72,44 @@ fn input(state: &LauncherState, id: &str) -> Result<Input> {
 }
 
 #[tauri::command]
+pub fn set_instance_mod_enabled(
+    state: State<'_, LauncherState>,
+    jobs: State<'_, GameJobs>,
+    instance_id: String,
+    file_name: String,
+    enabled: bool,
+) -> Result<()> {
+    let _guard = jobs.operation.try_lock().map_err(|_| {
+        AppError::new("BUSY", "Wait for the current Minecraft operation to finish.")
+    })?;
+    if jobs.processes.contains(&instance_id) {
+        return Err(AppError::new("BUSY", "Close this instance before changing its mods."));
+    }
+    let store = state.store()?;
+    let instance = store.find_instance(&instance_id)?;
+    crate::instances::set_mod_enabled(&instance.game_directory, &file_name, enabled)
+}
+
+#[tauri::command]
+pub fn open_instance_mods_folder(state: State<'_, LauncherState>, instance_id: String) -> Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL};
+
+    let game = state.store()?.find_instance(&instance_id)?.game_directory.clone();
+    crate::instances::mods_directory(&game)?;
+    let folder: Vec<u16> = game.join("mods").as_os_str().encode_wide().chain(Some(0)).collect();
+    let verb: Vec<u16> = "open".encode_utf16().chain(Some(0)).collect();
+    let result = unsafe {
+        ShellExecuteW(std::ptr::null_mut(), verb.as_ptr(), folder.as_ptr(), std::ptr::null(),
+            std::ptr::null(), SW_SHOWNORMAL)
+    };
+    if result as isize <= 32 {
+        return Err(AppError::new("MOD_FILES", "Windows could not open the mods folder."));
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn install_rocket_pack(
     state: State<'_, LauncherState>,
     jobs: State<'_, GameJobs>,
@@ -83,7 +121,7 @@ pub async fn install_rocket_pack(
         .operation
         .try_lock()
         .map_err(|_| AppError::new("BUSY", "Another Minecraft operation is in progress."))?;
-    let (parent, timeout, ram) = {
+    let (parent, cache, timeout, ram) = {
         let store = state.store()?;
         if accounts::Accounts::read(&store.paths.data)?.offline {
             return Err(accounts::offline_error());
@@ -94,7 +132,12 @@ pub async fn install_rocket_pack(
         {
             return Err(AppError::new("PACK", "Choose a Minecraft release for Rocket Pack."));
         }
-        (settings.minecraft_directory.clone(), settings.request_timeout_seconds, settings.default_ram_mb)
+        (
+            settings.minecraft_directory.clone(),
+            store.paths.cache.join("rocket-pack"),
+            settings.request_timeout_seconds,
+            settings.default_ram_mb,
+        )
     };
     validate_path(&parent)?;
     std::fs::create_dir_all(&parent).map_err(|e| AppError::io("create the instance parent directory", e))?;
@@ -102,7 +145,7 @@ pub async fn install_rocket_pack(
         .prefix("rocket-pack-")
         .tempdir_in(parent)
         .map_err(|e| AppError::io("create the Rocket Pack directory", e))?;
-    let input = pack::install_for_version(&version, directory.path(), ram, timeout, |completed, total| {
+    let input = pack::install_for_version(&version, directory.path(), &cache, ram, timeout, |completed, total| {
         let _ = progress.send([completed, total]);
     }).await?;
     let mut store = state.store()?;

@@ -71,7 +71,7 @@ export interface VersionCatalog {
   source: 'network' | 'cache';
   warning: string | null;
 }
-export interface InstalledMod { fileName: string; sizeBytes: number }
+export interface InstalledMod { fileName: string; sizeBytes: number; enabled: boolean }
 export interface Toast { message: string; kind: 'success' | 'error' }
 export interface ModrinthProject {
   projectId: string;

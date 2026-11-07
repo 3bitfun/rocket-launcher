@@ -29,13 +29,15 @@ Java runtimes are selected from installed runtimes. Launcher updates are applied
 
 In **Mods**, pick a Minecraft version and select **Create Rocket Pack instance**. The full 1.21.11 pack uses Fabric Loader 0.20.1 and pinned mods from the supplied Tuff pack. Other Fabric releases use starter packs assembled from matching versions of Sodium, Lithium, and Fabric API, depending on availability. Install the Minecraft files from **Launch Pad** and use the Java version it requests.
 
-The full pack downloads 69 mods and 28 resource and shader packs from the original pack index. It uses a newer Simple Voice Chat build to satisfy Flashback’s compatibility requirement. The original archive’s three local overrides are separate from these downloads.
+The full pack downloads 69 mods and 28 resource and shader packs from the original pack index. It uses a newer Simple Voice Chat build to satisfy Flashback’s compatibility requirement. The original archive’s three local overrides are separate from these downloads. Rocket Launcher keeps verified downloads in a shared cache and copies them into new full-pack instances.
 
 The full pack includes **Rocket Launcher Client**, a Fabric 1.21.11 mod. Click **Rocket** on Minecraft’s title or pause menu to toggle the FPS and coordinates HUD, or open Controls and Video Settings. Assign the optional **Open Rocket menu** key in Controls. In another Fabric 1.21.11 instance, install Fabric API and add the client JAR to its `mods` folder. Replace the old Rocket Companion JAR if it is installed there. Build the client from `rocket-companion` with `.\gradlew.bat remapJar` on JDK 21. To bundle a rebuilt mod, copy the JAR from `rocket-companion/build/libs` to `src-tauri/resources`.
 
 For a custom Minecraft title screen or pause menu, install the matching Fabric release of [FancyMenu](https://modrinth.com/mod/fancymenu), open Minecraft and create a layout from the FancyMenu toolbar. Share your layout by copying its [configuration folder](https://docs.fancymenu.net/docs/en-US/modpacks) into the pack. [ImproperUI](https://modrinth.com/mod/improperui) is also available for scripted in-game screens.
 
 Create or select a Fabric or Forge instance, then open **Mods**. Click **Install** on a result to choose a compatible release automatically, or use **Versions** to pick one yourself. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, move its old JAR out of the mods folder before installing the replacement. Offline Mode keeps local mod files available and pauses catalogue requests and downloads.
+
+Use **Installed mods** to filter the list, open the mods folder, or enable and disable individual JARs after closing Minecraft. Disabling a mod keeps its file as `.jar.disabled`.
 
 Settings can share the server list and key assignments between instances. Rocket Launcher keeps a copy of an instance's original files before applying shared values. Only one instance can launch with sync enabled at a time. **Repair files** is available next to IGNITE when needed.
 

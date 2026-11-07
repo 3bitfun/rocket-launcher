@@ -6,7 +6,7 @@ use crate::{
     errors::{AppError, Result},
     models::{Instance, InstanceInput, Loader},
 };
-use futures_util::{stream, StreamExt, TryStreamExt};
+use futures_util::{stream, StreamExt};
 use serde::Deserialize;
 use std::{
     path::{Path, PathBuf},
@@ -49,6 +49,7 @@ impl Pack {
     pub async fn download(
         &self,
         directory: &Path,
+        cache: &Path,
         timeout: u64,
         progress: &(impl Fn(usize, usize) + Sync),
     ) -> Result<()> {
@@ -81,33 +82,47 @@ impl Pack {
         let total = specs.len();
         let completed = AtomicUsize::new(0);
         progress(0, total);
-        stream::iter(specs)
+        let results = stream::iter(specs)
             .map(|spec| {
                 let client = &client;
                 let completed = &completed;
                 async move {
-                    download::ensure(client, directory, &spec, &|_| {}).await?;
+                    let mut cached = spec.clone();
+                    cached.relative = PathBuf::from(spec.artifact.sha1.to_ascii_lowercase());
+                    download::ensure(client, cache, &cached, &|_| {}).await?;
+                    let source = cache.join(&cached.relative);
+                    let target = directory.join(&spec.relative);
+                    tokio::task::spawn_blocking(move || {
+                        super::install::copy_atomic(&source, &target)
+                    })
+                    .await
+                    .map_err(|e| {
+                        AppError::new("PACK", format!("Could not copy a cached pack file: {e}"))
+                    })??;
                     progress(completed.fetch_add(1, Ordering::Relaxed) + 1, total);
                     Ok(())
                 }
             })
             .buffer_unordered(6)
-            .try_collect::<Vec<_>>()
-            .await?;
-        Ok(())
+            .collect::<Vec<Result<()>>>()
+            .await;
+        results.into_iter().collect()
     }
 }
 
 pub async fn install_for_version(
     game: &str,
     directory: &Path,
+    cache: &Path,
     ram: u32,
     timeout: u64,
     progress: impl Fn(usize, usize) + Sync,
 ) -> Result<InstanceInput> {
     let pinned = Pack::recommended()?;
     if game == pinned.minecraft {
-        pinned.download(directory, timeout, &progress).await?;
+        pinned
+            .download(directory, cache, timeout, &progress)
+            .await?;
         tokio::fs::write(
             directory
                 .join("mods")
@@ -178,7 +193,14 @@ async fn live_rocket_pack_renders() {
     let mut store = Store::open(root.path().join("launcher")).unwrap();
     let folder = tempfile::tempdir_in(root.path()).unwrap();
     let pack = Pack::recommended().unwrap();
-    pack.download(folder.path(), 30, &|_, _| {}).await.unwrap();
+    pack.download(
+        folder.path(),
+        &root.path().join("pack-cache"),
+        30,
+        &|_, _| {},
+    )
+    .await
+    .unwrap();
     let snapshot = store
         .create_pack_instance(pack.instance_input(4096), folder)
         .unwrap();

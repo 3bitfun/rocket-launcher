@@ -198,10 +198,11 @@ impl Store {
     }
 
     pub fn installed_mods(&self, id: &str) -> Result<Vec<InstalledMod>> {
-        let directory: PathBuf = self.find_instance(id)?.game_directory.join("mods");
-        if !directory.exists() {
+        let game = &self.find_instance(id)?.game_directory;
+        if !game.join("mods").exists() {
             return Ok(vec![]);
         }
+        let directory = mods_directory(game)?;
         let mut mods = vec![];
         for entry in
             fs::read_dir(directory).map_err(|e| AppError::io("read the mods directory", e))?
@@ -210,24 +211,71 @@ impl Store {
             let kind = entry
                 .file_type()
                 .map_err(|e| AppError::io("inspect a mod file", e))?;
-            if kind.is_file()
-                && entry
-                    .path()
-                    .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("jar"))
-            {
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else { continue };
+            let disabled = name.strip_suffix(".disabled");
+            let filename = disabled.unwrap_or(name);
+            if kind.is_file() && is_mod_jar(filename) {
                 mods.push(InstalledMod {
-                    file_name: entry.file_name().to_string_lossy().into_owned(),
+                    file_name: filename.into(),
                     size_bytes: entry
                         .metadata()
                         .map_err(|e| AppError::io("inspect mod size", e))?
                         .len(),
+                    enabled: disabled.is_none(),
                 });
             }
         }
         mods.sort_by(|a, b| a.file_name.cmp(&b.file_name));
         Ok(mods)
     }
+}
+
+fn is_mod_jar(name: &str) -> bool {
+    std::path::Path::new(name).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("jar"))
+}
+
+pub(crate) fn mods_directory(game: &std::path::Path) -> Result<PathBuf> {
+    let game = fs::canonicalize(game).map_err(|e| AppError::io("open the instance directory", e))?;
+    let folder = game.join("mods");
+    match fs::create_dir(&folder) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(e) => return Err(AppError::io("create the mods folder", e)),
+    }
+    let resolved = fs::canonicalize(&folder).map_err(|e| AppError::io("open the mods folder", e))?;
+    if resolved != folder || !resolved.is_dir() {
+        return Err(AppError::new("MOD_FILES", "The mods folder must be inside the selected instance."));
+    }
+    Ok(resolved)
+}
+
+pub fn set_mod_enabled(game: &std::path::Path, filename: &str, enabled: bool) -> Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::MoveFileW;
+
+    crate::minecraft::metadata::segment(filename)?;
+    if !is_mod_jar(filename) {
+        return Err(AppError::new("MOD_FILES", "Choose a JAR file from this instance."));
+    }
+    let folder = mods_directory(game)?;
+    let jar = folder.join(filename);
+    let disabled = folder.join(format!("{filename}.disabled"));
+    let (source, target) = if enabled { (disabled, jar) } else { (jar, disabled) };
+    if !fs::symlink_metadata(&source).is_ok_and(|meta| meta.file_type().is_file()) {
+        return Err(AppError::new("MOD_FILES", "The selected mod file is missing or has changed. Refresh the mod list."));
+    }
+    let source: Vec<u16> = source.as_os_str().encode_wide().chain(Some(0)).collect();
+    let target: Vec<u16> = target.as_os_str().encode_wide().chain(Some(0)).collect();
+    // MoveFileW rejects an existing destination, even if it appeared after listing.
+    if unsafe { MoveFileW(source.as_ptr(), target.as_ptr()) } == 0 {
+        let error = std::io::Error::last_os_error();
+        if error.kind() == std::io::ErrorKind::AlreadyExists {
+            return Err(AppError::new("MOD_FILES", "A mod file with that name already exists. Resolve the duplicate in the mods folder."));
+        }
+        return Err(AppError::io("change mod state", error));
+    }
+    Ok(())
 }
 
 fn not_found() -> AppError {

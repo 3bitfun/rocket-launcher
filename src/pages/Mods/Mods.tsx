@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, FileArchive, Puzzle, RefreshCw } from 'lucide-react';
+import { Download, FileArchive, FolderOpen, Puzzle, RefreshCw, Search } from 'lucide-react';
 import type { AppSnapshot, InstalledMod, VersionCatalog } from '../../types';
 import { native, errorMessage } from '../../services/native';
 import { EmptyState, Spinner } from '../../components/ui/Primitives';
@@ -14,6 +14,8 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [filter, setFilter] = useState('');
+  const [changingMod, setChangingMod] = useState<string | null>(null);
   const [installingPack, setInstallingPack] = useState(false);
   const [packInstalled, setPackInstalled] = useState(false);
   const [packProgress, setPackProgress] = useState<[number, number] | null>(null);
@@ -22,6 +24,8 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
   const [packListError, setPackListError] = useState('');
   const packVersions = (catalog?.versions ?? []).filter((version) => version.type === 'release' && version.id !== recommendedVersion && fabricVersions.includes(version.id));
   const instance = snapshot.instances.find((item) => item.id === id);
+  const visibleMods = mods.filter((mod) => mod.fileName.toLowerCase().includes(filter.trim().toLowerCase()));
+  const running = instance?.readiness === 'running' || instance?.readiness === 'launching';
   useEffect(() => {
     if (offline || view !== 'pack') return;
     let active = true;
@@ -47,6 +51,25 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
     finally { setInstallingPack(false); }
   }
 
+  async function toggleMod(mod: InstalledMod) {
+    setChangingMod(mod.fileName);
+    setError(null);
+    try {
+      await native.setModEnabled(id, mod.fileName, !mod.enabled);
+      setRevision((value) => value + 1);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setChangingMod(null);
+    }
+  }
+
+  async function openFolder() {
+    setError(null);
+    try { await native.openModsFolder(id); }
+    catch (reason) { setError(errorMessage(reason)); }
+  }
+
   return <>
     <div className="mod-workspace-bar">
       <div className="segmented" role="group" aria-label="Mods view">
@@ -54,7 +77,7 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
         <button type="button" aria-pressed={view === 'installed'} className={view === 'installed' ? 'active' : ''} onClick={() => setView('installed')}>Installed mods</button>
         <button type="button" aria-pressed={view === 'pack'} className={view === 'pack' ? 'active' : ''} onClick={() => setView('pack')}>Rocket Pack</button>
       </div>
-      {view !== 'pack' && <label className="instance-target"><span>Target instance</span><select value={id} onChange={(e) => setId(e.target.value)} disabled={!snapshot.instances.length || busy}>
+      {view !== 'pack' && <label className="instance-target"><span>Target instance</span><select value={id} onChange={(e) => setId(e.target.value)} disabled={!snapshot.instances.length || busy || changingMod !== null}>
         {!id && <option value="">Select an instance</option>}{snapshot.instances.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
       </select></label>}
     </div>
@@ -63,7 +86,7 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
       <div className="rocket-pack-content">
         <span className="tag">Recommended</span>
         <h2>Rocket Pack</h2>
-        <p>{packVersion === recommendedVersion ? 'Fabric · 69 mods, resource packs, shaders, and Rocket Launcher Client · About 304 MiB' : 'Fabric · A starter pack assembled from compatible performance mods'}</p>
+        <p>{packVersion === recommendedVersion ? 'Fabric · 69 mods, resource packs, shaders, and Rocket Launcher Client · About 304 MiB on first download' : 'Fabric · A starter pack assembled from compatible performance mods'}</p>
         <label className="field"><span>Rocket Pack Minecraft version</span><select value={packVersion} disabled={busy || installingPack} onChange={(event) => { setPackVersion(event.target.value); setPackInstalled(false); }}>
           <option value={recommendedVersion}>{recommendedVersion} · Full pack</option>
           {packVersions.map((version) => <option key={version.id} value={version.id}>{version.id} · Starter pack</option>)}
@@ -81,9 +104,25 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
         </div>}
       </div>
     </section>}
-    {view === 'installed' && <section className="panel mods-panel"><div className="section-heading"><h2>Installed mod files</h2><button className="icon-button" title="Refresh mod list" aria-label="Refresh local mods" onClick={() => setRevision((value) => value + 1)} disabled={!id || loading}><RefreshCw size={16} /></button></div>
-      {loading ? <div className="loading-inline"><Spinner />Reading local files…</div> : error ? <p className="form-error" role="alert">{error}</p> : mods.length ? <ul className="mod-list">{mods.map((mod) => <li key={mod.fileName}><FileArchive size={19} /><span>{mod.fileName}</span><small>{(mod.sizeBytes / 1024).toFixed(1)} KB</small><span className="tag">Not verified</span></li>)}</ul> : <EmptyState icon={<FileArchive size={26} />} title={id ? 'No local mod files' : 'No instance to inspect'} description={id ? 'No .jar files were found in this instance’s mods folder.' : 'Create an instance first to inspect its local mods folder.'} />}
-      <p className="panel-footnote">Fabric and Forge instances load mods from this folder. This list only reports files on disk; compatibility and mod metadata have not been verified.</p>
+    {view === 'installed' && <section className="panel mods-panel">
+      <div className="section-heading">
+        <h2>Installed mods</h2>
+        <div className="inline-actions">
+          <button className="button secondary small-button" disabled={!id} onClick={() => void openFolder()}><FolderOpen size={16} /> Open mods folder</button>
+          <button className="icon-button" title="Refresh mod list" aria-label="Refresh local mods" onClick={() => setRevision((value) => value + 1)} disabled={!id || loading || changingMod !== null}><RefreshCw size={16} /></button>
+        </div>
+      </div>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      {running && <p className="panel-footnote">Close this instance before enabling or disabling mods.</p>}
+      {loading ? <div className="loading-inline"><Spinner />Reading local files…</div> : id && mods.length ? <>
+        <label className="search-field"><Search size={16} /><input aria-label="Filter installed mods" placeholder="Filter installed mods…" value={filter} onChange={(event) => setFilter(event.target.value)} /></label>
+        {visibleMods.length ? <ul className="mod-list">{visibleMods.map((mod) => <li key={`${mod.fileName}:${mod.enabled}`}>
+          <FileArchive size={19} /><span>{mod.fileName}</span><span className="tag">{mod.enabled ? 'Enabled' : 'Disabled'}</span>
+          <button className="button secondary small-button" disabled={busy || running || changingMod !== null} aria-label={`${mod.enabled ? 'Disable' : 'Enable'} ${mod.fileName}`} onClick={() => void toggleMod(mod)}>
+            {changingMod === mod.fileName && <Spinner size={14} />}{mod.enabled ? 'Disable' : 'Enable'}
+          </button>
+        </li>)}</ul> : <p className="panel-footnote">No mods match your search.</p>}
+      </> : !error && <EmptyState icon={<FileArchive size={26} />} title={id ? 'No local mod files' : 'No instance to inspect'} description={id ? 'Install a mod or add a JAR to this instance’s mods folder.' : 'Create an instance first to inspect its local mods folder.'} />}
     </section>}
     {view === 'browse' && (offline ? <section className="panel mods-panel"><EmptyState icon={<Puzzle size={26} />} title="Modrinth is offline" description="Turn off Offline Mode in Settings to browse and install mods." /></section>
       : instance && instance.loader !== 'vanilla'
