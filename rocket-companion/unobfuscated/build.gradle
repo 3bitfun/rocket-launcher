@@ -16,7 +16,7 @@ if (api == null) {
 }
 
 group = 'com.rocketlauncher'
-version = "2.2.0+mc${game}"
+version = "2.3.0+mc${game}"
 
 base {
     archivesName = 'rocketlauncher-client'
@@ -70,7 +70,7 @@ tasks.withType(JavaCompile).configureEach {
 processResources {
     def metadata = [version: project.version, minecraft: game, javaRelease: 25,
         loaderMin: game == '26.3' ? '0.19.3' : '0.18.4',
-        keyApi: 'fabric-key-mapping-api-v1', mixins: '[]']
+        keyApi: 'fabric-key-mapping-api-v1']
     inputs.properties metadata
     filesMatching('fabric.mod.json') {
         expand metadata

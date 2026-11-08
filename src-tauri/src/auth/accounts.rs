@@ -166,7 +166,7 @@ pub fn select(data: &Path, id: String) -> Result<Accounts> {
     Ok(accounts)
 }
 
-fn offline_identity(name: &str) -> Result<String> {
+fn offline_uuid(name: &str) -> Result<String> {
     use md5::{Digest, Md5};
     let name = name.trim();
     if !(3..=16).contains(&name.len())
@@ -182,7 +182,7 @@ fn offline_identity(name: &str) -> Result<String> {
 
 pub fn create_offline_account(data: &Path, name: String) -> Result<Accounts> {
     let name = name.trim();
-    let id = offline_identity(name)?;
+    let id = offline_uuid(name)?;
     let mut accounts = Accounts::read(data)?;
     if let Some(existing) = accounts.profiles.iter().find(|profile| profile.id == id) {
         if existing.account_type != AccountType::Offline {
@@ -199,7 +199,7 @@ pub fn create_offline_account(data: &Path, name: String) -> Result<Accounts> {
 pub fn edit_offline(data: &Path, id: String, name: String, skin: Option<String>, slim: bool) -> Result<Accounts> {
     use base64::{engine::general_purpose::STANDARD, Engine};
     let name = name.trim();
-    let new_id = offline_identity(name)?;
+    let new_id = offline_uuid(name)?;
     if let Some(skin) = &skin {
         let invalid = || AppError::new("VALIDATION", "Choose a 64×64 or 64×32 PNG skin under 64 KiB.");
         let encoded = skin.strip_prefix("data:image/png;base64,").ok_or_else(invalid)?;

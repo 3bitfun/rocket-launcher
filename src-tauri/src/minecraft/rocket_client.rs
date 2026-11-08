@@ -11,7 +11,7 @@ use std::{
     path::Path,
 };
 
-const RELEASE: &str = "2.2.0";
+const RELEASE: &str = "2.3.0";
 const API_PROJECT: &str = "P7dR8mSH";
 const CLIENT_ID: &str = "rocket_companion";
 const BUILDS: &[(&str, &[u8])] = include!(concat!(env!("OUT_DIR"), "/rocket_client_builds.rs"));

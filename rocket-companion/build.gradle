@@ -47,7 +47,7 @@ def poseStack = minor < 20
 def legacyFps = poseStack && !(game in ['1.19.3', '1.19.4'])
 def apiVersion = api.contains('+') ? api : "${api}+${game}"
 
-version = "2.2.0+mc${game}"
+version = "2.3.0+mc${game}"
 
 base {
     archivesName = 'rocketlauncher-client'
@@ -146,8 +146,7 @@ tasks.withType(JavaCompile).configureEach {
 
 processResources {
     def metadata = [version: project.version, minecraft: game, javaRelease: javaRelease, loaderMin: '0.18.2',
-        keyApi: 'fabric-key-binding-api-v1',
-        mixins: platform == 'legacy' ? '["rocket-client.legacy.mixins.json"]' : '[]']
+        keyApi: 'fabric-key-binding-api-v1']
     inputs.properties metadata
     if (platform == 'legacy') {
         from('src/legacy/resources') {
@@ -156,6 +155,10 @@ processResources {
     }
     filesMatching('fabric.mod.json') {
         expand metadata
+        if (platform == 'legacy') {
+            filter { line -> line == '  "mixins": [],' ?
+                '  "mixins": ["rocket-client.legacy.mixins.json"],' : line }
+        }
         if (legacyFps) {
             filter { line -> line == '  "depends": {' ?
                 '  "accessWidener": "rocket-client.accesswidener",\n' + line : line }

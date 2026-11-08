@@ -75,7 +75,7 @@ function SkinViewer({ appearance }: { appearance: ProfileAppearance }) {
           {parts.map(({ size: [width, height, depth], at, uv, overlay, color, ...part }, index) => {
             const props = { width, height, depth, at: [...at] as [number, number, number], sheet: [64, legacy ? 32 : 64] as UV, texture };
             return <div className="skin-part" key={index}>
-              <Cube {...props} uv={[...uv]} color={color} flip={'flip' in part && part.flip} />
+              <Cube {...props} uv={[uv[0], uv[1]]} color={color} flip={'flip' in part && part.flip} />
               {texture && layers && (!legacy || index === 0) && <Cube {...props} uv={[...overlay]} layer={index === 0 ? 2 : 1.3} />}
             </div>;
           })}
