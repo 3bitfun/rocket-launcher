@@ -5,6 +5,7 @@ import { native, errorMessage } from '../../services/native';
 import { Modal } from '../../components/ui/Modal';
 import { PathField, Spinner, Toggle } from '../../components/ui/Primitives';
 import { LauncherUpdates } from './LauncherUpdates';
+import { ProfileEditor } from './ProfileEditor';
 
 const accents = ['#709DEB', '#FF704D', '#E4B75E', '#66BD9E', '#78A5EF', '#B19AE8', '#E68DA8'];
 
@@ -99,7 +100,8 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
           {accounts && accounts.profiles.length > 1 && <select aria-label="Active account" value={accounts.activeId ?? ''} disabled={accountBusy || signingIn || changingOffline} onChange={(event) => void selectAccount(event.target.value)}>{accounts.profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.type === 'local_test' ? `Local Test · ${profile.name}` : profile.type === 'offline' ? `Offline · ${profile.name}` : `Microsoft · ${profile.name}`}</option>)}</select>}
           <button type="button" className="button secondary small-button" onClick={() => void signIn()} disabled={busy || signingIn || accountBusy || Boolean(accounts?.offline)}>{signingIn ? <Spinner size={15} /> : <LogIn size={15} />}{activeAccount ? 'Sign in / switch' : 'Sign in'}</button>
         </div>
-        <div className="setting-row"><label className="field"><span>Offline username</span><input value={offlineName} onChange={(event) => setOfflineName(event.target.value)} maxLength={16} placeholder="Your Minecraft name" /></label><button type="button" className="button secondary small-button" onClick={() => void createOfflineAccount()} disabled={busy || accountBusy || signingIn || !/^[A-Za-z0-9_]{3,16}$/.test(offlineName)}>{accountBusy ? <Spinner size={15} /> : <UserRound size={15} />}Use offline username</button></div>
+        {activeAccount && activeAccount.type !== 'local_test' && <ProfileEditor key={activeAccount.id} profile={activeAccount} offline={accounts?.offline ?? false} disabled={accountBusy || signingIn || changingOffline} onSaved={applyAccounts} />}
+        <div className="setting-row"><label className="field"><span>New offline username</span><input value={offlineName} onChange={(event) => setOfflineName(event.target.value)} maxLength={16} placeholder="Your Minecraft name" /></label><button type="button" className="button secondary small-button" onClick={() => void createOfflineAccount()} disabled={busy || accountBusy || signingIn || !/^[A-Za-z0-9_]{3,16}$/.test(offlineName)}>{accountBusy ? <Spinner size={15} /> : <UserRound size={15} />}Use offline username</button></div>
         <div className="notice"><Info size={16} /><span>Sign-in needs an approved Microsoft app registration configured as ROCKET_MICROSOFT_CLIENT_ID. Tokens are stored in Windows Credential Manager.</span></div>
         {import.meta.env.DEV && <div className="inline-actions"><button type="button" className="button secondary small-button" onClick={() => void createLocalTestAccount()} disabled={busy || accountBusy || signingIn}>{accountBusy ? <Spinner size={15} /> : <UserRound size={15} />}Create Test Account</button></div>}
         {activeAccount && activeAccount.type !== 'local_test' && <button type="button" className="button secondary small-button" disabled={accountBusy || signingIn || changingOffline} onClick={() => void signOut(activeAccount.id)}>{activeAccount.type === 'offline' ? 'Remove offline profile' : 'Sign out'}</button>}

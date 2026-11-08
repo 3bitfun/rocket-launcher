@@ -1,6 +1,7 @@
 import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { AccountsSummary, AppSnapshot, DownloadProgress, FabricLoaderVersion, GameStatus, InstanceInput, InstalledMod, ModrinthPage, ModrinthVersion, RocketClientStatus, Settings, VersionCatalog } from '../types';
+import type { ModpackDetails, ModpackFilters, ModpackProgress, ProfileAppearance } from '../types';
 
 export const isDesktop = () => isTauri();
 
@@ -12,6 +13,8 @@ function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
 export const native = {
   accounts: () => call<AccountsSummary>('get_accounts'),
   createOfflineAccount: (name: string) => call<AccountsSummary>('create_offline_account', { name }),
+  editOfflineProfile: (id: string, name: string, skin: string | null, slim: boolean) => call<AccountsSummary>('edit_offline_profile', { id, name, skin, slim }),
+  profileAppearance: (id: string) => call<ProfileAppearance>('get_profile_appearance', { id }),
   signIn: () => call<AccountsSummary>('microsoft_sign_in'),
   selectAccount: (id: string) => call<AccountsSummary>('select_account', { id }),
   createTestAccount: () => call<AccountsSummary>('create_local_test_account'),
@@ -39,6 +42,14 @@ export const native = {
   rocketClientStatus: (instanceId: string) => call<RocketClientStatus>('rocket_client_status', { instanceId }),
   installRocketClient: (instanceId: string) => call<void>('install_rocket_client', { instanceId }),
   searchMods: (instanceId: string, query: string, offset: number, sort?: string) => call<ModrinthPage>('search_modrinth', { instanceId, query, offset, sort }),
+  searchModpacks: (query: string, offset: number, sort: string, filters: ModpackFilters) =>
+    call<ModrinthPage>('search_modpacks', { query, offset, sort, filters }),
+  modpackDetails: (projectId: string) => call<ModpackDetails>('modpack_details', { projectId }),
+  installModpack: (projectId: string, versionId: string, game: string, loader: string, onProgress: (value: ModpackProgress) => void) => {
+    const progress = new Channel<ModpackProgress>();
+    progress.onmessage = onProgress;
+    return call<AppSnapshot>('install_modpack', { projectId, versionId, game, loader, progress });
+  },
   modVersions: (instanceId: string, projectId: string) => call<ModrinthVersion[]>('modrinth_versions', { instanceId, projectId }),
   installMod: (instanceId: string, projectId: string, versionId?: string) => call<string>('install_modrinth', { instanceId, projectId, versionId }),
   installRocketPack: (version: string, onProgress: (files: [number, number]) => void, input?: InstanceInput) => {

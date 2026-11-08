@@ -29,6 +29,12 @@ final class ClientPlatform {
 
     static boolean debugVisible(Minecraft client) { return client.getDebugOverlay().showDebugScreen(); }
 
+    static void registerCrosshair() {
+        HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (graphics, delta) -> {
+            if (!CrosshairRenderer.renderInGame(graphics)) vanilla.render(graphics, delta);
+        });
+    }
+
     static int fps(Minecraft client) { return client.getFps(); }
 
     static void openOptions(Screen parent, Minecraft client) {

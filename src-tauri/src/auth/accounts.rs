@@ -21,6 +21,16 @@ pub struct Account {
     #[serde(rename = "type", default)]
     pub account_type: AccountType,
     client_id: String,
+    #[serde(default)]
+    appearance: Appearance,
+}
+
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Appearance {
+    pub skin: Option<String>,
+    pub cape: Option<String>,
+    pub slim: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,6 +65,7 @@ pub struct AccountSummaryProfile {
     pub name: String,
     #[serde(rename = "type")]
     pub account_type: AccountType,
+    pub appearance: Appearance,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -76,6 +87,9 @@ impl Accounts {
     }
 
     fn save(&self, data: &Path) -> Result<()> {
+        if serde_json::to_vec_pretty(self).map_err(|_| storage())?.len() >= 1024 * 1024 {
+            return Err(AppError::new("AUTH_STORAGE", "Saved profiles are full. Remove an unused skin before saving."));
+        }
         atomic_json(&data.join("accounts.json"), self)
     }
 
@@ -100,6 +114,7 @@ impl Accounts {
                 id: profile.id.clone(),
                 name: profile.name.clone(),
                 account_type: profile.account_type,
+                appearance: profile.appearance.clone(),
             })
             .collect::<Vec<_>>();
         let active_id = self
@@ -151,7 +166,7 @@ pub fn select(data: &Path, id: String) -> Result<Accounts> {
     Ok(accounts)
 }
 
-pub fn create_offline_account(data: &Path, name: String) -> Result<Accounts> {
+fn offline_identity(name: &str) -> Result<String> {
     use md5::{Digest, Md5};
     let name = name.trim();
     if !(3..=16).contains(&name.len())
@@ -162,13 +177,64 @@ pub fn create_offline_account(data: &Path, name: String) -> Result<Accounts> {
     let mut digest: [u8; 16] = Md5::digest(format!("OfflinePlayer:{name}").as_bytes()).into();
     digest[6] = (digest[6] & 0x0f) | 0x30;
     digest[8] = (digest[8] & 0x3f) | 0x80;
-    let id = uuid::Uuid::from_bytes(digest).simple().to_string();
+    Ok(uuid::Uuid::from_bytes(digest).simple().to_string())
+}
+
+pub fn create_offline_account(data: &Path, name: String) -> Result<Accounts> {
+    let name = name.trim();
+    let id = offline_identity(name)?;
     let mut accounts = Accounts::read(data)?;
-    accounts.profiles.retain(|p| !(p.id == id && p.account_type == AccountType::Offline));
-    accounts.profiles.push(Account { id: id.clone(), name: name.into(), account_type: AccountType::Offline, client_id: String::new() });
+    if let Some(existing) = accounts.profiles.iter().find(|profile| profile.id == id) {
+        if existing.account_type != AccountType::Offline {
+            return Err(AppError::new("VALIDATION", "An account with that identity already exists."));
+        }
+    } else {
+        accounts.profiles.push(Account { id: id.clone(), name: name.into(), account_type: AccountType::Offline, client_id: String::new(), appearance: Appearance::default() });
+    }
     accounts.active_id = Some(id);
     accounts.save(data)?;
     Ok(accounts)
+}
+
+pub fn edit_offline(data: &Path, id: String, name: String, skin: Option<String>, slim: bool) -> Result<Accounts> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let name = name.trim();
+    let new_id = offline_identity(name)?;
+    if let Some(skin) = &skin {
+        let invalid = || AppError::new("VALIDATION", "Choose a 64×64 or 64×32 PNG skin under 64 KiB.");
+        let encoded = skin.strip_prefix("data:image/png;base64,").ok_or_else(invalid)?;
+        if encoded.len() > 87_384 { return Err(invalid()); }
+        let bytes = STANDARD.decode(encoded).map_err(|_| invalid())?;
+        if bytes.len() < 33 || bytes.len() > 65_536
+            || &bytes[..16] != b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR"
+            || bytes[16..20] != [0, 0, 0, 64]
+            || !(bytes[20..24] == [0, 0, 0, 64] || bytes[20..24] == [0, 0, 0, 32])
+        { return Err(invalid()); }
+    }
+    let mut accounts = Accounts::read(data)?;
+    if new_id != id && accounts.profiles.iter().any(|p| p.id == new_id) {
+        return Err(AppError::new("VALIDATION", "An account with that username already exists."));
+    }
+    let profile = accounts.profiles.iter_mut().find(|p| p.id == id && p.account_type == AccountType::Offline)
+        .ok_or_else(crate::minecraft::launch::authentication_required)?;
+    profile.name = name.into();
+    profile.id = new_id.clone();
+    profile.appearance = Appearance { skin, slim, cape: None };
+    if accounts.active_id.as_deref() == Some(id.as_str()) {
+        accounts.active_id = Some(new_id);
+    }
+    accounts.save(data)?;
+    Ok(accounts)
+}
+
+pub async fn profile_appearance(data: &Path, id: &str) -> Result<Appearance> {
+    let accounts = Accounts::read(data)?;
+    let profile = accounts.profiles.iter().find(|profile| profile.id == id && profile.account_type == AccountType::Microsoft)
+        .ok_or_else(crate::minecraft::launch::authentication_required)?;
+    if accounts.offline { return Ok(profile.appearance.clone()); }
+    let Some(cache) = VerifiedCache::load(id)? else { return Ok(profile.appearance.clone()); };
+    if cache.minecraft_expires_at <= now() { return Ok(profile.appearance.clone()); }
+    services::profile_appearance(&cache.minecraft_token, id).await.or_else(|_| Ok(profile.appearance.clone()))
 }
 
 #[cfg(debug_assertions)]
@@ -180,6 +246,7 @@ pub fn create_test_account(data: &Path) -> Result<Accounts> {
         name: "RocketTester".into(),
         account_type: AccountType::LocalTest,
         client_id: String::new(),
+        appearance: Appearance::default(),
     });
     accounts.active_id = Some(id);
     accounts.offline = false;
@@ -230,6 +297,7 @@ pub async fn sign_in(data: &Path) -> Result<Accounts> {
     let client_id = microsoft::client_id(client_id.trim())?;
     let tokens = browser::sign_in(client_id).await?;
     let verified = services::verify(&tokens.access_token).await?;
+    let appearance = verified.appearance.clone();
     let cache = VerifiedCache::from_verified(verified, now())?;
     let id = cache.uuid.clone();
     credential_store::write(&refresh_key(&id), tokens.refresh_token.as_bytes())?;
@@ -240,6 +308,7 @@ pub async fn sign_in(data: &Path) -> Result<Accounts> {
         name: cache.name,
         account_type: AccountType::Microsoft,
         client_id: client_id.into(),
+        appearance,
     });
     accounts.active_id = Some(id);
     accounts.save(data)?;

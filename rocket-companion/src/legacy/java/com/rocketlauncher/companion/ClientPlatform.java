@@ -24,6 +24,8 @@ final class ClientPlatform {
 
     static boolean debugVisible(Minecraft client) { return @DEBUG_VISIBLE@; }
 
+    static void registerCrosshair() {} // LegacyCrosshairMixin hooks the older GUI.
+
     static int fps(Minecraft client) { return @FPS@; }
 
     static void openOptions(Screen parent, Minecraft client) {

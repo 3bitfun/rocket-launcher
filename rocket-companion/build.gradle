@@ -69,7 +69,9 @@ def identifierType = patch >= 11 ? 'Identifier' : 'ResourceLocation'
 def optionsPackage = poseStack || game.startsWith('1.20') ? 'screens' : 'screens.options'
 def debugVisible = poseStack || game in ['1.20', '1.20.1'] ? 'client.options.renderDebug' : 'client.getDebugOverlay().showDebugScreen()'
 def fps = legacyFps ? 'Minecraft.fps' : 'client.getFps()'
-def generatePlatform = tasks.register('generatePlatform', Copy) {
+def crosshairTick = minor >= 21 ? 'net.minecraft.client.DeltaTracker delta, ' :
+    (game in ['1.20.5', '1.20.6'] ? 'float delta, ' : '')
+def generatePlatform = tasks.register('generatePlatform', Sync) {
     from "src/${platform}/java"
     into platformSource
     inputs.property 'game', game
@@ -79,7 +81,9 @@ def generatePlatform = tasks.register('generatePlatform', Copy) {
     filter { line ->
         def adapted = line.replace('@IDENTIFIER@', identifierType).replace('@OPTIONS_PACKAGE@', optionsPackage)
             .replace('@DEBUG_VISIBLE@', debugVisible).replace('@FPS@', fps)
+            .replace('@CROSSHAIR_TICK@', crosshairTick)
         poseStack ? adapted.replace('net.minecraft.client.gui.GuiGraphics', 'com.mojang.blaze3d.vertex.PoseStack')
+            .replace('GuiGraphics graphics', 'PoseStack graphics')
             .replace('Consumer<GuiGraphics>', 'Consumer<PoseStack>') : adapted
     }
 }
@@ -142,9 +146,14 @@ tasks.withType(JavaCompile).configureEach {
 
 processResources {
     def metadata = [version: project.version, minecraft: game, javaRelease: javaRelease, loaderMin: '0.18.2',
-        keyApi: 'fabric-key-binding-api-v1']
+        keyApi: 'fabric-key-binding-api-v1',
+        mixins: platform == 'legacy' ? '["rocket-client.legacy.mixins.json"]' : '[]']
     inputs.properties metadata
-    if (legacyFps) from('src/legacy/resources')
+    if (platform == 'legacy') {
+        from('src/legacy/resources') {
+            if (!legacyFps) exclude('rocket-client.accesswidener')
+        }
+    }
     filesMatching('fabric.mod.json') {
         expand metadata
         if (legacyFps) {

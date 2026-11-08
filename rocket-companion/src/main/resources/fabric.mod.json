@@ -6,6 +6,7 @@
   "description": "Configurable HUD modules and a drag-and-drop layout editor for Minecraft Java Edition.",
   "environment": "client",
   "entrypoints": { "client": ["com.rocketlauncher.companion.RocketCompanion"] },
+  "mixins": ${mixins},
   "depends": {
     "fabricloader": ">=${loaderMin}",
     "fabric-screen-api-v1": "*",

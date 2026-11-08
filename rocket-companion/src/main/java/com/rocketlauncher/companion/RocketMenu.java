@@ -78,9 +78,15 @@ final class RocketMenu extends Screen {
             case HUD -> addRenderableWidget(new Control(text("layout"), pressed -> openLayout(null),
                 left + 15, overviewActionY(), Math.min(span - 30, 154)));
             case MODULES -> initModules();
-            case SETTINGS -> addRenderableWidget(new Control(text("options"),
-                pressed -> ClientPlatform.openOptions(this, minecraft),
-                left + 15, overviewActionY(), Math.min(span - 30, 154)));
+            case SETTINGS -> {
+                int actionWidth = Math.min((span - 36) / 2, 154);
+                addRenderableWidget(new Control(text("crosshair.title"),
+                    pressed -> minecraft.setScreen(new CrosshairScreen(this, settings)),
+                    left + 15, overviewActionY(), actionWidth));
+                addRenderableWidget(new Control(text("options"),
+                    pressed -> ClientPlatform.openOptions(this, minecraft),
+                    left + 21 + actionWidth, overviewActionY(), actionWidth));
+            }
         }
     }
 

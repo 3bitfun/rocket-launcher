@@ -21,6 +21,7 @@ final class ClientSettings {
     private final String shared = System.getProperty("rocketlauncher.clientConfig", "");
     private final Path path = shared.isBlank() ? local : Path.of(shared);
     private Properties values = new Properties();
+    private CrosshairStyle crosshair = CrosshairStyle.DEFAULT;
     private Stamp stamp;
     private boolean saveFailed;
 
@@ -36,6 +37,22 @@ final class ClientSettings {
 
     boolean shared() { return !shared.isBlank(); }
     boolean saveFailed() { return saveFailed; }
+
+    CrosshairStyle crosshair() { return crosshair; }
+
+    void setCrosshair(CrosshairStyle style) {
+        update(next -> next.setProperty("crosshair", style.encode()));
+    }
+
+    boolean hasCrosshairPreset(int slot) { return values.containsKey("crosshair.preset." + slot); }
+
+    void loadCrosshairPreset(int slot) {
+        if (hasCrosshairPreset(slot)) setCrosshair(CrosshairStyle.decode(values.getProperty("crosshair.preset." + slot)));
+    }
+
+    void saveCrosshairPreset(int slot) {
+        update(next -> next.setProperty("crosshair.preset." + slot, crosshair.encode()));
+    }
 
     boolean enabled(HudModule module) {
         return Boolean.parseBoolean(values.getProperty(module.id + ".enabled", Boolean.toString(module.enabled)));
@@ -71,6 +88,7 @@ final class ClientSettings {
             Stamp current = readStamp();
             if (current == null || !Objects.equals(current, stamp)) {
                 values = load();
+                crosshair = CrosshairStyle.decode(values.getProperty("crosshair"));
                 stamp = current;
             }
         } catch (IOException | IllegalArgumentException error) {
@@ -141,6 +159,7 @@ final class ClientSettings {
                     Files.deleteIfExists(staged);
                 }
                 values = next;
+                crosshair = CrosshairStyle.decode(values.getProperty("crosshair"));
                 stamp = readStamp();
                 saveFailed = false;
             }

@@ -43,6 +43,7 @@ def generateSources = tasks.register('generateSources', Copy) {
             .replace('void renderWidget(GuiGraphicsExtractor', 'void extractContents(GuiGraphicsExtractor')
             .replace('void renderBackground(GuiGraphicsExtractor', 'void extractBackground(GuiGraphicsExtractor')
             .replace('super.render(graphics', 'super.extractRenderState(graphics')
+            .replace('vanilla.render(graphics', 'vanilla.extractRenderState(graphics')
             .replace('.drawString(', '.text(')
             .replace('.drawCenteredString(', '.centeredText(')
             .replace('getDayTime()', 'getOverworldClockTime()')
@@ -69,7 +70,7 @@ tasks.withType(JavaCompile).configureEach {
 processResources {
     def metadata = [version: project.version, minecraft: game, javaRelease: 25,
         loaderMin: game == '26.3' ? '0.19.3' : '0.18.4',
-        keyApi: 'fabric-key-mapping-api-v1']
+        keyApi: 'fabric-key-mapping-api-v1', mixins: '[]']
     inputs.properties metadata
     filesMatching('fabric.mod.json') {
         expand metadata

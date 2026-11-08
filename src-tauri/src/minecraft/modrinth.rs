@@ -32,6 +32,13 @@ pub struct Project {
     featured_gallery: Option<String>,
     #[serde(default)]
     display_categories: Vec<String>,
+    #[serde(default)]
+    categories: Vec<String>,
+    #[serde(default)]
+    versions: Vec<String>,
+    date_modified: Option<String>,
+    #[serde(default)]
+    gallery: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -85,6 +92,348 @@ pub struct ModVersion {
     pub version_type: String,
     file_name: String,
     required_dependencies: Vec<String>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct PackFilters {
+    game: String,
+    loader: String,
+    category: String,
+    side: String,
+    collection: String,
+}
+
+pub async fn search_packs(query: &str, offset: u32, sort: &str, filters: PackFilters, timeout: u64) -> Result<SearchPage> {
+    if query.len() > 400 || offset > 980 || offset % PAGE_SIZE != 0 {
+        return Err(error("Invalid Modrinth search range."));
+    }
+    if !matches!(sort, "relevance" | "downloads" | "follows" | "updated" | "newest") {
+        return Err(error("Unknown Modrinth sort order."));
+    }
+    let mut facets = vec![vec!["project_type:modpack".to_owned()]];
+    for (field, value) in [("versions", filters.game), ("categories", filters.loader), ("categories", filters.category)] {
+        if value.is_empty() { continue; }
+        if value.len() > 48 || !value.bytes().all(|byte| byte.is_ascii_alphanumeric() || b".-_".contains(&byte)) {
+            return Err(error("Invalid Modrinth filter."));
+        }
+        facets.push(vec![format!("{field}:{value}")]);
+    }
+    match filters.side.as_str() {
+        "client" => facets.push(vec!["client_side:required".into(), "client_side:optional".into()]),
+        "server" => facets.push(vec!["server_side:required".into(), "server_side:optional".into()]),
+        "" => {}
+        _ => return Err(error("Unknown compatibility filter.")),
+    }
+    match filters.collection.as_str() {
+        "popular" => facets.push(vec!["downloads>=10000".into()]),
+        "featured" => facets.push(["1KVo5zza", "BYN9yKrV", "NHUidpfR"].map(|id| format!("project_id:{id}")).into()),
+        "" => {}
+        _ => return Err(error("Unknown modpack collection.")),
+    }
+    get(client(timeout)?.get(format!("{BASE}/search")).query(&[
+        ("query", query.trim()),
+        ("facets", &serde_json::to_string(&facets).map_err(|_| error("Invalid search filters."))?),
+        ("index", sort),
+        ("limit", &PAGE_SIZE.to_string()),
+        ("offset", &offset.to_string()),
+    ])).await
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GalleryImage {
+    url: String,
+    title: Option<String>,
+    description: Option<String>,
+    featured: bool,
+}
+
+#[derive(Deserialize)]
+struct PackProject {
+    id: String,
+    title: String,
+    project_type: String,
+    body: String,
+    client_side: Option<String>,
+    #[serde(default)]
+    gallery: Vec<GalleryImage>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackDetails {
+    body: String,
+    gallery: Vec<GalleryImage>,
+    versions: Vec<PackVersion>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackVersion {
+    id: String,
+    version_number: String,
+    version_type: String,
+    date_published: String,
+    game_versions: Vec<String>,
+    loaders: Vec<String>,
+    required_dependencies: Vec<String>,
+}
+
+async fn pack_project(client: &reqwest::Client, project: &str) -> Result<PackProject> {
+    let project = id(project)?;
+    let details: PackProject = get(client.get(format!("{BASE}/project/{project}"))).await?;
+    if details.id != project || details.project_type != "modpack" {
+        return Err(error("This project is not a Modrinth modpack."));
+    }
+    Ok(details)
+}
+
+fn pack_file(version: &Version) -> Option<&VersionFile> {
+    let files = version.files.iter().filter(|file| file.filename.to_ascii_lowercase().ends_with(".mrpack"));
+    files.clone().find(|file| file.primary).or_else(|| files.clone().next())
+}
+
+pub async fn pack_details(project: &str, timeout: u64) -> Result<PackDetails> {
+    let client = client(timeout)?;
+    let details = pack_project(&client, project).await?;
+    let versions: Vec<Version> = get(client.get(format!("{BASE}/project/{project}/version"))
+        .query(&[("include_changelog", "false")])).await?;
+    let mut versions: Vec<_> = versions.into_iter().filter(|version| version.project_id == project && pack_file(version).is_some())
+        .map(|version| PackVersion {
+            id: version.id,
+            version_number: version.version_number,
+            version_type: version.version_type,
+            date_published: version.date_published,
+            game_versions: version.game_versions,
+            loaders: version.loaders,
+            required_dependencies: version.dependencies.into_iter().filter(|item| item.dependency_type == "required")
+                .map(|item| item.file_name.or(item.project_id).or(item.version_id).unwrap_or_else(|| "Unidentified dependency".into())).collect(),
+        }).collect();
+    versions.sort_by(|left, right| right.date_published.cmp(&left.date_published));
+    Ok(PackDetails { body: details.body, gallery: details.gallery, versions })
+}
+
+#[derive(Serialize, Deserialize)]
+struct PackReceipt { project: String, version: String }
+
+const PACK_RECEIPT: &str = ".rocket-modpack.json";
+const PACK_BYTE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
+
+pub fn has_pack(instances: &[Instance], project: &str, version: &str) -> bool {
+    use std::io::Read;
+    instances.iter().any(|instance| {
+        let Ok(file) = fs::File::open(instance.game_directory.join(PACK_RECEIPT)) else { return false; };
+        serde_json::from_reader::<_, PackReceipt>(file.take(2048))
+            .is_ok_and(|receipt| receipt.project == project && receipt.version == version)
+    })
+}
+
+#[derive(Serialize, Clone)]
+pub struct PackProgress {
+    phase: &'static str,
+    completed: usize,
+    total: usize,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PackIndex {
+    format_version: u32,
+    game: String,
+    dependencies: BTreeMap<String, String>,
+    files: Vec<PackIndexFile>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PackIndexFile {
+    path: String,
+    hashes: Hashes,
+    downloads: Vec<String>,
+    file_size: u64,
+    #[serde(default)]
+    env: BTreeMap<String, String>,
+}
+
+fn archive_error(reason: impl std::fmt::Display) -> AppError {
+    error(format!("Could not read the modpack archive: {reason}"))
+}
+
+fn pack_path(value: &str) -> Result<std::path::PathBuf> {
+    if value.len() > 512 || value.split('/').any(|part| part.to_ascii_lowercase().starts_with(".rocket-")) {
+        return Err(error("The modpack uses a reserved or excessively long path."));
+    }
+    super::metadata::relative(value)
+}
+
+fn unpack_pack(source: &Path, destination: &Path) -> Result<PackIndex> {
+    use std::io::Read;
+    let mut zip = zip::ZipArchive::new(fs::File::open(source).map_err(archive_error)?).map_err(archive_error)?;
+    if zip.len() > 4096 { return Err(error("This modpack has too many archive entries.")); }
+    let mut index_data = Vec::new();
+    zip.by_name("modrinth.index.json").map_err(archive_error)?
+        .take(8 * 1024 * 1024 + 1).read_to_end(&mut index_data).map_err(archive_error)?;
+    if index_data.len() > 8 * 1024 * 1024 { return Err(error("The modpack index is too large.")); }
+    let index: PackIndex = serde_json::from_slice(&index_data).map_err(archive_error)?;
+    if index.format_version != 1 || index.game != "minecraft" || index.files.len() > 4096 {
+        return Err(error("This modpack uses an unsupported archive format."));
+    }
+    let mut bytes = 0u64;
+    for prefix in ["overrides/", "client-overrides/"] {
+        for i in 0..zip.len() {
+            let entry = zip.by_index(i).map_err(archive_error)?;
+            if entry.is_dir() { continue; }
+            let Some(path) = entry.name().strip_prefix(prefix) else { continue; };
+            let target = destination.join(pack_path(path)?);
+            bytes = bytes.saturating_add(entry.size());
+            if bytes > PACK_BYTE_LIMIT || entry.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
+                return Err(error("The modpack has unsafe or oversized overrides."));
+            }
+            let parent = target.parent().ok_or_else(|| error("Invalid override path."))?;
+            fs::create_dir_all(parent).map_err(archive_error)?;
+            // Client overrides intentionally replace common overrides per the .mrpack format.
+            let mut output = fs::OpenOptions::new().write(true).create(true).truncate(true)
+                .open(&target).map_err(archive_error)?;
+            let expected = entry.size();
+            let copied = std::io::copy(&mut entry.take(expected + 1), &mut output).map_err(archive_error)?;
+            if copied != expected { return Err(error("An override did not match its declared size.")); }
+        }
+    }
+    Ok(index)
+}
+
+pub async fn install_pack(
+    project: &str, version: &str, game: &str, selected_loader: &str,
+    directory: &Path, cache: &Path, ram_mb: u32, timeout: u64,
+    progress: &(impl Fn(PackProgress) + Sync),
+) -> Result<crate::models::InstanceInput> {
+    use futures_util::{stream, StreamExt, TryStreamExt};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let report = |phase, completed, total| progress(PackProgress { phase, completed, total });
+    report("Downloading modpack archive", 0, 0);
+    let api = client(timeout)?;
+    let project_details = pack_project(&api, project).await?;
+    if project_details.client_side.as_deref() == Some("unsupported") {
+        return Err(incompatible("This modpack is for servers only."));
+    }
+    let version = version_by_id(&api, version).await?;
+    if version.project_id != project || !matches(&version, selected_loader, game) {
+        return Err(incompatible("This version does not match the selected Minecraft version and loader."));
+    }
+    let loader = match selected_loader {
+        "fabric" => Loader::Fabric,
+        "forge" => Loader::Forge,
+        _ => return Err(incompatible("This launcher can install Fabric and supported Forge packs.")),
+    };
+    let file = pack_file(&version).ok_or_else(|| error("This release has no .mrpack download."))?;
+    let mut archive = jar_spec(file)?;
+    archive.relative = format!("{}.mrpack", archive.artifact.sha1.to_ascii_lowercase()).into();
+    let downloads = download::client(timeout)?;
+    download::ensure(&downloads, cache, &archive, &|_| {}).await?;
+    report("Reading pack requirements and overrides", 0, 0);
+    let source = cache.join(&archive.relative);
+    let destination = directory.to_owned();
+    let index = tokio::task::spawn_blocking(move || unpack_pack(&source, &destination))
+        .await.map_err(archive_error)??;
+    let loader_version = index.dependencies.get(if loader == Loader::Fabric { "fabric-loader" } else { "forge" })
+        .ok_or_else(|| incompatible("The archive does not declare the selected mod loader."))?.clone();
+    if index.dependencies.get("minecraft").map(String::as_str) != Some(game) ||
+        index.dependencies.keys().any(|key| !matches!(key.as_str(), "minecraft" | "fabric-loader" | "forge")) ||
+        index.dependencies.len() != 2
+    {
+        return Err(incompatible("The archive requires a different Minecraft version or loader."));
+    }
+    let input = crate::models::InstanceInput {
+        name: project_details.title.chars().filter(|c| !c.is_control()).take(64).collect(),
+        version: game.to_owned(), loader, loader_version: Some(loader_version), ram_mb,
+        java_path: None, parent_directory: None,
+    };
+    crate::instances::validate_input(&input)?;
+    let mut paths = std::collections::HashSet::new();
+    let mut bundled_mods = BTreeMap::new();
+    let mut size = 0u64;
+    let specs = index.files.into_iter().filter(|file|
+        !file.env.get("client").is_some_and(|value| value == "unsupported" || value == "optional")
+    ).map(|file| {
+        let path = pack_path(&file.path)?;
+        if !paths.insert(file.path.to_lowercase()) || directory.join(&path).exists() {
+            return Err(error(format!("The pack contains overlapping files at {}.", file.path)));
+        }
+        size = size.saturating_add(file.file_size);
+        if file.file_size == 0 || file.file_size > MAX_JAR_BYTES || size > PACK_BYTE_LIMIT {
+            return Err(error("The pack exceeds the download size limit."));
+        }
+        let url = file.downloads.into_iter().find(|url| url.starts_with("https://cdn.modrinth.com/"))
+            .ok_or_else(|| error(format!("{} requires a download from an unsupported host.", file.path)))?;
+        if let Some(filename) = file.path.strip_prefix("mods/").filter(|filename|
+            !filename.contains('/') && filename.to_ascii_lowercase().ends_with(".jar"))
+        {
+            let parsed = reqwest::Url::parse(&url).map_err(|_| error("Invalid Modrinth download URL."))?;
+            let parts: Vec<_> = parsed.path().trim_start_matches('/').split('/').collect();
+            if let ["data", project_id, "versions", version_id, _] = parts.as_slice() {
+                if id(project_id).is_ok() && id(version_id).is_ok() {
+                    let bundled = InstalledVersion { id: (*version_id).into(), filename: filename.into() };
+                    if bundled_mods.insert((*project_id).to_owned(), bundled).is_some() {
+                        return Err(incompatible(format!("The modpack includes multiple JARs for project {project_id}.")));
+                    }
+                }
+            }
+        }
+        FileSpec::new(path, Artifact { url, sha1: file.hashes.sha1, size: file.file_size, path: None })
+    }).collect::<Result<Vec<_>>>()?;
+    let total = specs.len();
+    let completed = AtomicUsize::new(0);
+    report("Downloading and verifying pack files", 0, total);
+    let downloads = &downloads;
+    let completed = &completed;
+    let report = &report;
+    stream::iter(specs).map(|spec| async move {
+        download::ensure(downloads, directory, &spec, &|_| {}).await.map_err(|reason|
+            error(format!("{}: {}", spec.relative.display(), reason.message)))?;
+        report("Downloading and verifying pack files", completed.fetch_add(1, Ordering::Relaxed) + 1, total);
+        Ok::<_, AppError>(())
+    }).buffer_unordered(6).try_collect::<Vec<_>>().await?;
+    if !bundled_mods.is_empty() {
+        atomic_json(&directory.join("mods/.rocket-modrinth.json"), &bundled_mods)?;
+    }
+    let instance = Instance {
+        id: String::new(), name: input.name.clone(), version: game.into(), version_type: "release".into(),
+        loader, loader_version: input.loader_version.clone(), game_directory: directory.into(),
+        ram_mb, java_path: None, created_at: 0, updated_at: 0, last_selected_at: 0,
+    };
+    let required: Vec<_> = version.dependencies.iter().filter(|dep| dep.dependency_type == "required").collect();
+    report("Resolving required mod dependencies", 0, required.len());
+    for (index, dependency) in required.iter().enumerate() {
+        if let Some(bundled) = dependency.project_id.as_ref().and_then(|id| bundled_mods.get(id)) {
+            if dependency.version_id.as_ref().is_some_and(|id| id != &bundled.id) {
+                return Err(incompatible(format!("{} conflicts with a pinned pack dependency.", bundled.filename)));
+            }
+            report("Resolving required mod dependencies", index + 1, required.len());
+            continue;
+        }
+        let target = if let Some(pinned) = &dependency.version_id {
+            version_by_id(&api, pinned).await?
+        } else if let Some(project) = &dependency.project_id {
+            matching_versions(&api, &instance, project).await?.into_iter()
+                .filter(|version| jar(version).is_some()).min_by_key(|version| version.version_type != "release")
+                .ok_or_else(|| incompatible(format!("Required dependency {project} has no compatible mod file.")))?
+        } else {
+            let filename = dependency.file_name.as_deref().ok_or_else(|| incompatible("A required dependency has no identifier."))?;
+            if !directory.join("mods").join(segment(filename)?).is_file() {
+                return Err(incompatible(format!("Required external file {filename} is missing from the pack.")));
+            }
+            report("Resolving required mod dependencies", index + 1, required.len());
+            continue;
+        };
+        if dependency.project_id.as_ref().is_some_and(|id| id != &target.project_id) {
+            return Err(error("Modrinth returned the wrong dependency project."));
+        }
+        stage_version(&instance, &api, target, None).await?.publish(directory)?;
+        report("Resolving required mod dependencies", index + 1, required.len());
+    }
+    report("Registering instance", 0, 0);
+    atomic_json(&directory.join(PACK_RECEIPT), &PackReceipt { project: project.into(), version: version.id })?;
+    Ok(input)
 }
 
 fn error(message: impl Into<String>) -> AppError {

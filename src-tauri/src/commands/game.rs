@@ -296,6 +296,56 @@ pub async fn search_modrinth(
 }
 
 #[tauri::command]
+pub async fn search_modpacks(
+    state: State<'_, LauncherState>, query: String, offset: u32, sort: String,
+    filters: modrinth::PackFilters,
+) -> Result<modrinth::SearchPage> {
+    let timeout = modpack_timeout(&state)?;
+    modrinth::search_packs(&query, offset, &sort, filters, timeout).await
+}
+
+#[tauri::command]
+pub async fn modpack_details(state: State<'_, LauncherState>, project_id: String) -> Result<modrinth::PackDetails> {
+    let timeout = modpack_timeout(&state)?;
+    modrinth::pack_details(&project_id, timeout).await
+}
+
+fn modpack_timeout(state: &LauncherState) -> Result<u64> {
+    let store = state.store()?;
+    if crate::auth::accounts::Accounts::read(&store.paths.data)?.offline {
+        return Err(crate::auth::accounts::offline_error());
+    }
+    Ok(store.config.settings.request_timeout_seconds)
+}
+
+#[tauri::command]
+pub async fn install_modpack(
+    state: State<'_, LauncherState>, jobs: State<'_, GameJobs>, project_id: String,
+    version_id: String, game: String, loader: String, progress: tauri::ipc::Channel<modrinth::PackProgress>,
+) -> Result<AppSnapshot> {
+    let _guard = jobs.operation.try_lock()
+        .map_err(|_| AppError::new("BUSY", "Another Minecraft operation is in progress."))?;
+    let timeout = modpack_timeout(&state)?;
+    let (parent, cache, ram) = {
+        let store = state.store()?;
+        if modrinth::has_pack(&store.config.instances, &project_id, &version_id) {
+            return Err(AppError::new("MODRINTH", "This modpack version is already installed."));
+        }
+        let settings = &store.config.settings;
+        (settings.minecraft_directory.clone(), store.paths.cache.join("modrinth-packs"), settings.default_ram_mb)
+    };
+    fabric::validate_component(&game)?;
+    crate::storage::validate_path(&parent)?;
+    std::fs::create_dir_all(&parent).map_err(|e| AppError::io("create the instance parent directory", e))?;
+    let directory = tempfile::Builder::new().prefix("modrinth-pack-").tempdir_in(parent)
+        .map_err(|e| AppError::io("stage the modpack instance", e))?;
+    let input = modrinth::install_pack(&project_id, &version_id, &game, &loader, directory.path(),
+        &cache, ram, timeout, &|status| { let _ = progress.send(status); }).await?;
+    modpack_timeout(&state)?;
+    state.store()?.create_pack_instance(input, directory)
+}
+
+#[tauri::command]
 pub async fn modrinth_versions(
     state: State<'_, LauncherState>,
     instance_id: String,

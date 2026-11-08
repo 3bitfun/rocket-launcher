@@ -7,7 +7,7 @@ import { ModrinthBrowser } from './ModrinthBrowser';
 
 const recommendedVersion = '1.21.11';
 
-export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPlay, onInstallPack }: { snapshot: AppSnapshot; catalog: VersionCatalog | null; offline: boolean; busy: boolean; initialInstanceId?: string; onPlay: () => void; onInstallPack: (version: string, progress: (files: [number, number]) => void) => Promise<boolean> }) {
+export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPlay, onInstallPack, onModpackInstalled }: { snapshot: AppSnapshot; catalog: VersionCatalog | null; offline: boolean; busy: boolean; initialInstanceId?: string; onPlay: () => void; onInstallPack: (version: string, progress: (files: [number, number]) => void) => Promise<boolean>; onModpackInstalled?: () => void }) {
   const [view, setView] = useState<'browse' | 'installed' | 'pack'>(initialInstanceId ? 'installed' : snapshot.instances.length ? 'browse' : 'pack');
   const [id, setId] = useState(initialInstanceId ?? snapshot.activeInstanceId ?? '');
   const [mods, setMods] = useState<InstalledMod[]>([]);
@@ -172,8 +172,8 @@ export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPl
       </> : !error && <EmptyState icon={<FileArchive size={26} />} title={id ? 'No local mod files' : 'No instance to inspect'} description={id ? 'Install a mod or add a JAR to this instance’s mods folder.' : 'Create an instance first to inspect its local mods folder.'} />}
     </section>}
     {view === 'browse' && (offline ? <section className="panel mods-panel"><EmptyState icon={<Puzzle size={26} />} title="Modrinth is offline" description="Turn off Offline Mode in Settings to browse and install mods." /></section>
-      : instance && instance.loader !== 'vanilla'
-      ? <ModrinthBrowser key={`${instance.id}:${instance.version}:${instance.loader}:${instance.loaderVersion}`} instance={instance} onInstalled={() => setRevision((value) => value + 1)} />
-      : <section className="panel mods-panel"><EmptyState icon={<Puzzle size={26} />} title="Choose a modded instance" description="Select a Fabric or Forge instance, or create one with Rocket Pack."><button className="button secondary" onClick={() => setView('pack')}>Browse Rocket Pack</button></EmptyState></section>)}
+      : <ModrinthBrowser instance={instance?.loader !== 'vanilla' ? instance : undefined}
+          gameVersions={[...new Set((catalog?.versions ?? []).filter((version) => version.type === 'release').map((version) => version.id).concat(snapshot.instances.map((item) => item.version)))]}
+          onInstalled={() => setRevision((value) => value + 1)} onPackInstalled={() => onModpackInstalled?.()} />)}
   </>;
 }

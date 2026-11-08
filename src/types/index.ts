@@ -44,10 +44,11 @@ export interface AppSnapshot {
   paths: { data: string; cache: string; logs: string; config: string };
 }
 export interface AccountsSummary {
-  profiles: { id: string; name: string; type: 'microsoft' | 'local_test' | 'offline' }[];
+  profiles: { id: string; name: string; type: 'microsoft' | 'local_test' | 'offline'; appearance?: ProfileAppearance }[];
   activeId: string | null;
   offline: boolean;
 }
+export interface ProfileAppearance { skin: string | null; cape: string | null; slim: boolean }
 export interface InstanceInput {
   name: string;
   version: string;
@@ -88,6 +89,22 @@ export interface ModrinthProject {
   iconUrl?: string | null;
   featuredGallery?: string | null;
   displayCategories?: string[];
+  categories?: string[];
+  versions?: string[];
+  dateModified?: string | null;
+  gallery?: string[];
+}
+export interface ModpackFilters { game: string; loader: string; category: string; side: string; collection: string }
+export interface ModpackProgress { phase: string; completed: number; total: number }
+export interface ModpackVersion extends Omit<ModrinthVersion, 'fileName'> {
+  datePublished: string;
+  gameVersions: string[];
+  loaders: string[];
+}
+export interface ModpackDetails {
+  body: string;
+  gallery: { url: string; title: string | null; description: string | null; featured: boolean }[];
+  versions: ModpackVersion[];
 }
 export interface ModrinthPage {
   hits: ModrinthProject[];

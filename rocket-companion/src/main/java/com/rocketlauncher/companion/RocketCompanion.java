@@ -36,6 +36,8 @@ public final class RocketCompanion implements ClientModInitializer {
             }
         });
         ClientPlatform.registerHud(this::renderHud);
+        CrosshairRenderer.bind(settings);
+        ClientPlatform.registerCrosshair();
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
             if (screen instanceof TitleScreen || screen instanceof PauseScreen) {
                 Screens.getButtons(screen).add(button(text("button"),
