@@ -11,7 +11,7 @@ use std::{
     path::Path,
 };
 
-const RELEASE: &str = "2.0.0";
+const RELEASE: &str = "2.1.0";
 const API_PROJECT: &str = "P7dR8mSH";
 const CLIENT_ID: &str = "rocket_companion";
 const BUILDS: &[(&str, &[u8])] = include!(concat!(env!("OUT_DIR"), "/rocket_client_builds.rs"));
@@ -268,7 +268,7 @@ pub fn status(instance: &Instance) -> Result<Status> {
     } else {
         (
             "available",
-            "Add a customizable HUD with FPS, coordinates, heading, world time, ping, and memory.",
+            "Add a customizable HUD with performance, movement, and player information.",
         )
     };
     Ok(Status {

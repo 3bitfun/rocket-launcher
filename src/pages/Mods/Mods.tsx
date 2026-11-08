@@ -16,6 +16,7 @@ export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPl
   const [revision, setRevision] = useState(0);
   const [filter, setFilter] = useState('');
   const [changingMod, setChangingMod] = useState<string | null>(null);
+  const [selectedMods, setSelectedMods] = useState<Set<string>>(new Set());
   const [installingPack, setInstallingPack] = useState(false);
   const [packInstalled, setPackInstalled] = useState(false);
   const [packProgress, setPackProgress] = useState<[number, number] | null>(null);
@@ -36,10 +37,11 @@ export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPl
     return () => { active = false; };
   }, [offline, view]);
   useEffect(() => { setId(initialInstanceId ?? snapshot.activeInstanceId ?? ''); }, [initialInstanceId, snapshot.activeInstanceId]);
+  useEffect(() => { setSelectedMods(new Set()); setError(null); }, [id]);
   useEffect(() => {
     let cancelled = false;
     if (!id || view !== 'installed') return;
-    setLoading(true); setError(null); setMods([]);
+    setLoading(true); setMods([]);
     native.mods(id).then((value) => { if (!cancelled) setMods(value); }).catch((reason) => { if (!cancelled) setError(errorMessage(reason)); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [id, revision, view]);
@@ -62,6 +64,35 @@ export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPl
     } finally {
       setChangingMod(null);
     }
+  }
+
+  async function changeSelected(enabled: boolean) {
+    const pending = mods.filter((mod) => selectedMods.has(mod.fileName) && mod.enabled !== enabled);
+    if (!pending.length) return;
+    setChangingMod('bulk');
+    setError(null);
+    let completed = 0;
+    try {
+      for (const mod of pending) {
+        await native.setModEnabled(id, mod.fileName, enabled);
+        completed++;
+      }
+      setSelectedMods(new Set());
+    } catch (reason) {
+      setError(`Changed ${completed} of ${pending.length} mods. ${errorMessage(reason)}`);
+    } finally {
+      setRevision((value) => value + 1);
+      setChangingMod(null);
+    }
+  }
+
+  function selectMod(fileName: string, checked: boolean) {
+    setSelectedMods((previous) => {
+      const next = new Set(previous);
+      if (checked) next.add(fileName);
+      else next.delete(fileName);
+      return next;
+    });
   }
 
   async function openFolder() {
@@ -116,8 +147,24 @@ export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPl
       {running && <p className="panel-footnote">Close this instance before enabling or disabling mods.</p>}
       {loading ? <div className="loading-inline"><Spinner />Reading local files…</div> : id && mods.length ? <>
         <label className="search-field"><Search size={16} /><input aria-label="Filter installed mods" placeholder="Filter installed mods…" value={filter} onChange={(event) => setFilter(event.target.value)} /></label>
+        <div className="mod-selection">
+          <label><input type="checkbox" checked={visibleMods.length > 0 && visibleMods.every((mod) => selectedMods.has(mod.fileName))} disabled={visibleMods.length === 0 || changingMod !== null} onChange={(event) => {
+            const checked = event.target.checked;
+            setSelectedMods((previous) => {
+              const next = new Set(previous);
+              for (const mod of visibleMods) {
+                if (checked) next.add(mod.fileName);
+                else next.delete(mod.fileName);
+              }
+              return next;
+            });
+          }} /> Select visible mods</label>
+          <span>{selectedMods.size} selected</span>
+          <button className="button secondary small-button" disabled={busy || running || changingMod !== null || !mods.some((mod) => selectedMods.has(mod.fileName) && !mod.enabled)} onClick={() => void changeSelected(true)}>Enable selected</button>
+          <button className="button secondary small-button" disabled={busy || running || changingMod !== null || !mods.some((mod) => selectedMods.has(mod.fileName) && mod.enabled)} onClick={() => void changeSelected(false)}>Disable selected</button>
+        </div>
         {visibleMods.length ? <ul className="mod-list">{visibleMods.map((mod) => <li key={`${mod.fileName}:${mod.enabled}`}>
-          <FileArchive size={19} /><span>{mod.fileName}</span><span className="tag">{mod.enabled ? 'Enabled' : 'Disabled'}</span>
+          <input type="checkbox" aria-label={`Select ${mod.fileName}`} checked={selectedMods.has(mod.fileName)} disabled={changingMod !== null} onChange={(event) => selectMod(mod.fileName, event.target.checked)} /><FileArchive size={19} /><span>{mod.fileName}</span><span className="tag">{mod.enabled ? 'Enabled' : 'Disabled'}</span>
           <button className="button secondary small-button" disabled={busy || running || changingMod !== null} aria-label={`${mod.enabled ? 'Disable' : 'Enable'} ${mod.fileName}`} onClick={() => void toggleMod(mod)}>
             {changingMod === mod.fileName && <Spinner size={14} />}{mod.enabled ? 'Disable' : 'Enable'}
           </button>

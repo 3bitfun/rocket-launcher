@@ -16,7 +16,7 @@ if (api == null) {
 }
 
 group = 'com.rocketlauncher'
-version = "2.0.0+mc${game}"
+version = "2.1.0+mc${game}"
 
 base {
     archivesName = 'rocketlauncher-client'

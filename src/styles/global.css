@@ -252,6 +252,8 @@ main:focus { outline: none; }
 .mod-list li > span:first-of-type { flex: 1; overflow-wrap: anywhere; }
 .mod-list li > svg { color: var(--muted); flex-shrink: 0; }
 .mod-list small { color: var(--muted); white-space: nowrap; }
+.mod-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; color: var(--muted); font-size: 11px; }
+.mod-selection label { display: flex; align-items: center; gap: 7px; }
 .loading-inline { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 60px; color: var(--muted); font-size: 12px; }
 
 .modal { padding: 0; background: transparent; border: 0; color: var(--text); width: min(540px, calc(100vw - 60px)); max-height: calc(100vh - 50px); margin: auto; overflow: visible; }

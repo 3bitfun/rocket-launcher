@@ -18,6 +18,8 @@
   "rocket_companion.module.clock": "World clock",
   "rocket_companion.module.ping": "Server ping",
   "rocket_companion.module.memory": "Memory",
+  "rocket_companion.module.keys": "Movement keys",
+  "rocket_companion.module.armor": "Armor",
   "rocket_companion.value.fps": "%s FPS",
   "rocket_companion.value.coordinates": "XYZ  %s  %s  %s",
   "rocket_companion.value.heading.north": "Facing north",
@@ -28,6 +30,8 @@
   "rocket_companion.value.ping": "Ping  %s ms",
   "rocket_companion.value.ping_unavailable": "Ping  —",
   "rocket_companion.value.memory": "RAM  %s / %s MiB",
+  "rocket_companion.value.keys": "%s %s %s %s %s",
+  "rocket_companion.value.armor": "Armor  %s / 20",
   "key.categories.rocket_companion.client": "Rocket Client",
   "key.rocket_companion.menu": "Open Rocket menu"
 }

@@ -36,7 +36,7 @@ The full pack downloads 69 mods and 28 resource and shader packs from the origin
 
 The launcher bundles 34 Fabric builds covering the stable Minecraft Java releases from 1.17 through 26.3. For a manual installation, use the JAR for your exact Minecraft version alongside matching Fabric API.
 
-Click **Rocket** on Minecraft’s title or pause menu to toggle FPS, coordinates, heading, world time, server ping, and Java heap usage. Select **Edit HUD layout** and drag the widgets into position. The layout scales with the screen, and **Reset positions** restores the defaults. Assign the optional **Open Rocket menu** shortcut in Minecraft’s Controls. The **Sync Rocket Client HUD** setting shares module choices and positions across compatible instances.
+Click **Rocket** on Minecraft’s title or pause menu to toggle FPS, coordinates, heading, world time, server ping, Java heap usage, movement keys, and armor. Select **Edit HUD layout** and drag the widgets into position. The layout scales with the screen, and **Reset positions** restores the defaults. Assign the optional **Open Rocket menu** shortcut in Minecraft’s Controls. The **Sync Rocket Client HUD** setting shares module choices and positions across compatible instances.
 
 To rebuild a mapped client JAR, run `.\gradlew.bat remapJar '-PmcVersion=1.21.11'` from `rocket-companion` on JDK 21. For 26.x, use JDK 25 and Gradle 9.9 with `gradle -p unobfuscated jar '-PmcVersion=26.3'`. Copy the built JAR to `src-tauri/resources/rocket-client/<minecraft-version>.jar` to bundle it.
 
@@ -44,7 +44,7 @@ For a custom Minecraft title screen or pause menu, install the matching Fabric r
 
 Create or select a Fabric or Forge instance, then open **Mods**. Click **Install** on a result to choose a compatible release automatically, or use **Versions** to pick one yourself. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, disable its old JAR in **Installed mods** before installing the replacement. Offline Mode keeps local mod files available and pauses catalogue requests and downloads.
 
-Use **Installed mods** to filter the list, open the mods folder, or enable and disable individual JARs after closing Minecraft. Disabling a mod keeps its file as `.jar.disabled`.
+Use **Installed mods** to filter the list, open the mods folder, or select and enable or disable JARs after closing Minecraft. Disabling a mod keeps its file as `.jar.disabled`.
 
 Rocket Launcher keeps a copy of an instance’s original server and keybind files before applying shared values. Server and keybind sync allow one running instance at a time. **Repair files** is available as a separate action on the Launch Pad and in the instance manager.
 

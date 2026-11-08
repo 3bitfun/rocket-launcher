@@ -11,7 +11,9 @@ enum HudModule {
     HEADING("heading", false, 1, 0),
     CLOCK("clock", false, 1, 1),
     PING("ping", false, 0, 0.18),
-    MEMORY("memory", false, 1, 0.18);
+    MEMORY("memory", false, 1, 0.18),
+    KEYS("keys", false, 0, 0.36),
+    ARMOR("armor", false, 1, 0.36);
 
     final String id;
     final boolean enabled;
@@ -58,10 +60,22 @@ enum HudModule {
                 long limitMiB = runtime.maxMemory() / (1024 * 1024);
                 yield text("value.memory", usedMiB, limitMiB);
             }
+            case KEYS -> text("value.keys",
+                pressed(client.options.keyUp),
+                pressed(client.options.keyLeft),
+                pressed(client.options.keyDown),
+                pressed(client.options.keyRight),
+                pressed(client.options.keyJump));
+            case ARMOR -> text("value.armor", player == null ? 0 : player.getArmorValue());
         };
     }
 
     private static String twoDigits(long number) {
         return (number < 10 ? "0" : "") + number;
+    }
+
+    private static String pressed(net.minecraft.client.KeyMapping mapping) {
+        String key = mapping.getTranslatedKeyMessage().getString();
+        return mapping.isDown() ? "[" + key + "]" : key;
     }
 }

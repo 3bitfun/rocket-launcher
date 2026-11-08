@@ -136,7 +136,7 @@ public final class RocketCompanion implements ClientModInitializer {
                 x + buttonWidth + 6, y + TOGGLE_ROWS * 24 + 31, buttonWidth));
         }
 
-        private int toggleTop() { return height / 2 - 49; }
+        private int toggleTop() { return (height - (TOGGLE_ROWS * 24 + 51)) / 2; }
 
         private Component label(HudModule module) {
             return text(settings.enabled(module) ? "module.on" : "module.off", module.displayName());
