@@ -1,5 +1,4 @@
-import { Boxes, Download, LayoutDashboard, Puzzle, Rocket, Settings2, UserRound, ArrowUpRight } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Boxes, Download, LayoutDashboard, Puzzle, Settings2, UserRound, ArrowUpRight } from 'lucide-react';
 import type { AccountsSummary, Page } from '../../types';
 
 const navigation = [
@@ -13,9 +12,8 @@ const navigation = [
 export function Sidebar({ page, onNavigate, count, version, account, offline }: { page: Page; onNavigate: (page: Page) => void; count: number; version: string; account?: AccountsSummary['profiles'][number]; offline: boolean }) {
   const status = offline ? 'Offline mode' : account?.type === 'offline' ? 'Offline profile' : account?.type === 'local_test' ? 'Local test profile' : account ? 'Microsoft account' : 'Local workspace';
   return <aside className="sidebar">
-    <div className="brand"><span className="brand-mark"><Rocket size={23} strokeWidth={1.8} /></span><div>rocket<span>LAUNCHER</span></div></div>
+    <div className="brand"><span className="brand-mark"><img src="/rocket.svg" alt="" /></span><div>Rocket<span>LAUNCHER</span></div></div>
     <nav aria-label="Main navigation">{navigation.map(({ id, title, icon: Icon }) => <button key={id} className={`nav-item ${page === id ? 'active' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={() => onNavigate(id)}>
-      {page === id && <motion.span className="nav-indicator" layoutId="active-navigation" />}
       <Icon size={19} strokeWidth={1.7} /><span>{title}</span>{id === 'instances' && count > 0 && <span className="nav-count">{count}</span>}
     </button>)}</nav>
     <div className="sidebar-bottom">

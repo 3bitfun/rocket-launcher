@@ -6,7 +6,7 @@ import { Modal } from '../../components/ui/Modal';
 import { PathField, Spinner, Toggle } from '../../components/ui/Primitives';
 import { LauncherUpdates } from './LauncherUpdates';
 
-const accents = ['#FF704D', '#E4B75E', '#66BD9E', '#78A5EF', '#B19AE8', '#E68DA8'];
+const accents = ['#709DEB', '#FF704D', '#E4B75E', '#66BD9E', '#78A5EF', '#B19AE8', '#E68DA8'];
 
 export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateChanged }: { snapshot: AppSnapshot; busy: boolean; onSave: (settings: SettingsModel) => Promise<boolean>; onDirtyChange: (dirty: boolean) => void; onAuthStateChanged?: (accounts: AccountsSummary) => void }) {
   const [draft, setDraft] = useState(snapshot.settings);
@@ -108,7 +108,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
 
       <section className="panel settings-section"><div className="settings-section-title"><Palette size={19} /><div><h2>Appearance</h2><p>Set the mood for your launch pad.</p></div></div>
         <div className="setting-row"><div><strong>Theme</strong><small>Choose your preferred light level.</small></div><div className="segmented" role="group" aria-label="Theme">{(['dark', 'light', 'system'] as const).map((theme) => <button type="button" key={theme} aria-pressed={draft.theme === theme} className={draft.theme === theme ? 'active' : ''} onClick={() => update('theme', theme)}>{theme[0].toUpperCase() + theme.slice(1)}</button>)}</div></div>
-        <div className="setting-row"><div><strong>Accent colour</strong><small>A personal touch. Rocket coral by default.</small></div><div className="accent-options">{accents.map((accent) => <button type="button" key={accent} style={{ background: accent }} aria-label={`Accent ${accent}`} aria-pressed={draft.accentColor.toUpperCase() === accent} onClick={() => update('accentColor', accent)}>{draft.accentColor.toUpperCase() === accent && <Check size={16} />}</button>)}<label className="custom-colour" title="Choose a custom accent colour"><input type="color" aria-label="Custom accent colour" value={draft.accentColor} onChange={(e) => update('accentColor', e.target.value)} /><span>+</span></label></div></div>
+        <div className="setting-row"><div><strong>Accent colour</strong><small>Rocket blue is the default. Choose any accent for buttons and highlights.</small></div><div className="accent-options">{accents.map((accent) => <button type="button" key={accent} style={{ background: accent }} aria-label={`Accent ${accent}`} aria-pressed={draft.accentColor.toUpperCase() === accent} onClick={() => update('accentColor', accent)}>{draft.accentColor.toUpperCase() === accent && <Check size={16} />}</button>)}<label className="custom-colour" title="Choose a custom accent colour"><input type="color" aria-label="Custom accent colour" value={draft.accentColor} onChange={(e) => update('accentColor', e.target.value)} /><span>+</span></label></div></div>
         <Toggle label="Decorative animations" description="Gentle transitions and a little extra personality." checked={draft.animations} onChange={(value) => update('animations', value)} />
         <div className="setting-row"><div><strong>Reduced motion</strong><small>Your system preference is always respected.</small></div><select aria-label="Reduced motion" value={draft.reducedMotion} onChange={(e) => update('reducedMotion', e.target.value as SettingsModel['reducedMotion'])}><option value="system">Follow system</option><option value="always">Always reduce</option></select></div>
       </section>

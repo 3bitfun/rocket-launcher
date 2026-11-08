@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react';
-import { AlertCircle, CheckCircle2, Download, Monitor, Rocket, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Download, Monitor, X } from 'lucide-react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { InstanceEditor } from '../components/instances/InstanceEditor';
 import { InstanceManager } from '../components/instances/InstanceManager';
@@ -89,8 +89,8 @@ export default function App() {
     void mutate(() => native.duplicate(instance.id), 'Configuration duplicated into a new, empty instance.');
   }
 
-  if (!isDesktop()) return <div className="startup-screen"><span className="brand-mark"><Rocket size={30} /></span><h1>Rocket Launcher</h1><p>This is a native desktop application.<br />Open the Tauri app to use real storage and Minecraft versions.</p><code>npm run desktop</code><span className="tag"><Monitor size={14} /> Browser view · native features unavailable</span></div>;
-  if (!snapshot) return <div className="startup-screen"><span className="brand-mark"><Rocket size={30} /></span><h1>Rocket Launcher</h1>{launcher.startupError ? <><p role="alert" className="form-error">{launcher.startupError}</p><button className="button primary" onClick={() => void launcher.load()}>Try again</button></> : <><Spinner size={25} /><p>Preparing your launch pad…</p></>}</div>;
+  if (!isDesktop()) return <div className="startup-screen"><span className="brand-mark"><img src="/rocket.svg" alt="" /></span><h1>Rocket Launcher</h1><p>This is a native desktop application.<br />Open the Tauri app to use real storage and Minecraft versions.</p><code>npm run desktop</code><span className="tag"><Monitor size={14} /> Browser view · native features unavailable</span></div>;
+  if (!snapshot) return <div className="startup-screen"><span className="brand-mark"><img src="/rocket.svg" alt="" /></span><h1>Rocket Launcher</h1>{launcher.startupError ? <><p role="alert" className="form-error">{launcher.startupError}</p><button className="button primary" onClick={() => void launcher.load()}>Try again</button></> : <><Spinner size={25} /><p>Preparing your launch pad…</p></>}</div>;
   const selected = snapshot.instances.find((instance) => instance.id === snapshot.activeInstanceId);
   const managed = snapshot.instances.find((instance) => instance.id === managedId);
   const retry = snapshot.instances.find((instance) => instance.id === game.download?.instanceId && instance.version === game.download.version);

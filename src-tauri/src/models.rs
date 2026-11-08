@@ -41,7 +41,7 @@ fn enabled() -> bool { true }
 impl Settings {
     pub fn defaults(data_dir: &std::path::Path) -> Self {
         Self {
-            accent_color: "#FF704D".into(),
+            accent_color: "#709DEB".into(),
             theme: Theme::Dark,
             animations: true,
             reduced_motion: ReducedMotion::System,
