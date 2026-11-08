@@ -32,6 +32,8 @@ pub struct Settings {
     pub sync_servers: bool,
     #[serde(default = "enabled")]
     pub sync_keybinds: bool,
+    #[serde(default = "enabled")]
+    pub sync_rocket_client: bool,
 }
 
 fn enabled() -> bool { true }
@@ -50,6 +52,7 @@ impl Settings {
             request_timeout_seconds: 20,
             sync_servers: true,
             sync_keybinds: true,
+            sync_rocket_client: true,
         }
     }
 }

@@ -7,6 +7,7 @@
 Rocket Launcher manages Vanilla, Fabric, and Forge instances on Windows. Choose a local offline profile for single-player or sign in with Microsoft for authenticated play. Forge offers recommended and latest builds for Minecraft 1.20.1 and newer releases when listed by Forge.
 
 - Launch Pad, Instances, Mods, Downloads, and Settings navigation.
+- Click an instance to open its manager, where you can play, repair files, install Rocket Client, and open the instance’s folder or installed mods.
 - Create, rename, edit, select, duplicate, and remove instances.
 - Separate UUID-named game directories; configurable Minecraft version, RAM, and Java executable path.
 - Native directory and executable pickers.
@@ -15,7 +16,7 @@ Rocket Launcher manages Vanilla, Fabric, and Forge instances on Windows. Choose 
 - Mojang client, libraries, assets, logging configuration and native archives, with streaming downloads, SHA-1 verification, shared cache reuse, and offline repair checks.
 - Java discovery with exact version and architecture matching. A manually selected executable takes priority.
 - Launch Pad install and repair actions, measured Downloads progress, and native launch preparation behind an ownership-verified session boundary.
-- Optional server-list and keybind sync across instances, enabled by default. Settings unrelated to key assignments stay instance-specific.
+- Optional server list, keybind, and Rocket Client HUD sync across instances, enabled by default.
 - Microsoft OAuth sign-in, Xbox/Minecraft ownership verification, Windows Credential Manager refresh-token storage, and authenticated launch sessions.
 - Dark, light, and system themes; custom accent colours; animation and reduced-motion preferences.
 - Built-in Modrinth search for Fabric and Forge instances, matching Minecraft versions and loader. Install directly from search results or choose a specific release. Rocket Launcher verifies the JAR and resolves required Modrinth dependencies.
@@ -31,15 +32,21 @@ In **Mods**, pick a Minecraft version and select **Create Rocket Pack instance**
 
 The full pack downloads 69 mods and 28 resource and shader packs from the original pack index. It uses a newer Simple Voice Chat build to satisfy Flashback’s compatibility requirement. The original archive’s three local overrides are separate from these downloads. Rocket Launcher keeps verified downloads in a shared cache and copies them into new full-pack instances.
 
-The full pack includes **Rocket Launcher Client**, a Fabric 1.21.11 mod. Click **Rocket** on Minecraft’s title or pause menu to toggle the FPS and coordinates HUD, or open Controls and Video Settings. Assign the optional **Open Rocket menu** key in Controls. In another Fabric 1.21.11 instance, install Fabric API and add the client JAR to its `mods` folder. Replace the old Rocket Companion JAR if it is installed there. Build the client from `rocket-companion` with `.\gradlew.bat remapJar` on JDK 21. To bundle a rebuilt mod, copy the JAR from `rocket-companion/build/libs` to `src-tauri/resources`.
+**Rocket Client** comes with the full pack and compatible starter packs. For another instance, click its card and select **Install Rocket Client**. The launcher picks the JAR built for that Minecraft release and installs Fabric API if needed. The instance manager reports availability and the minimum Fabric Loader version for the selected release.
+
+The launcher bundles 34 Fabric builds covering the stable Minecraft Java releases from 1.17 through 26.3. For a manual installation, use the JAR for your exact Minecraft version alongside matching Fabric API.
+
+Click **Rocket** on Minecraft’s title or pause menu to toggle FPS, coordinates, heading, world time, server ping, and Java heap usage. Select **Edit HUD layout** and drag the widgets into position. The layout scales with the screen, and **Reset positions** restores the defaults. Assign the optional **Open Rocket menu** shortcut in Minecraft’s Controls. The **Sync Rocket Client HUD** setting shares module choices and positions across compatible instances.
+
+To rebuild a mapped client JAR, run `.\gradlew.bat remapJar '-PmcVersion=1.21.11'` from `rocket-companion` on JDK 21. For 26.x, use JDK 25 and Gradle 9.9 with `gradle -p unobfuscated jar '-PmcVersion=26.3'`. Copy the built JAR to `src-tauri/resources/rocket-client/<minecraft-version>.jar` to bundle it.
 
 For a custom Minecraft title screen or pause menu, install the matching Fabric release of [FancyMenu](https://modrinth.com/mod/fancymenu), open Minecraft and create a layout from the FancyMenu toolbar. Share your layout by copying its [configuration folder](https://docs.fancymenu.net/docs/en-US/modpacks) into the pack. [ImproperUI](https://modrinth.com/mod/improperui) is also available for scripted in-game screens.
 
-Create or select a Fabric or Forge instance, then open **Mods**. Click **Install** on a result to choose a compatible release automatically, or use **Versions** to pick one yourself. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, move its old JAR out of the mods folder before installing the replacement. Offline Mode keeps local mod files available and pauses catalogue requests and downloads.
+Create or select a Fabric or Forge instance, then open **Mods**. Click **Install** on a result to choose a compatible release automatically, or use **Versions** to pick one yourself. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, disable its old JAR in **Installed mods** before installing the replacement. Offline Mode keeps local mod files available and pauses catalogue requests and downloads.
 
 Use **Installed mods** to filter the list, open the mods folder, or enable and disable individual JARs after closing Minecraft. Disabling a mod keeps its file as `.jar.disabled`.
 
-Settings can share the server list and key assignments between instances. Rocket Launcher keeps a copy of an instance's original files before applying shared values. Only one instance can launch with sync enabled at a time. **Repair files** is available next to IGNITE when needed.
+Rocket Launcher keeps a copy of an instance’s original server and keybind files before applying shared values. Server and keybind sync allow one running instance at a time. **Repair files** is available as a separate action on the Launch Pad and in the instance manager.
 
 ## Run locally on Windows 10/11
 
@@ -118,6 +125,7 @@ The application uses Tauri's local application data directory, normally `%LOCALA
 | `instances\<UUID>\` | Default isolated game directories |
 | `cache\versions.json` | Validated Mojang catalogue with fetch timestamp |
 | `cache\minecraft\` | Shared version metadata, client JARs, libraries, assets, extracted natives, and installation records |
+| `instance-sync\rocket-client.properties` | Shared Rocket Client module preferences and HUD positions |
 | `logs\game\` | Per-launch stdout and stderr |
 | `logs\launcher.log.*` | Daily JSON logs, at most seven files |
 

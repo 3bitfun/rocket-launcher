@@ -19,6 +19,7 @@ export interface Settings {
   requestTimeoutSeconds: number;
   syncServers: boolean;
   syncKeybinds: boolean;
+  syncRocketClient: boolean;
 }
 export interface Instance {
   id: string;
@@ -72,6 +73,11 @@ export interface VersionCatalog {
   warning: string | null;
 }
 export interface InstalledMod { fileName: string; sizeBytes: number; enabled: boolean }
+export interface RocketClientStatus {
+  state: 'unsupported' | 'blocked' | 'available' | 'ready' | 'disabled' | 'upgrade';
+  message: string;
+  needsDownload: boolean;
+}
 export interface Toast { message: string; kind: 'success' | 'error' }
 export interface ModrinthProject {
   projectId: string;

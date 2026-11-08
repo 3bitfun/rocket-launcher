@@ -1,0 +1,75 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.19.4'
+}
+
+def releases = [
+    '26.1': '0.145.1',
+    '26.1.1': '0.145.4',
+    '26.1.2': '0.155.3',
+    '26.2': '0.161.0',
+    '26.3': '0.165.2',
+]
+def game = providers.gradleProperty('mcVersion').getOrElse('26.3')
+def api = releases[game]
+if (api == null) {
+    throw new GradleException("Unsupported Rocket Client build target: ${game}")
+}
+
+group = 'com.rocketlauncher'
+version = "2.0.0+mc${game}"
+
+base {
+    archivesName = 'rocketlauncher-client'
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${game}"
+    implementation 'net.fabricmc:fabric-loader:0.20.1'
+    implementation "net.fabricmc.fabric-api:fabric-api:${api}+${game}"
+}
+
+// The mod's UI is shared with the mapped builds. Minecraft 26 changes the
+// names of the drawing calls and moves ownership of the screen into Gui.
+def guiOwnsScreen = !game.startsWith('26.1')
+def optionsExtraArgument = game == '26.3' ? '' : ', false'
+def generateSources = tasks.register('generateSources', Copy) {
+    from '../src/main/java', '../src/modern/java'
+    into layout.buildDirectory.dir('generated/rocket-client')
+    inputs.property 'game', game
+    filter { line ->
+        def adapted = line.replace('@IDENTIFIER@', 'Identifier')
+            .replace('GuiGraphics', 'GuiGraphicsExtractor')
+            .replace('void render(GuiGraphicsExtractor', 'void extractRenderState(GuiGraphicsExtractor')
+            .replace('super.render(graphics', 'super.extractRenderState(graphics')
+            .replace('.drawString(', '.text(')
+            .replace('.drawCenteredString(', '.centeredText(')
+            .replace('getDayTime()', 'getOverworldClockTime()')
+            .replace('Screens.getButtons(', 'Screens.getWidgets(')
+            .replace('.keybinding.v1.', '.keymapping.v1.')
+            .replace('KeyBindingHelper', 'KeyMappingHelper')
+            .replace('registerKeyBinding(', 'registerKeyMapping(')
+            .replace('new OptionsScreen(parent, client.options)', "new OptionsScreen(parent, client.options${optionsExtraArgument})")
+        if (guiOwnsScreen) {
+            adapted = adapted.replace('client.screen ==', 'client.gui.screen() ==')
+                .replace('.setScreen(', '.gui.setScreen(')
+                .replace('client.options.hideGui', 'client.gui.hud.isHidden()')
+        }
+        adapted
+    }
+}
+sourceSets.main.java.srcDir(generateSources)
+sourceSets.main.resources.srcDir('../src/main/resources')
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+}
+
+processResources {
+    def metadata = [version: project.version, minecraft: game, javaRelease: 25,
+        loaderMin: game == '26.3' ? '0.19.3' : '0.18.4',
+        keyApi: 'fabric-key-mapping-api-v1']
+    inputs.properties metadata
+    filesMatching('fabric.mod.json') {
+        expand metadata
+    }
+}

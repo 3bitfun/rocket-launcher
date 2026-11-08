@@ -119,6 +119,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
         <Toggle label="Show snapshots" description="Include experimental Minecraft versions by default." checked={draft.showSnapshots} onChange={(value) => update('showSnapshots', value)} />
         <Toggle label="Sync server list across instances" description="Share multiplayer servers between instances." checked={draft.syncServers} onChange={(value) => update('syncServers', value)} />
         <Toggle label="Sync keybinds across instances" description="Share key assignments while keeping other settings per instance." checked={draft.syncKeybinds} onChange={(value) => update('syncKeybinds', value)} />
+        <Toggle label="Sync Rocket Client HUD" description="Share enabled widgets and their layout between compatible instances. Applies when Minecraft starts." checked={draft.syncRocketClient} onChange={(value) => update('syncRocketClient', value)} />
       </section>
 
       <section className="panel settings-section"><div className="settings-section-title"><Settings2 size={19} /><div><h2>Launcher</h2><p>Everything has its place.</p></div></div>

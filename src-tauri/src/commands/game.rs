@@ -7,7 +7,7 @@ use crate::{
         java,
         launch::{self, GameStatus, ProcessManager, Readiness},
         metadata::Platform,
-        modrinth, pack, versions,
+        modrinth, pack, rocket_client, versions,
     },
     models::{AppSnapshot, Instance, Loader},
 };
@@ -43,6 +43,7 @@ struct Input {
     timeout: u64,
     sync_servers: bool,
     sync_keybinds: bool,
+    sync_rocket_client: bool,
 }
 
 fn require_online(input: &Input) -> Result<()> {
@@ -68,6 +69,7 @@ fn input(state: &LauncherState, id: &str) -> Result<Input> {
         timeout: store.config.settings.request_timeout_seconds,
         sync_servers: store.config.settings.sync_servers,
         sync_keybinds: store.config.settings.sync_keybinds,
+        sync_rocket_client: store.config.settings.sync_rocket_client,
     })
 }
 
@@ -92,21 +94,67 @@ pub fn set_instance_mod_enabled(
 
 #[tauri::command]
 pub fn open_instance_mods_folder(state: State<'_, LauncherState>, instance_id: String) -> Result<()> {
+    let game = state.store()?.find_instance(&instance_id)?.game_directory.clone();
+    crate::instances::mods_directory(&game)?;
+    open_folder(&game.join("mods"))
+}
+
+#[tauri::command]
+pub fn open_instance_folder(state: State<'_, LauncherState>, instance_id: String) -> Result<()> {
+    let game = state.store()?.find_instance(&instance_id)?.game_directory.clone();
+    open_folder(&game)
+}
+
+fn open_folder(path: &std::path::Path) -> Result<()> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL};
 
-    let game = state.store()?.find_instance(&instance_id)?.game_directory.clone();
-    crate::instances::mods_directory(&game)?;
-    let folder: Vec<u16> = game.join("mods").as_os_str().encode_wide().chain(Some(0)).collect();
+    let folder: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
     let verb: Vec<u16> = "open".encode_utf16().chain(Some(0)).collect();
     let result = unsafe {
         ShellExecuteW(std::ptr::null_mut(), verb.as_ptr(), folder.as_ptr(), std::ptr::null(),
             std::ptr::null(), SW_SHOWNORMAL)
     };
     if result as isize <= 32 {
-        return Err(AppError::new("MOD_FILES", "Windows could not open the mods folder."));
+        return Err(AppError::new("INSTANCE_FOLDER", "Windows could not open the instance folder."));
     }
     Ok(())
+}
+
+#[tauri::command]
+pub async fn rocket_client_status(
+    state: State<'_, LauncherState>,
+    instance_id: String,
+) -> Result<rocket_client::Status> {
+    let instance = state.store()?.find_instance(&instance_id)?.clone();
+    tokio::task::spawn_blocking(move || rocket_client::status(&instance))
+        .await.map_err(|e| AppError::new("ROCKET_CLIENT", e.to_string()))?
+}
+
+#[tauri::command]
+pub async fn install_rocket_client(
+    state: State<'_, LauncherState>,
+    jobs: State<'_, GameJobs>,
+    instance_id: String,
+) -> Result<()> {
+    let _guard = jobs.operation.try_lock()
+        .map_err(|_| AppError::new("BUSY", "Another Minecraft operation is in progress."))?;
+    if jobs.processes.contains(&instance_id) {
+        return Err(AppError::new("BUSY", "Close this instance before changing its mods."));
+    }
+    let original = input(&state, &instance_id)?;
+    let offline = crate::auth::accounts::Accounts::read(&original.data)?.offline;
+    let api = rocket_client::prepare_api(&original.instance, offline, original.timeout).await?;
+    let store = state.store()?;
+    let current = store.find_instance(&instance_id)?;
+    if current.version != original.instance.version
+        || current.loader != original.instance.loader
+        || current.loader_version != original.instance.loader_version
+        || current.game_directory != original.instance.game_directory
+    {
+        return Err(AppError::new("ROCKET_CLIENT", "The instance changed during installation. Try again."));
+    }
+    rocket_client::install(current, api)
 }
 
 #[tauri::command]
@@ -629,6 +677,8 @@ pub async fn ignite_game(
                 auth,
                 log_root: input.logs,
                 sync,
+                rocket_client_config: input.sync_rocket_client
+                    .then(|| input.data.join("instance-sync").join("rocket-client.properties")),
             },
             move |status| publish_game(&event_app, status),
         )

@@ -7,9 +7,9 @@ import { ModrinthBrowser } from './ModrinthBrowser';
 
 const recommendedVersion = '1.21.11';
 
-export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }: { snapshot: AppSnapshot; catalog: VersionCatalog | null; offline: boolean; busy: boolean; onPlay: () => void; onInstallPack: (version: string, progress: (files: [number, number]) => void) => Promise<boolean> }) {
-  const [view, setView] = useState<'browse' | 'installed' | 'pack'>(snapshot.instances.length ? 'browse' : 'pack');
-  const [id, setId] = useState(snapshot.activeInstanceId ?? '');
+export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPlay, onInstallPack }: { snapshot: AppSnapshot; catalog: VersionCatalog | null; offline: boolean; busy: boolean; initialInstanceId?: string; onPlay: () => void; onInstallPack: (version: string, progress: (files: [number, number]) => void) => Promise<boolean> }) {
+  const [view, setView] = useState<'browse' | 'installed' | 'pack'>(initialInstanceId ? 'installed' : snapshot.instances.length ? 'browse' : 'pack');
+  const [id, setId] = useState(initialInstanceId ?? snapshot.activeInstanceId ?? '');
   const [mods, setMods] = useState<InstalledMod[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,7 +35,7 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
       .catch((reason) => { if (active) setPackListError(errorMessage(reason)); });
     return () => { active = false; };
   }, [offline, view]);
-  useEffect(() => { setId(snapshot.activeInstanceId ?? ''); }, [snapshot.activeInstanceId]);
+  useEffect(() => { setId(initialInstanceId ?? snapshot.activeInstanceId ?? ''); }, [initialInstanceId, snapshot.activeInstanceId]);
   useEffect(() => {
     let cancelled = false;
     if (!id || view !== 'installed') return;
@@ -86,7 +86,7 @@ export function Mods({ snapshot, catalog, offline, busy, onPlay, onInstallPack }
       <div className="rocket-pack-content">
         <span className="tag">Recommended</span>
         <h2>Rocket Pack</h2>
-        <p>{packVersion === recommendedVersion ? 'Fabric · 69 mods, resource packs, shaders, and Rocket Launcher Client · About 304 MiB on first download' : 'Fabric · A starter pack assembled from compatible performance mods'}</p>
+        <p>{packVersion === recommendedVersion ? 'Fabric · 69 mods, resource packs, shaders, and Rocket Client · About 304 MiB on first download' : 'Fabric · Matching performance mods and Rocket Client where available'}</p>
         <label className="field"><span>Rocket Pack Minecraft version</span><select value={packVersion} disabled={busy || installingPack} onChange={(event) => { setPackVersion(event.target.value); setPackInstalled(false); }}>
           <option value={recommendedVersion}>{recommendedVersion} · Full pack</option>
           {packVersions.map((version) => <option key={version.id} value={version.id}>{version.id} · Starter pack</option>)}

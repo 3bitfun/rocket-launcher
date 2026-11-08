@@ -328,6 +328,7 @@ pub struct LaunchRequest {
     pub auth: LaunchAuth,
     pub log_root: PathBuf,
     pub sync: Option<(PathBuf, super::sync::PendingSync)>,
+    pub rocket_client_config: Option<PathBuf>,
 }
 
 pub async fn start(
@@ -343,6 +344,7 @@ pub async fn start(
         auth,
         log_root,
         sync,
+        rocket_client_config,
     } = request;
     let (identity, access_token, expires_at, local_test) = match auth {
         LaunchAuth::Offline { player, uuid } => (
@@ -399,6 +401,11 @@ pub async fn start(
         .map_err(|e| AppError::io("create game stderr log", e))?;
     let mut command = Command::new(java.executable);
     java::configure(&mut command);
+    if let Some(path) = rocket_client_config {
+        let mut argument = std::ffi::OsString::from("-Drocketlauncher.clientConfig=");
+        argument.push(path);
+        command.arg(argument);
+    }
     command
         .current_dir(&instance.game_directory)
         .args(args)

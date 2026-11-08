@@ -8,4 +8,5 @@ pub mod metadata;
 pub mod versions;
 pub mod modrinth;
 pub mod pack;
+pub mod rocket_client;
 pub mod sync;

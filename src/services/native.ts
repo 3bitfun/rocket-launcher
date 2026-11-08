@@ -1,6 +1,6 @@
 import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import type { AccountsSummary, AppSnapshot, DownloadProgress, FabricLoaderVersion, GameStatus, InstanceInput, InstalledMod, ModrinthPage, ModrinthVersion, Settings, VersionCatalog } from '../types';
+import type { AccountsSummary, AppSnapshot, DownloadProgress, FabricLoaderVersion, GameStatus, InstanceInput, InstalledMod, ModrinthPage, ModrinthVersion, RocketClientStatus, Settings, VersionCatalog } from '../types';
 
 export const isDesktop = () => isTauri();
 
@@ -35,6 +35,9 @@ export const native = {
   mods: (id: string) => call<InstalledMod[]>('list_installed_mods', { id }),
   setModEnabled: (instanceId: string, fileName: string, enabled: boolean) => call<void>('set_instance_mod_enabled', { instanceId, fileName, enabled }),
   openModsFolder: (instanceId: string) => call<void>('open_instance_mods_folder', { instanceId }),
+  openGameFolder: (instanceId: string) => call<void>('open_instance_folder', { instanceId }),
+  rocketClientStatus: (instanceId: string) => call<RocketClientStatus>('rocket_client_status', { instanceId }),
+  installRocketClient: (instanceId: string) => call<void>('install_rocket_client', { instanceId }),
   searchMods: (instanceId: string, query: string, offset: number, sort?: string) => call<ModrinthPage>('search_modrinth', { instanceId, query, offset, sort }),
   modVersions: (instanceId: string, projectId: string) => call<ModrinthVersion[]>('modrinth_versions', { instanceId, projectId }),
   installMod: (instanceId: string, projectId: string, versionId?: string) => call<string>('install_modrinth', { instanceId, projectId, versionId }),

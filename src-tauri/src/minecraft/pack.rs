@@ -123,14 +123,7 @@ pub async fn install_for_version(
         pinned
             .download(directory, cache, timeout, &progress)
             .await?;
-        tokio::fs::write(
-            directory
-                .join("mods")
-                .join("rocketlauncher-client-1.1.0.jar"),
-            include_bytes!("../../resources/rocketlauncher-client-1.1.0.jar"),
-        )
-        .await
-        .map_err(|e| AppError::io("install Rocket Launcher Client", e))?;
+        super::rocket_client::add_to_pack(directory, game)?;
         return Ok(pinned.instance_input(ram));
     }
     let loaders = super::fabric::loader_versions(game, timeout).await?;
@@ -155,6 +148,7 @@ pub async fn install_for_version(
     };
     // Sodium, Lithium, and Fabric API are selected independently for each Minecraft version.
     let mut installed = 0;
+    let mut fabric_api = false;
     for project in ["AANobbMI", "gvQqBUqZ", "P7dR8mSH"] {
         if let Some(version) =
             super::modrinth::preferred_version(&instance, project, timeout).await?
@@ -163,6 +157,7 @@ pub async fn install_for_version(
                 .await?
                 .publish(directory)?;
             installed += 1;
+            fabric_api |= project == "P7dR8mSH";
         }
     }
     if installed == 0 {
@@ -170,6 +165,9 @@ pub async fn install_for_version(
             "PACK",
             "No Rocket Pack mods are available for this Minecraft version.",
         ));
+    }
+    if fabric_api {
+        super::rocket_client::add_to_pack(directory, game)?;
     }
     Ok(InstanceInput {
         name: instance.name,

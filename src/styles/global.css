@@ -290,6 +290,20 @@ main:focus { outline: none; }
 .form-error { color: var(--danger); font-size: 12px; line-height: 1.8; padding: 12px 0; overflow-wrap: anywhere; }
 .path-preview { display: block; margin-top: 15px; padding: 14px; background: var(--bg); border-radius: 7px; color: var(--muted); font-size: 11px; word-break: break-all; }
 
+.instance-manager { display: grid; gap: 14px; }
+.manager-status, .manager-section { display: flex; align-items: center; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+.manager-status { justify-content: space-between; }
+.manager-tags, .manager-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.manager-tags { margin-bottom: 11px; }
+.manager-status h3, .manager-section h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+.manager-status p, .manager-section p { color: var(--muted); font-size: 11px; line-height: 1.6; margin-top: 5px; }
+.manager-section .form-error { color: var(--danger); padding: 0; }
+.manager-status .button, .manager-section .button { flex: none; }
+.manager-icon { display: grid; place-items: center; flex: 0 0 36px; height: 36px; border-radius: 8px; color: var(--accent); background: var(--bg); }
+.manager-section-content { flex: 1; min-width: 0; }
+.manager-path { overflow-wrap: anywhere; }
+.manager-actions { padding-top: 4px; }
+
 .settings-fields { display: flex; flex-direction: column; gap: 22px; }
 .settings-section { padding: 23px; }
 .settings-section-title { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 22px; }

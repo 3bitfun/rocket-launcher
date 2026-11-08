@@ -3,26 +3,132 @@ plugins {
 }
 
 group = 'com.rocketlauncher'
-version = '1.1.0'
+def releases = [
+    '1.17': ['0.36.0', 16],
+    '1.17.1': ['0.46.1+1.17', 16],
+    '1.18': ['0.44.0', 17],
+    '1.18.1': ['0.46.6+1.18', 17],
+    '1.18.2': ['0.77.0', 17],
+    '1.19': ['0.58.0', 17],
+    '1.19.1': ['0.58.5', 17],
+    '1.19.2': ['0.77.0', 17],
+    '1.19.3': ['0.76.1', 17],
+    '1.19.4': ['0.87.2', 17],
+    '1.20': ['0.83.0', 17],
+    '1.20.1': ['0.92.12', 17],
+    '1.20.2': ['0.91.6', 17],
+    '1.20.3': ['0.91.1', 17],
+    '1.20.4': ['0.97.3', 17],
+    '1.20.5': ['0.97.8', 21],
+    '1.20.6': ['0.100.8', 21],
+    '1.21': ['0.102.0', 21],
+    '1.21.1': ['0.116.17', 21],
+    '1.21.2': ['0.106.1', 21],
+    '1.21.3': ['0.114.1', 21],
+    '1.21.4': ['0.119.4', 21],
+    '1.21.5': ['0.128.2', 21],
+    '1.21.6': ['0.128.2', 21],
+    '1.21.7': ['0.129.0', 21],
+    '1.21.8': ['0.136.1', 21],
+    '1.21.9': ['0.134.1', 21],
+    '1.21.10': ['0.138.4', 21],
+    '1.21.11': ['0.141.6', 21],
+]
+def game = providers.gradleProperty('mcVersion').getOrElse('1.21.11')
+def target = releases[game]
+if (target == null) {
+    throw new GradleException("Unsupported Rocket Client build target: ${game}")
+}
+def (api, javaRelease) = target
+def minor = game.tokenize('.')[1].toInteger()
+def patch = game.startsWith('1.21.') ? game.tokenize('.')[2].toInteger() : 0
+def platform = patch >= 9 ? 'modern' : 'legacy'
+def poseStack = minor < 20
+def legacyFps = poseStack && !(game in ['1.19.3', '1.19.4'])
+def apiVersion = api.contains('+') ? api : "${api}+${game}"
+
+version = "2.0.0+mc${game}"
 
 base {
     archivesName = 'rocketlauncher-client'
 }
 
 dependencies {
-    minecraft 'com.mojang:minecraft:1.21.11'
+    minecraft "com.mojang:minecraft:${game}"
     mappings loom.officialMojangMappings()
     modImplementation 'net.fabricmc:fabric-loader:0.20.1'
-    modImplementation 'net.fabricmc.fabric-api:fabric-api:0.141.6+1.21.11'
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${apiVersion}"
+}
+
+if (legacyFps) {
+    loom.accessWidenerPath = file('src/legacy/resources/rocket-client.accesswidener')
+}
+
+def platformSource = layout.buildDirectory.dir('generated/rocket-platform')
+def identifierType = patch >= 11 ? 'Identifier' : 'ResourceLocation'
+def optionsPackage = poseStack || game.startsWith('1.20') ? 'screens' : 'screens.options'
+def debugVisible = poseStack || game in ['1.20', '1.20.1'] ? 'client.options.renderDebug' : 'client.getDebugOverlay().showDebugScreen()'
+def fps = legacyFps ? 'Minecraft.fps' : 'client.getFps()'
+def generatePlatform = tasks.register('generatePlatform', Copy) {
+    from "src/${platform}/java"
+    into platformSource
+    inputs.property 'game', game
+    inputs.property 'identifierType', identifierType
+    inputs.property 'optionsPackage', optionsPackage
+    inputs.property 'debugVisible', debugVisible
+    filter { line ->
+        def adapted = line.replace('@IDENTIFIER@', identifierType).replace('@OPTIONS_PACKAGE@', optionsPackage)
+            .replace('@DEBUG_VISIBLE@', debugVisible).replace('@FPS@', fps)
+        poseStack ? adapted.replace('net.minecraft.client.gui.GuiGraphics', 'com.mojang.blaze3d.vertex.PoseStack')
+            .replace('Consumer<GuiGraphics>', 'Consumer<PoseStack>') : adapted
+    }
+}
+sourceSets.main.java.srcDir(generatePlatform)
+
+if (poseStack) {
+    // Before 1.20, screens draw with PoseStack and GuiComponent.
+    def backport = tasks.register('generateBackport', Copy) {
+        from 'src/main/java'
+        into layout.buildDirectory.dir('generated/rocket-backport')
+        inputs.property 'game', game
+        filter { line ->
+            def adapted = line.replace('import net.minecraft.client.gui.GuiGraphics;',
+                'import com.mojang.blaze3d.vertex.PoseStack;\nimport net.minecraft.client.gui.GuiComponent;')
+                .replace('GuiGraphics graphics', 'PoseStack graphics')
+                .replace('graphics.guiWidth()', 'client.getWindow().getGuiScaledWidth()')
+                .replace('graphics.guiHeight()', 'client.getWindow().getGuiScaledHeight()')
+                .replace('graphics.fill(', 'GuiComponent.fill(graphics, ')
+                .replace('graphics.drawCenteredString(', 'GuiComponent.drawCenteredString(graphics, ')
+                .replace('graphics.drawString(', 'GuiComponent.drawString(graphics, ')
+                .replace('enabled ? TEXT : SUBTLE, false)', 'enabled ? TEXT : SUBTLE)')
+            if (legacyFps) {
+                adapted = adapted.replace('Button.builder(label, press).bounds(x, y, width, 20).build()',
+                    'new Button(x, y, width, 20, label, press)')
+            }
+            if (minor < 19) {
+                adapted = adapted.replace('Component.translatable("rocket_companion." + key, arguments)',
+                    'new net.minecraft.network.chat.TranslatableComponent("rocket_companion." + key, arguments)')
+            }
+            adapted
+        }
+    }
+    sourceSets.main.java.setSrcDirs([generatePlatform, backport])
 }
 
 tasks.withType(JavaCompile).configureEach {
-    options.release = 21
+    options.release = javaRelease
 }
 
 processResources {
-    inputs.property 'version', project.version
+    def metadata = [version: project.version, minecraft: game, javaRelease: javaRelease, loaderMin: '0.18.2',
+        keyApi: 'fabric-key-binding-api-v1']
+    inputs.properties metadata
+    if (legacyFps) from('src/legacy/resources')
     filesMatching('fabric.mod.json') {
-        expand version: project.version
+        expand metadata
+        if (legacyFps) {
+            filter { line -> line == '  "depends": {' ?
+                '  "accessWidener": "rocket-client.accesswidener",\n' + line : line }
+        }
     }
 }

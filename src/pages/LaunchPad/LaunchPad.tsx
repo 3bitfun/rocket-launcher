@@ -1,14 +1,14 @@
-import { ArrowRight, Box, Cpu, Download, Pencil, Plus, Puzzle, Rocket, Settings2, Wrench } from 'lucide-react';
+import { ArrowRight, Box, Cpu, Download, Plus, Puzzle, Rocket, Settings2, Wrench } from 'lucide-react';
 import type { AppSnapshot, GameStatus, Instance, Page } from '../../types';
 import { loaderName } from '../../services/loaders';
 import { readinessLabel } from '../../services/readiness';
 import { InstanceCard } from '../../components/instances/InstanceCard';
 import { formatRam } from '../../components/ui/Primitives';
 
-export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onSelect, onNavigate, onInstall, onIgnite, onCheck }: {
+export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onManage = onEdit, onSelect, onNavigate, onInstall, onIgnite, onCheck }: {
   snapshot: AppSnapshot; busy: boolean;
   status?: GameStatus; onInstall: (instance: Instance) => void; onIgnite: (instance: Instance) => void; onCheck: (instance: Instance) => void;
-  onCreate: () => void; onEdit: (instance: Instance) => void; onSelect: (instance: Instance) => void; onNavigate: (page: Page) => void;
+  onCreate: () => void; onEdit: (instance: Instance) => void; onManage?: (instance: Instance) => void; onSelect: (instance: Instance) => void; onNavigate: (page: Page) => void;
 }) {
   const selected = snapshot.instances.find((instance) => instance.id === snapshot.activeInstanceId);
   const readiness = selected?.readiness ?? 'checking';
@@ -38,7 +38,7 @@ export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onSelect, 
               {snapshot.instances.map((instance) => <option key={instance.id} value={instance.id}>{instance.name}</option>)}
             </select>
           </label> : <span className="eyebrow">MINECRAFT JAVA EDITION</span>}
-          {selected && <button className="icon-button play-edit" title="Edit instance" aria-label="Edit selected instance" disabled={busy} onClick={() => onEdit(selected)}><Pencil size={16} /></button>}
+          {selected && <button className="icon-button play-edit" title="Manage instance" aria-label="Manage selected instance" aria-haspopup="dialog" onClick={() => onManage(selected)}><Settings2 size={16} /></button>}
         </div>
         <h2>{selected?.name ?? 'Set up your first instance'}</h2>
         {selected ? <>
@@ -65,7 +65,7 @@ export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onSelect, 
         <div><h2>Recent instances</h2><p>Switch versions or pick up where you left off.</p></div>
         <button className="button secondary small-button" onClick={() => onNavigate('instances')}>Manage instances <ArrowRight size={15} /></button>
       </div>
-      <div className="instance-grid">{recent.map((instance) => <InstanceCard key={instance.id} instance={instance} compact active={instance.id === snapshot.activeInstanceId} busy={busy} onSelect={() => onSelect(instance)} onEdit={() => onEdit(instance)} />)}</div>
+      <div className="instance-grid">{recent.map((instance) => <InstanceCard key={instance.id} instance={instance} compact active={instance.id === snapshot.activeInstanceId} busy={busy} onManage={() => onManage(instance)} onEdit={() => onEdit(instance)} />)}</div>
     </section>}
   </>;
 }

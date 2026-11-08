@@ -473,9 +473,11 @@ impl StagedMod {
             for (project, (version, spec)) in &self.files {
                 ensure_enabled(&folder, &spec.relative.to_string_lossy())?;
                 if let Some(old) = installed.get(project) {
-                    ensure_enabled(&folder, segment(&old.filename)?)?;
-                    if &old.id != version && folder.join(segment(&old.filename)?).is_file() {
-                        return Err(error(format!("{} is already installed. Move that JAR out of the mods folder before choosing another version.", old.filename)));
+                    let filename = segment(&old.filename)?;
+                    if &old.id == version {
+                        ensure_enabled(&folder, filename)?;
+                    } else if folder.join(filename).is_file() {
+                        return Err(error(format!("{} is enabled. Disable that JAR in Installed mods before choosing another version.", old.filename)));
                     }
                 }
                 let target = folder.join(&spec.relative);

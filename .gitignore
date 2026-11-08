@@ -13,3 +13,6 @@ test-results/
 rocket-companion/.gradle/
 rocket-companion/build/
 rocket-companion/run/
+rocket-companion/unobfuscated/.gradle/
+rocket-companion/unobfuscated/build/
+rocket-companion/unobfuscated/run/

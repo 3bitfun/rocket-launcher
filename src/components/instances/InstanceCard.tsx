@@ -13,11 +13,11 @@ function instanceScenery(id: string) {
   return scenery[hash % scenery.length];
 }
 
-export function InstanceCard({ instance, active, busy, onSelect, onEdit, onDuplicate, onDelete, compact = false }: {
-  instance: Instance; active: boolean; busy: boolean; onSelect: () => void; onEdit: () => void; onDuplicate?: () => void; onDelete?: () => void; compact?: boolean;
+export function InstanceCard({ instance, active, busy, onManage, onEdit, onDuplicate, onDelete, compact = false }: {
+  instance: Instance; active: boolean; busy: boolean; onManage: () => void; onEdit: () => void; onDuplicate?: () => void; onDelete?: () => void; compact?: boolean;
 }) {
   return <motion.article layout className={`instance-card ${active ? 'selected' : ''} ${compact ? 'compact' : ''}`}>
-    <button className="instance-select" onClick={onSelect} disabled={busy} aria-label={`Select ${instance.name}`} aria-pressed={active}>
+    <button className="instance-select" onClick={onManage} aria-label={`Manage ${instance.name}`} aria-haspopup="dialog">
       <div className="instance-art"><img className="instance-scenery" src={instanceScenery(instance.id)} alt="" loading="lazy" decoding="async" /><span className="instance-loader">{instance.loader !== 'vanilla' ? <><Puzzle size={12} /> {loaderName(instance.loader)}</> : <><Box size={12} /> Vanilla</>}</span>{active && <span className="selected-check"><Check size={14} /></span>}</div>
       <div className="instance-details"><h3>{instance.name}</h3><p>Minecraft {instance.version} {instance.loaderVersion && <>· {loaderName(instance.loader)} {instance.loaderVersion}</>}<span>·</span>{formatRam(instance.ramMb)}</p><span className="readiness"><span className="status-dot" />{readinessLabel[instance.readiness]}</span></div>
     </button>
