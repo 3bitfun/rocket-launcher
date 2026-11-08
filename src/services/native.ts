@@ -41,10 +41,10 @@ export const native = {
   searchMods: (instanceId: string, query: string, offset: number, sort?: string) => call<ModrinthPage>('search_modrinth', { instanceId, query, offset, sort }),
   modVersions: (instanceId: string, projectId: string) => call<ModrinthVersion[]>('modrinth_versions', { instanceId, projectId }),
   installMod: (instanceId: string, projectId: string, versionId?: string) => call<string>('install_modrinth', { instanceId, projectId, versionId }),
-  installRocketPack: (version: string, onProgress: (files: [number, number]) => void) => {
+  installRocketPack: (version: string, onProgress: (files: [number, number]) => void, input?: InstanceInput) => {
     const progress = new Channel<[number, number]>();
     progress.onmessage = onProgress;
-    return call<AppSnapshot>('install_rocket_pack', { version, progress });
+    return call<AppSnapshot>('install_rocket_pack', { version, progress, input });
   },
   checkUpdate: () => call<string | null>('check_launcher_update'),
   installUpdate: (releaseVersion: string, onProgress: (percent: number) => void) => {

@@ -39,6 +39,8 @@ describe('instance editor', () => {
     await user.type(screen.getByLabelText('Instance name'), 'Sunday survival');
     await user.click(screen.getByLabelText('Include snapshots'));
     await user.selectOptions(screen.getByLabelText('Minecraft version'), '24w33a');
+    expect(screen.getByRole('button', { name: 'Create Rocket Pack instance' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: /Vanilla/ }));
     await user.click(screen.getByRole('button', { name: 'Create instance' }));
     expect(save).toHaveBeenCalledWith({ name: 'Sunday survival', version: '24w33a', loader: 'vanilla', loaderVersion: null, ramMb: 4096, javaPath: null, parentDirectory: 'C:\\test\\instances' });
     await waitFor(() => expect(close).toHaveBeenCalled());
@@ -46,16 +48,18 @@ describe('instance editor', () => {
 
   it('keeps creation unavailable without a fetched or cached version', () => {
     render(<InstanceEditor settings={snapshot.settings} catalog={null} fetching={false} catalogError="Mojang unavailable" busy={false} onRefresh={vi.fn()} onSave={vi.fn()} onClose={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'Create instance' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Create Rocket Pack instance' })).toBeDisabled();
     expect(screen.getByText('Mojang unavailable')).toBeInTheDocument();
   });
 
   it('keeps the editor open when native persistence fails', async () => {
     const close = vi.fn();
-    render(<InstanceEditor settings={snapshot.settings} catalog={catalog} fetching={false} catalogError={null} busy={false} onRefresh={vi.fn()} onSave={vi.fn().mockResolvedValue(false)} onClose={close} />);
+    const save = vi.fn().mockResolvedValue(false);
+    render(<InstanceEditor settings={snapshot.settings} catalog={catalog} fetching={false} catalogError={null} busy={false} onRefresh={vi.fn()} onSave={save} onClose={close} />);
     const user = userEvent.setup();
     await user.type(screen.getByLabelText('Instance name'), 'Keep my draft');
-    await user.click(screen.getByRole('button', { name: 'Create instance' }));
+    await user.click(screen.getByRole('button', { name: 'Create Rocket Pack instance' }));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ loader: 'fabric', loaderVersion: null }), expect.any(Function));
     expect(close).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Instance name')).toHaveValue('Keep my draft');
   });

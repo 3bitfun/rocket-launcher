@@ -6,7 +6,7 @@ use crate::{
 };
 use std::{fs, path::PathBuf};
 
-fn validate_input(input: &InstanceInput) -> Result<()> {
+pub(crate) fn validate_input(input: &InstanceInput) -> Result<()> {
     if input.name.trim().is_empty()
         || input.name.trim().chars().count() > 64
         || input.name.chars().any(char::is_control)

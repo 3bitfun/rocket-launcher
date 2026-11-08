@@ -91,6 +91,10 @@ fn error(message: impl Into<String>) -> AppError {
     AppError::new("MODRINTH", message)
 }
 
+fn incompatible(message: impl Into<String>) -> AppError {
+    AppError::new("MODRINTH_INCOMPATIBLE", message)
+}
+
 fn loader(instance: &Instance) -> Result<&'static str> {
     match instance.loader {
         Loader::Fabric => Ok("fabric"),
@@ -109,7 +113,7 @@ fn id(value: &str) -> Result<&str> {
     }
 }
 
-fn client(timeout: u64) -> Result<reqwest::Client> {
+pub(super) fn client(timeout: u64) -> Result<reqwest::Client> {
     reqwest::Client::builder()
         .https_only(true)
         .redirect(reqwest::redirect::Policy::none())
@@ -330,6 +334,47 @@ pub async fn stage(
             "This mod version does not match the selected Minecraft version and loader.",
         ));
     }
+    stage_version(instance, &client, version, None).await
+}
+
+pub(super) async fn install_pack_mod(
+    instance: &Instance,
+    client: &reqwest::Client,
+    project: &str,
+    cache: &Path,
+) -> Result<bool> {
+    let folder = mods_directory(&instance.game_directory)?;
+    if installed_index(&folder)?.contains_key(project) {
+        return Ok(true);
+    }
+    let mut versions = matching_versions(client, instance, project).await?;
+    // Prefer stable releases. Older releases can still have working dependencies
+    // when the newest one requires a different version of another pack mod.
+    versions.sort_by_key(|version| version.version_type != "release");
+    for version in versions.into_iter()
+        .filter(|version| jar(version).is_some_and(|file| jar_spec(file).is_ok()))
+        .take(3)
+    {
+        match stage_version(instance, client, version, Some(cache)).await
+            .and_then(|staged| staged.publish(&instance.game_directory))
+        {
+            Ok(_) => return Ok(true),
+            Err(error) if error.code == "MODRINTH_INCOMPATIBLE" => {
+                tracing::debug!(project, %error, "skipping incompatible Rocket Pack candidate");
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(false)
+}
+
+async fn stage_version(
+    instance: &Instance,
+    client: &reqwest::Client,
+    version: Version,
+    cache: Option<&Path>,
+) -> Result<StagedMod> {
+    let loader = loader(instance)?;
     let folder = mods_directory(&instance.game_directory)?;
     let installed = installed_index(&folder)?;
     let primary = jar(&version)
@@ -339,22 +384,28 @@ pub async fn stage(
     let mut queue = VecDeque::from([version]);
     let mut files: BTreeMap<String, (String, FileSpec)> = BTreeMap::new();
     while let Some(version) = queue.pop_front() {
+        if cache.is_some() && version.project_id == "bEpr0Arc" {
+            return Err(incompatible("Litematica is excluded from Rocket Pack."));
+        }
         if let Some((chosen, _)) = files.get(&version.project_id) {
             if chosen != &version.id {
-                return Err(error(
+                return Err(incompatible(
                     "The selected mods require conflicting versions of a dependency.",
                 ));
             }
             continue;
         }
         if files.len() >= 48 || !matches(&version, loader, &instance.version) {
-            return Err(error("A required mod dependency does not match this instance, or there are too many dependencies."));
+            return Err(incompatible("A required mod dependency does not match this instance, or there are too many dependencies."));
         }
-        let file = jar(&version).ok_or_else(|| error("A required mod version has no JAR file."))?;
+        let file = jar(&version).ok_or_else(|| incompatible("A required mod version has no JAR file."))?;
         let spec = jar_spec(file)?;
         ensure_enabled(&folder, &file.filename)?;
         if let Some(old) = installed.get(&version.project_id) {
             ensure_enabled(&folder, segment(&old.filename)?)?;
+            if cache.is_some() && old.id != version.id && folder.join(&old.filename).is_file() {
+                return Err(incompatible("A different version of this dependency is already in the pack."));
+            }
         }
         for (_, previous) in files.values() {
             if previous
@@ -362,7 +413,7 @@ pub async fn stage(
                 .to_string_lossy()
                 .eq_ignore_ascii_case(&file.filename)
             {
-                return Err(error("Two required mods use the same filename."));
+                return Err(incompatible("Two required mods use the same filename."));
             }
         }
         files.insert(version.project_id.clone(), (version.id, spec));
@@ -382,7 +433,7 @@ pub async fn stage(
                         .as_ref()
                         .is_some_and(|pinned| pinned != chosen)
                     {
-                        return Err(error(
+                        return Err(incompatible(
                             "The selected mods require conflicting versions of a dependency.",
                         ));
                     }
@@ -390,9 +441,9 @@ pub async fn stage(
                 }
             }
             let next = if let Some(version_id) = dep.version_id.as_deref() {
-                version_by_id(&client, version_id).await?
+                version_by_id(client, version_id).await?
             } else if let Some(project_id) = dep.project_id.as_deref() {
-                let candidates = matching_versions(&client, instance, project_id).await?;
+                let candidates = matching_versions(client, instance, project_id).await?;
                 let installed_id = installed.get(project_id).and_then(|entry| {
                     segment(&entry.filename)
                         .ok()
@@ -413,7 +464,7 @@ pub async fn stage(
                             .position(|candidate| jar(candidate).is_some())
                     })
                     .ok_or_else(|| {
-                        error(format!(
+                        incompatible(format!(
                             "Required dependency {project_id} has no compatible JAR."
                         ))
                     })?;
@@ -425,11 +476,11 @@ pub async fn stage(
                 let filename = dep
                     .file_name
                     .as_deref()
-                    .ok_or_else(|| error("Modrinth did not identify a required dependency."))?;
+                    .ok_or_else(|| incompatible("Modrinth did not identify a required dependency."))?;
                 if folder.join(segment(filename)?).is_file() {
                     continue;
                 }
-                return Err(error(format!(
+                return Err(incompatible(format!(
                     "Install the required external file {filename} first."
                 )));
             };
@@ -448,7 +499,14 @@ pub async fn stage(
         .tempdir_in(folder)
         .map_err(|e| AppError::io("stage the mod download", e))?;
     for (_, spec) in files.values() {
-        download::ensure(&client, staging.path(), spec, &|_| {}).await?;
+        if let Some(cache) = cache {
+            let mut cached = spec.clone();
+            cached.relative = spec.artifact.sha1.to_ascii_lowercase().into();
+            download::ensure(client, cache, &cached, &|_| {}).await?;
+            super::install::copy_atomic(&cache.join(&cached.relative), &staging.path().join(&spec.relative))?;
+        } else {
+            download::ensure(client, staging.path(), spec, &|_| {}).await?;
+        }
     }
     Ok(StagedMod {
         staging,

@@ -13,6 +13,34 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+// Projects from the supplied Tuff pack, ordered so core mods are resolved first.
+const PACK_PROJECTS: &[&str] = &[
+    "P7dR8mSH", // Fabric API
+    "AANobbMI", // Sodium
+    "gvQqBUqZ", // Lithium
+    "uXXizFIs", // FerriteCore
+    "5ZwdcRci", // ImmediatelyFast
+    "NNAgCjsB", // Entity Culling
+    "LQ3K71Q1", // Dynamic FPS
+    "mOgUt4GM", // Mod Menu
+    "EsAfCjCV", // AppleSkin
+    "nvQzSEkH", // Jade
+    "2M01OLQq", // ShulkerBoxTooltip
+    "Wb5oqrBJ", // Chat Heads
+    "zV5r3pPn", // 3D Skin Layers
+    "MPCX6s5C", // Not Enough Animations
+    "rcTfTZr3", // Presence Footsteps
+    "w7ThoJFB", // Zoomify
+    "BdKIyOLe", // Boat View
+    "xv94TkTM", // Controlling
+    "UVtY3ZAC", // Enchantment Descriptions
+    "PtjYWJkn", // Sodium Extra
+    "Bh37bMuy", // Reese's Sodium Options
+    "YL57xq9U", // Iris
+    "9eGKb6K1", // Simple Voice Chat
+    "lfHFW1mp", // JourneyMap
+];
+
 #[derive(Deserialize)]
 pub struct Pack {
     pub minecraft: String,
@@ -34,6 +62,7 @@ impl Pack {
             .map_err(|e| AppError::new("PACK", format!("Could not read Rocket Pack: {e}")))
     }
 
+    #[cfg(all(test, windows, debug_assertions))]
     pub fn instance_input(self, ram_mb: u32) -> InstanceInput {
         InstanceInput {
             name: "Rocket Pack".into(),
@@ -111,20 +140,22 @@ impl Pack {
 }
 
 pub async fn install_for_version(
-    game: &str,
+    mut input: InstanceInput,
     directory: &Path,
     cache: &Path,
-    ram: u32,
     timeout: u64,
     progress: impl Fn(usize, usize) + Sync,
 ) -> Result<InstanceInput> {
     let pinned = Pack::recommended()?;
+    let game = input.version.as_str();
     if game == pinned.minecraft {
+        input.loader_version = Some(pinned.fabric.clone());
+        crate::instances::validate_input(&input)?;
         pinned
             .download(directory, cache, timeout, &progress)
             .await?;
         super::rocket_client::add_to_pack(directory, game)?;
-        return Ok(pinned.instance_input(ram));
+        return Ok(input);
     }
     let loaders = super::fabric::loader_versions(game, timeout).await?;
     let loader = loaders
@@ -132,33 +163,32 @@ pub async fn install_for_version(
         .find(|loader| loader.stable)
         .or_else(|| loaders.first())
         .ok_or_else(|| AppError::new("PACK", "Fabric has no loader for this Minecraft version."))?;
+    input.loader_version = Some(loader.version.clone());
+    crate::instances::validate_input(&input)?;
     let instance = Instance {
         id: "rocket-pack".into(),
-        name: format!("Rocket Pack {game}"),
+        name: input.name.clone(),
         version: game.into(),
         version_type: "release".into(),
         loader: Loader::Fabric,
-        loader_version: Some(loader.version.clone()),
+        loader_version: input.loader_version.clone(),
         game_directory: directory.into(),
-        ram_mb: ram,
-        java_path: None,
+        ram_mb: input.ram_mb,
+        java_path: input.java_path.clone(),
         created_at: 0,
         updated_at: 0,
         last_selected_at: 0,
     };
-    // Sodium, Lithium, and Fabric API are selected independently for each Minecraft version.
+    let client = super::modrinth::client(timeout)?;
     let mut installed = 0;
     let mut fabric_api = false;
-    for project in ["AANobbMI", "gvQqBUqZ", "P7dR8mSH"] {
-        if let Some(version) =
-            super::modrinth::preferred_version(&instance, project, timeout).await?
-        {
-            super::modrinth::stage(&instance, project, &version, timeout)
-                .await?
-                .publish(directory)?;
+    progress(0, PACK_PROJECTS.len());
+    for (index, &project) in PACK_PROJECTS.iter().enumerate() {
+        if super::modrinth::install_pack_mod(&instance, &client, project, cache).await? {
             installed += 1;
             fabric_api |= project == "P7dR8mSH";
         }
+        progress(index + 1, PACK_PROJECTS.len());
     }
     if installed == 0 {
         return Err(AppError::new(
@@ -169,15 +199,7 @@ pub async fn install_for_version(
     if fabric_api {
         super::rocket_client::add_to_pack(directory, game)?;
     }
-    Ok(InstanceInput {
-        name: instance.name,
-        version: instance.version,
-        loader: instance.loader,
-        loader_version: instance.loader_version,
-        ram_mb: ram,
-        java_path: None,
-        parent_directory: None,
-    })
+    Ok(input)
 }
 
 #[cfg(all(test, windows, debug_assertions))]

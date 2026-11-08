@@ -28,9 +28,9 @@ Java runtimes are selected from installed runtimes. Launcher updates are applied
 
 ## Install mods
 
-In **Mods**, pick a Minecraft version and select **Create Rocket Pack instance**. The full 1.21.11 pack uses Fabric Loader 0.20.1 and pinned mods from the supplied Tuff pack. Other Fabric releases use starter packs assembled from matching versions of Sodium, Lithium, and Fabric API, depending on availability. Install the Minecraft files from **Launch Pad** and use the Java version it requests.
+**Create an instance** defaults to **Fabric Rocket Pack**. You can also choose plain Fabric, Vanilla, or Forge. To create a pack with the default instance settings, pick a Minecraft release in **Mods → Rocket Pack**. The full 1.21.11 pack uses Fabric Loader 0.20.1 and pinned mods from the supplied Tuff pack. Other releases draw from 24 Tuff projects, including Sodium, AppleSkin, Jade, Zoomify, and Iris. Rocket Pack installs the matching Fabric builds and their required dependencies when available. Install the Minecraft files from **Launch Pad** and use the Java version it requests.
 
-The full pack downloads 69 mods and 28 resource and shader packs from the original pack index. It uses a newer Simple Voice Chat build to satisfy Flashback’s compatibility requirement. The original archive’s three local overrides are separate from these downloads. Rocket Launcher keeps verified downloads in a shared cache and copies them into new full-pack instances.
+The full pack downloads 68 mods and 28 resource and shader packs from the original pack index. It uses a newer Simple Voice Chat build to satisfy Flashback’s compatibility requirement. The original archive’s three local overrides are separate from these downloads. Rocket Launcher keeps verified downloads in a shared cache and copies them into new full-pack instances.
 
 **Rocket Client** comes with the full pack and compatible starter packs. For another instance, click its card and select **Install Rocket Client**. The launcher picks the JAR built for that Minecraft release and installs Fabric API if needed. The instance manager reports availability and the minimum Fabric Loader version for the selected release.
 

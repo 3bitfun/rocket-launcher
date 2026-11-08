@@ -162,6 +162,7 @@ pub async fn install_rocket_pack(
     state: State<'_, LauncherState>,
     jobs: State<'_, GameJobs>,
     version: String,
+    input: Option<crate::models::InstanceInput>,
     progress: tauri::ipc::Channel<[usize; 2]>,
 ) -> Result<AppSnapshot> {
     use crate::{auth::accounts, storage::validate_path};
@@ -169,7 +170,7 @@ pub async fn install_rocket_pack(
         .operation
         .try_lock()
         .map_err(|_| AppError::new("BUSY", "Another Minecraft operation is in progress."))?;
-    let (parent, cache, timeout, ram) = {
+    let (input, parent, cache, timeout) = {
         let store = state.store()?;
         if accounts::Accounts::read(&store.paths.data)?.offline {
             return Err(accounts::offline_error());
@@ -180,11 +181,25 @@ pub async fn install_rocket_pack(
         {
             return Err(AppError::new("PACK", "Choose a Minecraft release for Rocket Pack."));
         }
+        let input = input.unwrap_or_else(|| crate::models::InstanceInput {
+            name: if version == "1.21.11" { "Rocket Pack".into() } else { format!("Rocket Pack {version}") },
+            version: version.clone(),
+            loader: crate::models::Loader::Fabric,
+            loader_version: None,
+            ram_mb: settings.default_ram_mb,
+            java_path: None,
+            parent_directory: None,
+        });
+        if input.version != version || input.loader != crate::models::Loader::Fabric {
+            return Err(AppError::new("PACK", "Rocket Pack requires a matching Fabric instance."));
+        }
+        let parent = input.parent_directory.clone()
+            .unwrap_or_else(|| settings.minecraft_directory.clone());
         (
-            settings.minecraft_directory.clone(),
+            input,
+            parent,
             store.paths.cache.join("rocket-pack"),
             settings.request_timeout_seconds,
-            settings.default_ram_mb,
         )
     };
     validate_path(&parent)?;
@@ -193,7 +208,7 @@ pub async fn install_rocket_pack(
         .prefix("rocket-pack-")
         .tempdir_in(parent)
         .map_err(|e| AppError::io("create the Rocket Pack directory", e))?;
-    let input = pack::install_for_version(&version, directory.path(), &cache, ram, timeout, |completed, total| {
+    let input = pack::install_for_version(input, directory.path(), &cache, timeout, |completed, total| {
         let _ = progress.send([completed, total]);
     }).await?;
     let mut store = state.store()?;

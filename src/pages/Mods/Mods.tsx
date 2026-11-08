@@ -117,10 +117,10 @@ export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPl
       <div className="rocket-pack-content">
         <span className="tag">Recommended</span>
         <h2>Rocket Pack</h2>
-        <p>{packVersion === recommendedVersion ? 'Fabric · 69 mods, resource packs, shaders, and Rocket Client · About 304 MiB on first download' : 'Fabric · Matching performance mods and Rocket Client where available'}</p>
+        <p>{packVersion === recommendedVersion ? 'Fabric · 68 mods, resource packs, shaders, and Rocket Client · About 302 MiB on first download' : 'Fabric · Performance, visuals, and quality-of-life mods from Tuff, matched to your Minecraft version'}</p>
         <label className="field"><span>Rocket Pack Minecraft version</span><select value={packVersion} disabled={busy || installingPack} onChange={(event) => { setPackVersion(event.target.value); setPackInstalled(false); }}>
           <option value={recommendedVersion}>{recommendedVersion} · Full pack</option>
-          {packVersions.map((version) => <option key={version.id} value={version.id}>{version.id} · Starter pack</option>)}
+          {packVersions.map((version) => <option key={version.id} value={version.id}>{version.id} · Version-matched pack</option>)}
         </select></label>
         {packListError && !offline && <p>{packListError}</p>}
         <button type="button" className="button primary small-button" disabled={busy || offline || installingPack || packInstalled} onClick={() => void installPack()}>
@@ -130,8 +130,8 @@ export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPl
         {offline && <p>Go online to download the pack.</p>}
         {packInstalled && <button className="button secondary small-button" onClick={onPlay}>Open Launch Pad</button>}
         {installingPack && packProgress && <div className="pack-progress">
-          <p role="status">{packProgress[0]} of {packProgress[1]} files verified</p>
-          <progress className="game-progress" aria-label="Rocket Pack files verified" value={packProgress[0]} max={packProgress[1]} />
+          <p role="status">{packProgress[0]} of {packProgress[1]} pack steps complete</p>
+          <progress className="game-progress" aria-label="Rocket Pack setup progress" value={packProgress[0]} max={packProgress[1]} />
         </div>}
       </div>
     </section>}
