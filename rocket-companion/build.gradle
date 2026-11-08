@@ -47,7 +47,7 @@ def poseStack = minor < 20
 def legacyFps = poseStack && !(game in ['1.19.3', '1.19.4'])
 def apiVersion = api.contains('+') ? api : "${api}+${game}"
 
-version = "2.1.0+mc${game}"
+version = "2.2.0+mc${game}"
 
 base {
     archivesName = 'rocketlauncher-client'

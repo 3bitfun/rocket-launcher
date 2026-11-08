@@ -6,7 +6,7 @@ import static com.rocketlauncher.companion.RocketStyle.*;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 final class HudLayoutScreen extends ClientPlatform.PointerScreen {
     private static final HudModule[] MODULES = HudModule.values();
@@ -167,8 +167,8 @@ final class HudLayoutScreen extends ClientPlatform.PointerScreen {
     @Override
     boolean moveSelection(int key) {
         if (getFocused() != selection || preview != null) return false;
-        int dx = key == GLFW.GLFW_KEY_LEFT ? -1 : key == GLFW.GLFW_KEY_RIGHT ? 1 : 0;
-        int dy = key == GLFW.GLFW_KEY_UP ? -1 : key == GLFW.GLFW_KEY_DOWN ? 1 : 0;
+        int dx = key == InputConstants.KEY_LEFT ? -1 : key == InputConstants.KEY_RIGHT ? 1 : 0;
+        int dy = key == InputConstants.KEY_UP ? -1 : key == InputConstants.KEY_DOWN ? 1 : 0;
         if (dx == 0 && dy == 0) return false;
         Area area = area();
         int labelWidth = Math.min(area.width(), widgetWidth(selected.value(minecraft)));
