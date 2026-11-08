@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.@IDENTIFIER@;
@@ -40,6 +41,12 @@ final class ClientPlatform {
         abstract boolean grab(double x, double y, int button);
         abstract boolean drag(double x, double y, int button);
         abstract boolean drop(int button);
+        abstract boolean moveSelection(int key);
+
+        @Override
+        public boolean keyPressed(KeyEvent event) {
+            return moveSelection(event.key()) || super.keyPressed(event);
+        }
 
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {

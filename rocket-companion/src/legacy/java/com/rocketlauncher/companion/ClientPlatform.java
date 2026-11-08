@@ -36,6 +36,12 @@ final class ClientPlatform {
         abstract boolean grab(double x, double y, int button);
         abstract boolean drag(double x, double y, int button);
         abstract boolean drop(int button);
+        abstract boolean moveSelection(int key);
+
+        @Override
+        public boolean keyPressed(int key, int scanCode, int modifiers) {
+            return moveSelection(key) || super.keyPressed(key, scanCode, modifiers);
+        }
 
         @Override
         public boolean mouseClicked(double x, double y, int button) {

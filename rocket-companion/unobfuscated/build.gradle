@@ -40,6 +40,8 @@ def generateSources = tasks.register('generateSources', Copy) {
         def adapted = line.replace('@IDENTIFIER@', 'Identifier')
             .replace('GuiGraphics', 'GuiGraphicsExtractor')
             .replace('void render(GuiGraphicsExtractor', 'void extractRenderState(GuiGraphicsExtractor')
+            .replace('void renderWidget(GuiGraphicsExtractor', 'void extractContents(GuiGraphicsExtractor')
+            .replace('void renderBackground(GuiGraphicsExtractor', 'void extractBackground(GuiGraphicsExtractor')
             .replace('super.render(graphics', 'super.extractRenderState(graphics')
             .replace('.drawString(', '.text(')
             .replace('.drawCenteredString(', '.centeredText(')

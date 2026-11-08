@@ -100,11 +100,18 @@ if (poseStack) {
                 .replace('graphics.fill(', 'GuiComponent.fill(graphics, ')
                 .replace('graphics.drawCenteredString(', 'GuiComponent.drawCenteredString(graphics, ')
                 .replace('graphics.drawString(', 'GuiComponent.drawString(graphics, ')
-                .replace('enabled ? TEXT : SUBTLE, false)', 'enabled ? TEXT : SUBTLE)')
             if (legacyFps) {
                 adapted = adapted.replace('Button.builder(label, press).bounds(x, y, width, 20).build()',
                     'new Button(x, y, width, 20, label, press)')
             }
+            if (minor < 19 || game in ['1.19', '1.19.1', '1.19.2']) {
+                adapted = adapted.replace('label, press, DEFAULT_NARRATION)', 'label, press)')
+            }
+            if (game != '1.19.4') {
+                adapted = adapted.replace('void renderWidget(PoseStack', 'void renderButton(PoseStack')
+            }
+            adapted = adapted.replace('void renderBackground(PoseStack graphics, int mouseX, int mouseY, float delta)',
+                'void renderBackground(PoseStack graphics)')
             if (minor < 19) {
                 adapted = adapted.replace('Component.translatable("rocket_companion." + key, arguments)',
                     'new net.minecraft.network.chat.TranslatableComponent("rocket_companion." + key, arguments)')
@@ -113,6 +120,20 @@ if (poseStack) {
         }
     }
     sourceSets.main.java.setSrcDirs([generatePlatform, backport])
+} else if (patch >= 11 || game in ['1.20', '1.20.1']) {
+    def shared = tasks.register('generateSharedScreens', Copy) {
+        from 'src/main/java'
+        into layout.buildDirectory.dir('generated/rocket-shared')
+        inputs.property 'game', game
+        filter { line ->
+            if (patch >= 11) {
+                return line.replace('void renderWidget(GuiGraphics', 'void renderContents(GuiGraphics')
+            }
+            line.replace('void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta)',
+                'void renderBackground(GuiGraphics graphics)')
+        }
+    }
+    sourceSets.main.java.setSrcDirs([generatePlatform, shared])
 }
 
 tasks.withType(JavaCompile).configureEach {
