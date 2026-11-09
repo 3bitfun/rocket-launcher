@@ -5,7 +5,6 @@ import { native, errorMessage } from '../../services/native';
 import { Modal } from '../../components/ui/Modal';
 import { PathField, Spinner, Toggle } from '../../components/ui/Primitives';
 import { LauncherUpdates } from './LauncherUpdates';
-import { ProfileEditor } from './ProfileEditor';
 
 const accents = ['#709DEB', '#FF704D', '#E4B75E', '#66BD9E', '#78A5EF', '#B19AE8', '#E68DA8'];
 
@@ -16,6 +15,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
   const [signingIn, setSigningIn] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
   const [offlineName, setOfflineName] = useState('');
+  const [rename, setRename] = useState<{ id: string; name: string } | null>(null);
   const [changingOffline, setChangingOffline] = useState(false);
   const [logs, setLogs] = useState<string | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(false);
@@ -29,6 +29,7 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
   const dirty = JSON.stringify(draft) !== JSON.stringify(snapshot.settings);
   const activeAccount = accounts?.profiles.find((profile) => profile.id === accounts.activeId);
   function applyAccounts(value: AccountsSummary) {
+    setRename(null);
     setAccounts(value);
     onAuthStateChanged?.(value);
   }
@@ -76,6 +77,14 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
     } catch (reason) { setError(errorMessage(reason)); }
     finally { setAccountBusy(false); }
   }
+  async function renameOfflineAccount() {
+    if (!rename) return;
+    setAccountBusy(true);
+    setError(null);
+    try { applyAccounts(await native.renameOfflineProfile(rename.id, rename.name)); }
+    catch (reason) { setError(errorMessage(reason)); }
+    finally { setAccountBusy(false); }
+  }
   async function signOut(id: string) {
     setAccountBusy(true);
     setError(null);
@@ -100,7 +109,18 @@ export function Settings({ snapshot, busy, onSave, onDirtyChange, onAuthStateCha
           {accounts && accounts.profiles.length > 1 && <select aria-label="Active account" value={accounts.activeId ?? ''} disabled={accountBusy || signingIn || changingOffline} onChange={(event) => void selectAccount(event.target.value)}>{accounts.profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.type === 'local_test' ? `Local Test · ${profile.name}` : profile.type === 'offline' ? `Offline · ${profile.name}` : `Microsoft · ${profile.name}`}</option>)}</select>}
           <button type="button" className="button secondary small-button" onClick={() => void signIn()} disabled={busy || signingIn || accountBusy || Boolean(accounts?.offline)}>{signingIn ? <Spinner size={15} /> : <LogIn size={15} />}{activeAccount ? 'Sign in / switch' : 'Sign in'}</button>
         </div>
-        {activeAccount && activeAccount.type !== 'local_test' && <ProfileEditor key={activeAccount.id} profile={activeAccount} offline={accounts?.offline ?? false} disabled={accountBusy || signingIn || changingOffline} onSaved={applyAccounts} />}
+        {activeAccount?.type === 'offline' && (rename ? <div className="setting-row account-rename">
+          <label className="field"><span>Rename offline profile</span><input maxLength={16} value={rename.name}
+            disabled={accountBusy} onChange={(e) => setRename({ ...rename, name: e.target.value })} />
+            <small>Changing the name changes the offline player ID that worlds and servers see.</small>
+          </label>
+          <div className="inline-actions">
+            <button type="button" className="button secondary small-button" disabled={accountBusy} onClick={() => setRename(null)}>Cancel</button>
+            <button type="button" className="button primary small-button" disabled={accountBusy || !/^[A-Za-z0-9_]{3,16}$/.test(rename.name) || rename.name === activeAccount.name}
+              onClick={() => void renameOfflineAccount()}>Save username</button>
+          </div>
+        </div> : <button type="button" className="button secondary small-button" disabled={accountBusy || signingIn || changingOffline}
+          onClick={() => setRename({ id: activeAccount.id, name: activeAccount.name })}>Rename offline profile</button>)}
         <div className="setting-row"><label className="field"><span>New offline username</span><input value={offlineName} onChange={(event) => setOfflineName(event.target.value)} maxLength={16} placeholder="Your Minecraft name" /></label><button type="button" className="button secondary small-button" onClick={() => void createOfflineAccount()} disabled={busy || accountBusy || signingIn || !/^[A-Za-z0-9_]{3,16}$/.test(offlineName)}>{accountBusy ? <Spinner size={15} /> : <UserRound size={15} />}Use offline username</button></div>
         <div className="notice"><Info size={16} /><span>Sign-in needs an approved Microsoft app registration configured as ROCKET_MICROSOFT_CLIENT_ID. Tokens are stored in Windows Credential Manager.</span></div>
         {import.meta.env.DEV && <div className="inline-actions"><button type="button" className="button secondary small-button" onClick={() => void createLocalTestAccount()} disabled={busy || accountBusy || signingIn}>{accountBusy ? <Spinner size={15} /> : <UserRound size={15} />}Create Test Account</button></div>}

@@ -36,37 +36,6 @@ struct Entitlement {
 struct Profile {
     id: String,
     name: String,
-    #[serde(default)]
-    skins: Vec<Texture>,
-    #[serde(default)]
-    capes: Vec<Texture>,
-}
-
-#[derive(Deserialize)]
-struct Texture {
-    url: String,
-    state: String,
-    variant: Option<String>,
-}
-
-impl Profile {
-    fn appearance(&self) -> super::accounts::Appearance {
-        let active = |textures: &[Texture]| textures.iter().filter(|item| item.state == "ACTIVE")
-            .find_map(|item| {
-                let hash = item.url.strip_prefix("https://textures.minecraft.net/texture/")
-                    .or_else(|| item.url.strip_prefix("http://textures.minecraft.net/texture/"))?;
-                if hash.is_empty() || hash.len() > 128 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-                    return None;
-                }
-                Some((format!("https://textures.minecraft.net/texture/{hash}"), item.variant.as_deref() == Some("SLIM")))
-            });
-        let skin = active(&self.skins);
-        super::accounts::Appearance {
-            slim: skin.as_ref().is_some_and(|(_, slim)| *slim),
-            skin: skin.map(|(url, _)| url),
-            cape: active(&self.capes).map(|(url, _)| url),
-        }
-    }
 }
 
 pub struct VerifiedAccount {
@@ -75,7 +44,6 @@ pub struct VerifiedAccount {
     pub access_token: String,
     pub expires_at: u64,
     pub user_hash: String,
-    pub appearance: super::accounts::Appearance,
 }
 
 fn malformed() -> AppError {
@@ -167,17 +135,13 @@ async fn get<T: serde::de::DeserializeOwned>(
 
 /// Returns an account only after Xbox authentication, Minecraft ownership and profile checks.
 pub async fn check_profile(token: &str, uuid: &str) -> Result<()> {
-    profile_appearance(token, uuid).await.map(|_| ())
-}
-
-pub async fn profile_appearance(token: &str, uuid: &str) -> Result<super::accounts::Appearance> {
     let client = reqwest::Client::builder().https_only(true).redirect(reqwest::redirect::Policy::none())
         .timeout(Duration::from_secs(7)).build().map_err(|_| malformed())?;
     let response = client.get("https://api.minecraftservices.com/minecraft/profile").bearer_auth(token).send().await
         .map_err(|_| AppError::new("AUTH_NETWORK", "Could not contact Minecraft Services."))?;
     let profile: Profile = parse(response, "Minecraft profile").await?;
     if !valid_profile(&profile) || !profile.id.eq_ignore_ascii_case(uuid) { return Err(malformed()); }
-    Ok(profile.appearance())
+    Ok(())
 }
 
 pub async fn verify(microsoft_access_token: &str) -> Result<VerifiedAccount> {
@@ -243,7 +207,6 @@ pub async fn verify(microsoft_access_token: &str) -> Result<VerifiedAccount> {
         return Err(malformed());
     }
     Ok(VerifiedAccount {
-        appearance: profile.appearance(),
         uuid: profile.id.to_ascii_lowercase(),
         name: profile.name,
         access_token: minecraft.access_token,
@@ -265,15 +228,15 @@ mod tests {
         assert!(owned(&yes));
         assert!(valid_profile(&Profile {
             id: "0123456789abcdef0123456789abcdef".into(),
-            name: "Player_1".into(), skins: vec![], capes: vec![]
+            name: "Player_1".into()
         }));
         assert!(!valid_profile(&Profile {
             id: "invalid".into(),
-            name: "Player_1".into(), skins: vec![], capes: vec![]
+            name: "Player_1".into()
         }));
         assert!(!valid_profile(&Profile {
             id: "0123456789abcdef0123456789abcdef".into(),
-            name: "bad name".into(), skins: vec![], capes: vec![]
+            name: "bad name".into()
         }));
     }
     #[test]

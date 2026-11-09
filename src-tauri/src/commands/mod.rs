@@ -45,16 +45,10 @@ pub async fn create_offline_account(state: State<'_, LauncherState>, jobs: State
 }
 
 #[tauri::command]
-pub async fn get_profile_appearance(state: State<'_, LauncherState>, id: String) -> Result<accounts::Appearance> {
-    let data = state.store()?.paths.data.clone();
-    accounts::profile_appearance(&data, &id).await
-}
-
-#[tauri::command]
-pub fn edit_offline_profile(state: State<'_, LauncherState>, jobs: State<'_, AccountJobs>, id: String, name: String, skin: Option<String>, slim: bool) -> Result<AccountsSummary> {
+pub fn rename_offline_profile(state: State<'_, LauncherState>, jobs: State<'_, AccountJobs>, id: String, name: String) -> Result<AccountsSummary> {
     let _guard = jobs.0.try_lock().map_err(|_| accounts::busy())?;
     let data = state.store()?.paths.data.clone();
-    Ok(accounts::edit_offline(&data, id, name, skin, slim)?.summary())
+    Ok(accounts::rename_offline(&data, id, name)?.summary())
 }
 
 #[tauri::command]

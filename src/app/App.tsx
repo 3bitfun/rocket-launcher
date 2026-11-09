@@ -101,11 +101,11 @@ export default function App() {
   return <MotionConfig reducedMotion={reduced ? 'always' : 'user'} transition={{ duration: reduced ? 0 : 0.2 }}>
     <div className="app-shell"><a className="skip-link" href="#main-content">Skip to content</a><Sidebar page={page} onNavigate={navigate} count={snapshot.instances.length} version={snapshot.appVersion} account={activeAccount} offline={accounts?.offline ?? false} />
       <main ref={main} id="main-content" tabIndex={-1}><header className="page-header">
-        <div><h1>{pageDetails[page].title}</h1><p>{pageDetails[page].subtitle}</p></div>
+        <div className="page-header-title"><span className="page-section-mark" aria-hidden="true" /><div><h1>{pageDetails[page].title}</h1><p>{pageDetails[page].subtitle}</p></div></div>
         {downloading ? <button className="button secondary small-button" onClick={() => navigate('downloads')}><Download size={15} /> View download</button>
           : accounts?.offline && <span className="tag">Offline mode</span>}
       </header>
-        <motion.div key={page} className="page-content" initial={reduced ? false : { opacity: 0.55, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? 0 : 0.18, ease: 'easeOut' }}>
+        <motion.div key={page} className="page-content" initial={reduced ? false : { opacity: 0.45, y: 9 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? 0 : 0.28, ease: [0.18, 0.72, 0.28, 1] }}>
           {page === 'launchpad' && <LaunchPad snapshot={snapshot} busy={busy} status={selected && game.status(selected)} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onSelect={select} onNavigate={navigate} onInstall={(instance) => void game.run(instance, 'install')} onIgnite={(instance) => void game.run(instance, 'launch')} onCheck={(instance) => void game.check(instance.id)} />}
           {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onDuplicate={duplicate} onDelete={openRemoval} />}
           {page === 'downloads' && <Downloads catalog={catalog} error={catalogError} fetching={fetching} onRefresh={() => void launcher.refreshVersions()} progress={game.download} onRetry={!busy && retry ? () => void game.run(retry, 'install') : undefined} />}

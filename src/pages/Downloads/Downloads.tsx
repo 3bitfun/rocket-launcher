@@ -6,11 +6,14 @@ const mib = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MiB`;
 
 export function Downloads({ catalog, error, fetching, onRefresh, progress, onRetry }: { catalog: VersionCatalog | null; error: string | null; fetching: boolean; onRefresh: () => void; progress?: DownloadProgress | null; onRetry?: () => void }) {
   const warning = error || catalog?.warning;
+  const percent = progress?.totalBytes ? Math.min(100, Math.floor(progress.verifiedBytes / progress.totalBytes * 100)) : null;
   return <>
     <div className="page-intro"><div><h2>Installation activity</h2><p>View download progress or retry a failed installation.</p></div></div>
     {progress ? <section className="panel catalogue-panel download-activity" aria-label="Minecraft installation">
       <div className="section-heading"><h2>Minecraft {progress.version}</h2><span className="tag">{progress.stage === 'complete' ? 'Verified' : progress.stage === 'error' ? 'Failed' : progress.stage === 'installing' ? 'Installing' : 'Downloading'}</span></div>
-      <p className="launch-status">{progress.current}</p>
+      <div className="activity-readout"><p className="launch-status">{progress.current}</p>
+        {percent !== null && progress.stage !== 'error' && <strong aria-hidden="true">{percent}%</strong>}
+      </div>
       {progress.totalBytes && progress.stage !== 'error' ? <progress className="game-progress activity-progress" data-stage={progress.stage} aria-label="Verified Minecraft files" value={progress.verifiedBytes} max={progress.totalBytes} /> :
         progress.stage === 'downloading' ? <div className="indeterminate-track" role="status" aria-label="Resolving Minecraft download size"><span /></div> : null}
       <div className="catalogue-source"><span>{mib(progress.transferredBytes)} transferred{progress.stage === 'downloading' ? ` · ${mib(progress.bytesPerSecond)}/s` : ''}</span>

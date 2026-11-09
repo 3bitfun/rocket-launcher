@@ -60,11 +60,10 @@ export interface AppSnapshot {
   paths: { data: string; cache: string; logs: string; config: string };
 }
 export interface AccountsSummary {
-  profiles: { id: string; name: string; type: 'microsoft' | 'local_test' | 'offline'; appearance?: ProfileAppearance }[];
+  profiles: { id: string; name: string; type: 'microsoft' | 'local_test' | 'offline' }[];
   activeId: string | null;
   offline: boolean;
 }
-export interface ProfileAppearance { skin: string | null; cape: string | null; slim: boolean }
 export interface InstanceInput {
   name: string;
   version: string;

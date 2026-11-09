@@ -35,6 +35,7 @@ export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onManage =
     <section className="play-panel" aria-label={selected ? 'Selected instance' : 'Getting started'}>
       <FlightScene readiness={selected?.readiness} />
       <div className="play-content">
+        <span className="play-kicker"><Rocket size={13} /> ROCKET LAUNCH PAD</span>
         <div className="play-context">
           {selected ? <label className="play-picker">
             <span>Selected instance</span>
@@ -44,7 +45,7 @@ export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onManage =
             }}>
               {snapshot.instances.map((instance) => <option key={instance.id} value={instance.id}>{instance.name}</option>)}
             </select>
-          </label> : <span className="eyebrow">MINECRAFT JAVA EDITION</span>}
+          </label> : <span className="play-edition">Minecraft Java Edition</span>}
           {selected && <button className="icon-button play-edit" title="Manage instance" aria-label="Manage selected instance" aria-haspopup="dialog" onClick={() => onManage(selected)}><Settings2 size={16} /></button>}
         </div>
         <h2 className="play-title" key={selected?.id ?? 'first-instance'}>{selected?.name ?? 'Set up your first instance'}</h2>

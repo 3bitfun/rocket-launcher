@@ -1,7 +1,7 @@
 import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { AccountsSummary, AppSnapshot, DownloadProgress, FabricLoaderVersion, GameStatus, InstanceInput, InstalledMod, ModrinthPage, ModrinthVersion, RocketClientStatus, Settings, VersionCatalog } from '../types';
-import type { ModpackDetails, ModpackFilters, ModpackProgress, MultiplayerAddon, ProfileAppearance, SavedServer, ServerStatus } from '../types';
+import type { ModpackDetails, ModpackFilters, ModpackProgress, MultiplayerAddon, SavedServer, ServerStatus } from '../types';
 
 export const isDesktop = () => isTauri();
 
@@ -13,8 +13,7 @@ function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
 export const native = {
   accounts: () => call<AccountsSummary>('get_accounts'),
   createOfflineAccount: (name: string) => call<AccountsSummary>('create_offline_account', { name }),
-  editOfflineProfile: (id: string, name: string, skin: string | null, slim: boolean) => call<AccountsSummary>('edit_offline_profile', { id, name, skin, slim }),
-  profileAppearance: (id: string) => call<ProfileAppearance>('get_profile_appearance', { id }),
+  renameOfflineProfile: (id: string, name: string) => call<AccountsSummary>('rename_offline_profile', { id, name }),
   signIn: () => call<AccountsSummary>('microsoft_sign_in'),
   selectAccount: (id: string) => call<AccountsSummary>('select_account', { id }),
   createTestAccount: () => call<AccountsSummary>('create_local_test_account'),
