@@ -11,7 +11,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
   offline?: boolean;
   onRefresh: () => void; onSave: (input: InstanceInput, onPackProgress?: (progress: [number, number]) => void) => Promise<boolean>; onClose: () => void;
 }) {
-  const [name, setName] = useState(instance?.name ?? '');
+  const [name, setName] = useState(instance?.name ?? 'Rocket Pack');
   const [version, setVersion] = useState(instance?.version ?? '');
   const [loader, setLoader] = useState<Loader>(instance?.loader ?? 'fabric');
   const [rocketPack, setRocketPack] = useState(!instance);
@@ -23,7 +23,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
   const [fabricRevision, setFabricRevision] = useState(0);
   const [ram, setRam] = useState(instance?.ramMb ?? settings.defaultRamMb);
   const [java, setJava] = useState(instance?.javaPath ?? '');
-  const [parent, setParent] = useState(settings.minecraftDirectory);
+  const [parent, setParent] = useState(`${settings.minecraftDirectory}\\Rocket`);
   const [query, setQuery] = useState('');
   const [showSnapshots, setShowSnapshots] = useState(settings.showSnapshots);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +66,8 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
 
   function selectLoader(next: Loader) {
     setRocketPack(false);
+    if (!instance && next !== 'fabric' && name === 'Rocket Pack') setName('');
+    if (!instance) setParent(settings.minecraftDirectory);
     if (next === loader) return;
     setLoader(next);
     setLoaderVersion(instance?.loader === next && instance.version === selectedVersion ? instance.loaderVersion : null);
@@ -111,6 +113,8 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
           {!instance && <button type="button" className={`loader-option ${rocketPack ? 'selected' : ''}`} onClick={() => {
             selectLoader('fabric');
             setRocketPack(true);
+            if (!name.trim()) setName('Rocket Pack');
+            setParent(`${settings.minecraftDirectory}\\Rocket`);
           }} aria-pressed={rocketPack}>
             <Rocket size={19} /><div><strong>Fabric Rocket Pack</strong><small>Recommended mods matched to your version</small></div>{rocketPack && <span className="tag">Selected</span>}
           </button>}

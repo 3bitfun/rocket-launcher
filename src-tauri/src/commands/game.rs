@@ -271,7 +271,7 @@ pub async fn install_rocket_pack(
             return Err(AppError::new("PACK", "Choose a Minecraft release for Rocket Pack."));
         }
         let input = input.unwrap_or_else(|| crate::models::InstanceInput {
-            name: if version == "1.21.11" { "Rocket Pack".into() } else { format!("Rocket Pack {version}") },
+            name: format!("Rocket Pack {version}"),
             version: version.clone(),
             loader: crate::models::Loader::Fabric,
             loader_version: None,
@@ -282,8 +282,17 @@ pub async fn install_rocket_pack(
         if input.version != version || input.loader != crate::models::Loader::Fabric {
             return Err(AppError::new("PACK", "Rocket Pack requires a matching Fabric instance."));
         }
+        if let Some(existing) = store.config.instances.iter().find(|instance| {
+            instance.name.starts_with("Rocket Pack")
+                && instance.version == version
+                && instance.loader == crate::models::Loader::Fabric
+        }) {
+            let id = existing.id.clone();
+            drop(store);
+            return state.store()?.select_instance(&id);
+        }
         let parent = input.parent_directory.clone()
-            .unwrap_or_else(|| settings.minecraft_directory.clone());
+            .unwrap_or_else(|| settings.minecraft_directory.join("Rocket"));
         (
             input,
             parent,
@@ -774,6 +783,9 @@ pub async fn ignite_game(
         let installed = verify(&input, false, true)
             .await?
             .ok_or_else(|| AppError::new("MISSING_FILES", "Install Minecraft before launching."))?;
+        if jobs.processes.cancelled(&id) {
+            return Err(AppError::new("ABORTED", "Minecraft launch aborted."));
+        }
         let platform = Platform::windows()?;
         let java = java::resolve(
             input.java,
@@ -860,6 +872,11 @@ pub async fn ignite_game(
         publish_game(&app, GameStatus::new(&id, readiness, &error.message));
     }
     result
+}
+
+#[tauri::command]
+pub fn abort_game(jobs: State<'_, GameJobs>, instance_id: String) -> Result<()> {
+    jobs.processes.cancel(&instance_id)
 }
 
 #[cfg(test)]

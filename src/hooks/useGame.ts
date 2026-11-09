@@ -99,6 +99,16 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
     }
   }
 
+  async function abort(instance: Instance) {
+    try {
+      await native.abort(instance.id);
+      publish({ instanceId: instance.id, readiness: 'error', message: 'Launch aborted.', exitCode: null });
+      notify({ kind: 'success', message: 'Minecraft launch stopped.' });
+    } catch (error) {
+      notify({ kind: 'error', message: errorMessage(error) });
+    }
+  }
+
   function status(instance: Instance): GameStatus {
     if (download?.instanceId === instance.id && download.version === instance.version &&
         (download.stage === 'downloading' || download.stage === 'installing')) {
@@ -107,5 +117,5 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
     return statuses[instance.id] ?? { instanceId: instance.id, readiness: instance.readiness, message: 'Checking local files…', exitCode: null };
   }
 
-  return { status, download, working, run, check };
+  return { status, download, working, run, abort, check };
 }

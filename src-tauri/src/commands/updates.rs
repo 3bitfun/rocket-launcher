@@ -15,6 +15,10 @@ use tokio::io::{AsyncWriteExt, BufWriter};
 
 const API: &str = "https://api.github.com/repos/3bitfun/rocket-launcher/releases";
 const RELEASES: &str = "https://github.com/3bitfun/rocket-launcher/releases";
+// The unauthenticated GitHub API is rate limited. Keep a tiny signed-by-hash
+// manifest in the repository so update checks can still work when that quota
+// is exhausted (the normal API remains the preferred source).
+const FALLBACK_MANIFEST: &str = "https://raw.githubusercontent.com/3bitfun/rocket-launcher/master/latest-release.json";
 const MAX_INSTALLER_BYTES: u64 = 128 * 1024 * 1024;
 const STAGED_PREFIX: &str = "rocket-update-";
 
@@ -31,6 +35,13 @@ struct Asset {
     state: String,
     size: u64,
     digest: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct FallbackManifest {
+    tag_name: String,
+    draft: bool,
+    assets: Vec<Asset>,
 }
 
 impl Asset {
@@ -96,10 +107,22 @@ async fn github_metadata<T: serde::de::DeserializeOwned>(url: &str, timeout: u64
         .map_err(|_| error())
 }
 
+async fn fallback_release(timeout: u64) -> Result<Release> {
+    let manifest: FallbackManifest = github_metadata(FALLBACK_MANIFEST, timeout).await?;
+    Ok(Release {
+        tag_name: manifest.tag_name,
+        draft: manifest.draft,
+        assets: manifest.assets,
+    })
+}
+
 #[tauri::command]
 pub async fn check_launcher_update(state: State<'_, LauncherState>) -> Result<Option<String>> {
     let (_, timeout) = update_settings(&state)?;
-    let releases: Vec<Release> = github_metadata(&format!("{API}?per_page=30"), timeout).await?;
+    let releases: Vec<Release> = match github_metadata(&format!("{API}?per_page=30"), timeout).await {
+        Ok(releases) => releases,
+        Err(_) => vec![fallback_release(timeout).await?],
+    };
     Ok(releases
         .into_iter()
         .filter_map(|release| {
@@ -231,7 +254,10 @@ pub async fn install_launcher_update(
     let (directory, timeout) = update_settings(&state)?;
     let _game_guard = jobs.lock_for_update()?;
     let tag = format!("v{release_version}");
-    let release: Release = github_metadata(&format!("{API}/tags/{tag}"), timeout).await?;
+    let release: Release = match github_metadata(&format!("{API}/tags/{tag}"), timeout).await {
+        Ok(release) => release,
+        Err(_) => fallback_release(timeout).await?,
+    };
     if release.draft || release.tag_name != tag {
         return Err(update_error(
             "The selected launcher release is unavailable.",

@@ -9,7 +9,7 @@ use crate::{
 };
 use serde::Serialize;
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Arc, Mutex},
@@ -282,41 +282,74 @@ impl GameStatus {
     }
 }
 
+#[derive(Default)]
+struct ProcessState {
+    running: HashSet<String>,
+    cancelled: HashSet<String>,
+    pids: HashMap<String, u32>,
+}
+
 #[derive(Clone, Default)]
-pub struct ProcessManager(Arc<Mutex<HashSet<String>>>);
+pub struct ProcessManager(Arc<Mutex<ProcessState>>);
 pub struct Reservation {
     manager: ProcessManager,
     id: String,
 }
 impl Drop for Reservation {
     fn drop(&mut self) {
-        if let Ok(mut running) = self.manager.0.lock() {
-            running.remove(&self.id);
+        if let Ok(mut state) = self.manager.0.lock() {
+            state.running.remove(&self.id);
+            state.cancelled.remove(&self.id);
+            state.pids.remove(&self.id);
         }
     }
 }
 impl ProcessManager {
     pub fn reserve(&self, id: &str) -> Result<Reservation> {
-        let mut running = self
+        let mut state = self
             .0
             .lock()
             .map_err(|_| AppError::new("PROCESS", "Process manager is unavailable."))?;
-        if !running.insert(id.into()) {
+        if !state.running.insert(id.into()) {
             return Err(AppError::new(
                 "PROCESS",
                 "This instance is already launching or running.",
             ));
         }
+        state.cancelled.remove(id);
         Ok(Reservation {
             manager: self.clone(),
             id: id.into(),
         })
     }
     pub fn busy(&self) -> bool {
-        self.0.lock().map_or(true, |set| !set.is_empty())
+        self.0.lock().map_or(true, |state| !state.running.is_empty())
     }
     pub fn contains(&self, id: &str) -> bool {
-        self.0.lock().is_ok_and(|set| set.contains(id))
+        self.0.lock().is_ok_and(|state| state.running.contains(id))
+    }
+    pub fn cancel(&self, id: &str) -> Result<()> {
+        let pid = {
+            let mut state = self.0.lock().map_err(|_| AppError::new("PROCESS", "Process manager is unavailable."))?;
+            if !state.running.contains(id) {
+                return Err(AppError::new("PROCESS", "Nothing is currently launching for this instance."));
+            }
+            state.cancelled.insert(id.into());
+            state.pids.get(id).copied()
+        };
+        if let Some(pid) = pid {
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("taskkill").args(["/PID", &pid.to_string(), "/T", "/F"]).status();
+            }
+        }
+        Ok(())
+    }
+    pub fn cancelled(&self, id: &str) -> bool {
+        self.0.lock().is_ok_and(|state| state.cancelled.contains(id))
+    }
+    pub fn register_pid(&self, id: &str, pid: u32) {
+        if let Ok(mut state) = self.0.lock() { state.pids.insert(id.into(), pid); }
     }
 }
 
@@ -428,6 +461,12 @@ pub async fn start(
         return Err(authentication_required());
     }
     let mut child = spawn(&mut command)?;
+    let manager = reservation.manager.clone();
+    manager.register_pid(&instance.id, child.id().unwrap_or_default());
+    if manager.cancelled(&instance.id) {
+        let _ = child.kill().await;
+        return Err(AppError::new("ABORTED", "Minecraft launch aborted."));
+    }
     #[cfg(windows)]
     let job = match windows_job(&child) {
         Ok(job) => job,

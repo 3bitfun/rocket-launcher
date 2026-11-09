@@ -1,0 +1,12 @@
+{
+  "tag_name": "v0.1.17",
+  "draft": false,
+  "assets": [
+    {
+      "name": "Rocket.Launcher_0.1.17_x64-setup.exe",
+      "state": "uploaded",
+      "size": 10236394,
+      "digest": "sha256:eb5999c8787b612072d6f219909d1d84cf3620e1f86943c72224b8021903320a"
+    }
+  ]
+}

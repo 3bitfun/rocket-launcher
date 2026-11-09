@@ -1,5 +1,5 @@
-import { ArrowRight, Box, Cpu, Download, Plus, Puzzle, Rocket, Settings2, Users, Wrench } from 'lucide-react';
-import type { AppSnapshot, GameStatus, Instance, Page } from '../../types';
+import { ArrowRight, Box, Cpu, Download, Plus, Puzzle, Rocket, Settings2, Square, Users, Wrench } from 'lucide-react';
+import type { AppSnapshot, GameStatus, Instance, Page, VersionCatalog } from '../../types';
 import { loaderName } from '../../services/loaders';
 import { readinessLabel } from '../../services/readiness';
 import { InstanceCard } from '../../components/instances/InstanceCard';
@@ -12,15 +12,18 @@ const shortcuts = [
   { page: 'downloads', icon: Download, title: 'Downloads', detail: 'Check installation progress' },
 ] as const;
 
-export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onManage = onEdit, onSelect, onNavigate, onInstall, onIgnite, onCheck }: {
+export function LaunchPad({ snapshot, busy, catalog, status, onCreate, onEdit, onManage = onEdit, onSelect, onNavigate, onInstall, onIgnite, onAbort = () => {}, onSwitchVersion, onCheck }: {
   snapshot: AppSnapshot; busy: boolean;
+  catalog?: VersionCatalog | null;
   status?: GameStatus; onInstall: (instance: Instance) => void; onIgnite: (instance: Instance) => void; onCheck: (instance: Instance) => void;
+  onAbort?: (instance: Instance) => void;
+  onSwitchVersion?: (version: string) => void;
   onCreate: () => void; onEdit: (instance: Instance) => void; onManage?: (instance: Instance) => void; onSelect: (instance: Instance) => void; onNavigate: (page: Page) => void;
 }) {
   const selected = snapshot.instances.find((instance) => instance.id === snapshot.activeInstanceId);
   const readiness = selected?.readiness ?? 'checking';
   const recent = [...snapshot.instances].sort((a, b) => b.lastSelectedAt - a.lastSelectedAt).slice(0, 3);
-  const active = ['launching', 'running', 'downloading', 'installing'].includes(readiness);
+  const active = ['launching', 'running'].includes(readiness);
 
   const action = !selected ? { label: 'Create instance', icon: Plus, run: onCreate } :
     readiness === 'requires_download' ? { label: 'Install Minecraft', icon: Download, run: () => onInstall(selected) } :
@@ -48,6 +51,7 @@ export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onManage =
           </label> : <span className="play-edition">Minecraft Java Edition</span>}
           {selected && <button className="icon-button play-edit" title="Manage instance" aria-label="Manage selected instance" aria-haspopup="dialog" onClick={() => onManage(selected)}><Settings2 size={16} /></button>}
         </div>
+        {onSwitchVersion && <label className="play-picker play-version-picker"><span>Rocket Pack version</span><select value={selected?.version ?? ''} disabled={busy} onChange={(event) => onSwitchVersion(event.target.value)}><option value="" disabled>Choose a Minecraft version…</option>{[...new Set((catalog?.versions ?? []).filter((entry) => entry.type === 'release').map((entry) => entry.id).concat(selected ? [selected.version] : []))].map((version) => <option key={version} value={version}>Rocket Pack · {version}</option>)}</select></label>}
         <h2 className="play-title" key={selected?.id ?? 'first-instance'}>{selected?.name ?? 'Set up your first instance'}</h2>
         {selected ? <>
           <div className="play-meta">
@@ -61,7 +65,8 @@ export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onManage =
           </div>
         </> : <p className="play-empty">Choose a Minecraft version and mod loader, or start with Rocket Pack.</p>}
         <div className="play-actions">
-          <button className={`button primary ${ActionIcon === Rocket ? 'play-ignition' : ''}`} disabled={!action.run || busy} onClick={action.run} aria-describedby={status?.message ? 'launch-status' : undefined}><ActionIcon size={18} />{action.label}</button>
+          {active && selected ? <button className="button danger play-ignition" onClick={() => onAbort(selected)} aria-describedby={status?.message ? 'launch-status' : undefined}><Square size={16} />Abort launch</button>
+            : <button className={`button primary ${ActionIcon === Rocket ? 'play-ignition' : ''}`} disabled={!action.run || busy} onClick={action.run} aria-describedby={status?.message ? 'launch-status' : undefined}><ActionIcon size={18} />{action.label}</button>}
           {selected && readiness !== 'requires_download' && <button className="button secondary play-secondary" disabled={busy || active} onClick={() => onInstall(selected)}><Wrench size={16} />Repair files</button>}
           {!selected && <button className="button secondary play-secondary" onClick={() => onNavigate('mods')}><Puzzle size={16} />Browse Rocket Pack</button>}
         </div>

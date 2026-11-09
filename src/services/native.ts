@@ -22,6 +22,7 @@ export const native = {
   checkGame: (id: string) => call<GameStatus>('check_game', { id }),
   installGame: (id: string) => call<void>('install_game', { id }),
   ignite: (id: string, server?: string) => call<void>('ignite_game', server ? { id, server } : { id }),
+  abort: (id: string) => call<void>('abort_game', { instanceId: id }),
   savedServers: () => call<SavedServer[]>('saved_servers'),
   saveServer: (server: SavedServer) => call<SavedServer[]>('save_server', { server }),
   removeSavedServer: (id: string) => call<SavedServer[]>('remove_saved_server', { id }),
