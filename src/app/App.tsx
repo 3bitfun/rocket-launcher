@@ -39,6 +39,7 @@ export default function App() {
   const game = useGame(stored, launcher.setToast, accounts);
   const busy = launcher.busy || game.working || game.download?.stage === 'installing' || game.download?.stage === 'downloading';
   const [page, setPage] = useState<Page>('launchpad');
+  const [rocketSelection, setRocketSelection] = useState<{ instanceId: string | null } | null>(null);
   const main = useRef<HTMLElement>(null);
   const [editor, setEditor] = useState<Instance | 'new' | null>(null);
   const [managedId, setManagedId] = useState<string | null>(null);
@@ -83,7 +84,19 @@ export default function App() {
     setModsTarget(undefined);
     setPage(next);
   }
-  function select(instance: Instance) { if (instance.id !== snapshot?.activeInstanceId) void mutate(() => native.select(instance.id), `${instance.name} is on the launch pad.`); }
+  function select(instance: Instance) {
+    setRocketSelection(null);
+    if (instance.id !== snapshot?.activeInstanceId) {
+      void mutate(() => native.select(instance.id), `${instance.name} is on the launch pad.`);
+    }
+  }
+  function switchRocketVersion(version: string) {
+    void mutate(async () => {
+      const next = await native.installRocketPack(version, () => {});
+      setRocketSelection({ instanceId: next.activeInstanceId });
+      return next;
+    }, `Rocket Pack ${version} is on the launch pad.`);
+  }
   function openEditor(instance: Instance | 'new') { launcher.setToast(null); setEditor(instance); }
   function openRemoval(instance: Instance) { launcher.setToast(null); setRemoving(instance); }
   function openManager(instance: Instance) { launcher.setToast(null); setManagedId(instance.id); }
@@ -94,6 +107,8 @@ export default function App() {
   if (!isDesktop()) return <div className="startup-screen"><span className="brand-mark"><img src="/rocket.svg" alt="" /></span><h1>Rocket Launcher</h1><p>This is a native desktop application.<br />Open the Tauri app to use real storage and Minecraft versions.</p><code>npm run desktop</code><span className="tag"><Monitor size={14} /> Browser view · native features unavailable</span></div>;
   if (!snapshot) return <div className="startup-screen"><span className="brand-mark"><img src="/rocket.svg" alt="" /></span><h1>Rocket Launcher</h1>{launcher.startupError ? <><p role="alert" className="form-error">{launcher.startupError}</p><button className="button primary" onClick={() => void launcher.load()}>Try again</button></> : <><Spinner size={25} /><p>Preparing your launch pad…</p></>}</div>;
   const selected = snapshot.instances.find((instance) => instance.id === snapshot.activeInstanceId);
+  const rocketMode = rocketSelection?.instanceId === null ? 'choose'
+    : rocketSelection && rocketSelection.instanceId === selected?.id ? 'selected' : undefined;
   const managed = snapshot.instances.find((instance) => instance.id === managedId);
   const retry = snapshot.instances.find((instance) => instance.id === game.download?.instanceId && instance.version === game.download.version);
   const downloading = game.download?.stage === 'downloading' || game.download?.stage === 'installing';
@@ -106,7 +121,11 @@ export default function App() {
           : accounts?.offline && <span className="tag">Offline mode</span>}
       </header>
         <motion.div key={page} className="page-content" initial={reduced ? false : { opacity: 0.45, y: 9 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? 0 : 0.28, ease: [0.18, 0.72, 0.28, 1] }}>
-          {page === 'launchpad' && <LaunchPad snapshot={snapshot} catalog={catalog} busy={busy} status={selected && game.status(selected)} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onSelect={select} onNavigate={navigate} onInstall={(instance) => void game.run(instance, 'install')} onIgnite={(instance) => void game.run(instance, 'launch')} onAbort={(instance) => void game.abort(instance)} onSwitchVersion={(version) => { if (version !== selected?.version) void mutate(() => native.installRocketPack(version, () => {}), `Rocket Pack ${version} is ready on the launch pad.`); }} onCheck={(instance) => void game.check(instance.id)} />}
+          {page === 'launchpad' && <LaunchPad snapshot={snapshot} catalog={catalog} busy={busy}
+            rocketMode={rocketMode} onChooseRocket={() => setRocketSelection({ instanceId: null })} onSwitchVersion={switchRocketVersion}
+            status={selected && game.status(selected)} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager}
+            onSelect={select} onNavigate={navigate} onInstall={(instance) => void game.run(instance, 'install')}
+            onIgnite={(instance) => void game.run(instance, 'launch')} onAbort={(instance) => void game.abort(instance)} onCheck={(instance) => void game.check(instance.id)} />}
           {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onDuplicate={duplicate} onDelete={openRemoval} />}
           {page === 'downloads' && <Downloads catalog={catalog} error={catalogError} fetching={fetching} onRefresh={() => void launcher.refreshVersions()} progress={game.download} onRetry={!busy && retry ? () => void game.run(retry, 'install') : undefined} />}
           {page === 'mods' && <Mods snapshot={snapshot} catalog={catalog} offline={accounts?.offline ?? false} busy={busy} initialInstanceId={modsTarget} onPlay={() => navigate('launchpad')} onModpackInstalled={() => void launcher.load()} onInstallPack={(version, progress) => mutate(() => native.installRocketPack(version, progress), 'Rocket Pack instance created.')} />}
