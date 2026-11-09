@@ -555,6 +555,16 @@ main:focus { outline: none; }
 .pack-description p { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 8px; color: var(--muted); }
 .modrinth-version > .button { margin-top: 10px; }
 
+.multiplayer-page { display: grid; gap: 16px; }
+.multiplayer-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.multiplayer-fields .field { flex: 1 1 145px; }
+.multiplayer-server { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-top: 1px solid var(--border); padding: 12px 0; }
+.multiplayer-server:first-of-type { margin-top: 14px; }
+.multiplayer-server-info { flex: 1 1 180px; min-width: 0; }
+.multiplayer-server-info :is(strong, code, small) { display: block; overflow-wrap: anywhere; }
+.multiplayer-server-info :is(code, small) { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.multiplayer-server-actions { flex-wrap: wrap; gap: 7px; }
+
 @media (max-width: 950px) {
   .play-panel, .rocket-pack { --art-width: 29%; }
 }

@@ -26,6 +26,12 @@ final class ClientPlatform {
 
     static void registerCrosshair() {} // LegacyCrosshairMixin hooks the older GUI.
 
+    static boolean openLan(Screen parent, Minecraft client) {
+        if (client.getSingleplayerServer() == null || client.getSingleplayerServer().isPublished()) return false;
+        client.setScreen(new net.minecraft.client.gui.screens.ShareToLanScreen(parent));
+        return true;
+    }
+
     static int fps(Minecraft client) { return @FPS@; }
 
     static void openOptions(Screen parent, Minecraft client) {

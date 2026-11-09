@@ -1,4 +1,20 @@
-export type Page = 'launchpad' | 'instances' | 'mods' | 'downloads' | 'settings';
+export type Page = 'launchpad' | 'instances' | 'mods' | 'multiplayer' | 'downloads' | 'settings';
+export interface SavedServer {
+  id: string;
+  name: string;
+  address: string;
+  instanceId: string | null;
+  favorite: boolean;
+  lastJoined: number | null;
+}
+export interface ServerStatus {
+  version: string;
+  protocol: number;
+  players: number;
+  maxPlayers: number;
+  latencyMs: number;
+}
+export interface MultiplayerAddon { id: string; filename: string; enabled: boolean }
 export type Loader = 'vanilla' | 'fabric' | 'forge';
 export type Theme = 'dark' | 'light' | 'system';
 export type Readiness = 'checking' | 'requires_download' | 'missing_files' | 'downloading' | 'installing' | 'java_required' | 'authentication_required' | 'ready' | 'launching' | 'running' | 'error';

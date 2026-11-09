@@ -329,6 +329,7 @@ pub struct LaunchRequest {
     pub log_root: PathBuf,
     pub sync: Option<(PathBuf, super::sync::PendingSync)>,
     pub rocket_client_config: Option<PathBuf>,
+    pub server: Option<String>,
 }
 
 pub async fn start(
@@ -345,6 +346,7 @@ pub async fn start(
         log_root,
         sync,
         rocket_client_config,
+        server,
     } = request;
     let (identity, access_token, expires_at, local_test) = match auth {
         LaunchAuth::Offline { player, uuid } => (
@@ -373,7 +375,17 @@ pub async fn start(
             true,
         ),
     };
-    let args = resolve_args(&installed, &instance, &platform, &identity)?;
+    let mut args = resolve_args(&installed, &instance, &platform, &identity)?;
+    if let Some(server) = server {
+        let supported = installed.version.arguments.as_ref().is_some_and(|arguments|
+            arguments.game.iter().any(|argument| matches!(argument,
+                Argument::Conditional { value: Values::Many(values), .. }
+                    if values.first().is_some_and(|value| value == "--quickPlayMultiplayer"))));
+        if !supported {
+            return Err(AppError::new("JOIN_UNSUPPORTED", "This Minecraft version does not support Quick Play. Copy the address and use Multiplayer → Direct Connection."));
+        }
+        args.extend(["--quickPlayMultiplayer".into(), server]);
+    }
     tokio::task::spawn_blocking({
         let game = instance.game_directory.clone();
         move || -> Result<()> {

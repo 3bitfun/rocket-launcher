@@ -18,13 +18,19 @@ public final class RocketCompanion implements ClientModInitializer {
     private static final int MARGIN = 7;
     static final int WIDGET_HEIGHT = 17;
     private final ClientSettings settings = new ClientSettings();
+    private final WorldSharing sharing = new WorldSharing();
     private int ticks;
+    private int sharingTicks;
 
     @Override
     public void onInitializeClient() {
         settings.initialize();
         var menuKey = ClientPlatform.registerMenuKey();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (++sharingTicks >= 20) {
+                sharingTicks = 0;
+                sharing.poll(client);
+            }
             if (settings.shared() && ++ticks >= 40) {
                 settings.refresh();
                 ticks = 0;
@@ -42,6 +48,10 @@ public final class RocketCompanion implements ClientModInitializer {
             if (screen instanceof TitleScreen || screen instanceof PauseScreen) {
                 Screens.getButtons(screen).add(button(text("button"),
                     pressed -> client.setScreen(new RocketMenu(screen, settings)), 8, 8, 72));
+            }
+            if (screen instanceof PauseScreen && client.getSingleplayerServer() != null && sharing.installed()) {
+                Screens.getButtons(screen).add(button(text("sharing.title"),
+                    pressed -> client.setScreen(new WorldShareScreen(screen, sharing)), 84, 8, 102));
             }
         });
     }

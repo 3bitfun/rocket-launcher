@@ -70,8 +70,8 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
     };
   }, [profiles, check, accountRevision]);
 
-  async function run(instance: Instance, action: 'install' | 'launch') {
-    if (operation.current) return;
+  async function run(instance: Instance, action: 'install' | 'launch', server?: string) {
+    if (operation.current) return false;
     operation.current = true;
     setWorking(true);
     if (action === 'install') publish({ instanceId: instance.id, readiness: 'downloading', message: 'Preparing installation…', exitCode: null });
@@ -81,13 +81,15 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
         await check(instance.id);
         notify({ kind: 'success', message: 'Minecraft files verified.' });
       } else {
-        await native.ignite(instance.id);
+        await native.ignite(instance.id, server);
       }
+      return true;
     } catch (error) {
       const message = errorMessage(error);
       const missing = typeof error === 'object' && error !== null && 'code' in error && error.code === 'MISSING_FILES';
       publish({ instanceId: instance.id, readiness: missing ? 'missing_files' : 'error', message, exitCode: null });
       notify({ kind: 'error', message });
+      return false;
     } finally {
       if (action === 'install') {
         try { setDownload(await native.downloadStatus()); } catch { /* Events also carry the latest state. */ }

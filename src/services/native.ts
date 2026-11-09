@@ -1,7 +1,7 @@
 import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { AccountsSummary, AppSnapshot, DownloadProgress, FabricLoaderVersion, GameStatus, InstanceInput, InstalledMod, ModrinthPage, ModrinthVersion, RocketClientStatus, Settings, VersionCatalog } from '../types';
-import type { ModpackDetails, ModpackFilters, ModpackProgress, ProfileAppearance } from '../types';
+import type { ModpackDetails, ModpackFilters, ModpackProgress, MultiplayerAddon, ProfileAppearance, SavedServer, ServerStatus } from '../types';
 
 export const isDesktop = () => isTauri();
 
@@ -22,7 +22,14 @@ export const native = {
   signOut: (id: string) => call<AccountsSummary>('sign_out_account', { id }),
   checkGame: (id: string) => call<GameStatus>('check_game', { id }),
   installGame: (id: string) => call<void>('install_game', { id }),
-  ignite: (id: string) => call<void>('ignite_game', { id }),
+  ignite: (id: string, server?: string) => call<void>('ignite_game', server ? { id, server } : { id }),
+  savedServers: () => call<SavedServer[]>('saved_servers'),
+  saveServer: (server: SavedServer) => call<SavedServer[]>('save_server', { server }),
+  removeSavedServer: (id: string) => call<SavedServer[]>('remove_saved_server', { id }),
+  pingServer: (address: string) => call<ServerStatus>('ping_server', { address }),
+  multiplayerAddons: (instanceId: string) => call<MultiplayerAddon[]>('multiplayer_addons', { instanceId }),
+  installMultiplayerAddon: (instanceId: string, feature: 'via' | 'hosting') =>
+    call<string>('install_multiplayer_addon', { instanceId, feature }),
   downloadStatus: () => call<DownloadProgress | null>('download_status'),
   snapshot: () => call<AppSnapshot>('get_snapshot'),
   versions: (refresh = false) => call<VersionCatalog>('get_versions', { refresh }),

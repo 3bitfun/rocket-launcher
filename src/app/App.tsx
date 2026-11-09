@@ -10,6 +10,7 @@ import { LaunchPad } from '../pages/LaunchPad/LaunchPad';
 import { Instances } from '../pages/Instances/Instances';
 import { Downloads } from '../pages/Downloads/Downloads';
 import { Mods } from '../pages/Mods/Mods';
+import { Multiplayer } from '../pages/Multiplayer/Multiplayer';
 import { Settings } from '../pages/Settings/Settings';
 import { useLauncher } from '../hooks/useLauncher';
 import { useGame } from '../hooks/useGame';
@@ -20,6 +21,7 @@ const pageDetails: Record<Page, { title: string; subtitle: string }> = {
   launchpad: { title: 'Launch Pad', subtitle: 'Choose an instance and play.' },
   instances: { title: 'Instances', subtitle: 'Manage your Minecraft versions, loaders, and game folders.' },
   mods: { title: 'Mods', subtitle: 'Find compatible mods or start with Rocket Pack.' },
+  multiplayer: { title: 'Multiplayer', subtitle: 'Join saved servers or share a world from your PC.' },
   downloads: { title: 'Downloads', subtitle: 'Track game installs and refresh the version catalogue.' },
   settings: { title: 'Settings', subtitle: 'Manage accounts, game defaults, and launcher updates.' },
 };
@@ -108,6 +110,8 @@ export default function App() {
           {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onDuplicate={duplicate} onDelete={openRemoval} />}
           {page === 'downloads' && <Downloads catalog={catalog} error={catalogError} fetching={fetching} onRefresh={() => void launcher.refreshVersions()} progress={game.download} onRetry={!busy && retry ? () => void game.run(retry, 'install') : undefined} />}
           {page === 'mods' && <Mods snapshot={snapshot} catalog={catalog} offline={accounts?.offline ?? false} busy={busy} initialInstanceId={modsTarget} onPlay={() => navigate('launchpad')} onModpackInstalled={() => void launcher.load()} onInstallPack={(version, progress) => mutate(() => native.installRocketPack(version, progress), 'Rocket Pack instance created.')} />}
+          {page === 'multiplayer' && <Multiplayer snapshot={snapshot} offline={accounts?.offline ?? false} busy={busy}
+            onManage={openManager} onJoin={(instance, address) => game.run(instance, 'launch', address)} />}
           {page === 'settings' && <Settings snapshot={snapshot} busy={busy} onSave={(settings) => mutate(() => native.settings(settings), 'Preferences saved. Make yourself at home.')} onDirtyChange={setSettingsDirty} onAuthStateChanged={setAccounts} />}
         </motion.div></AnimatePresence>
       </main>

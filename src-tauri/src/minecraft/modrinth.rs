@@ -428,7 +428,7 @@ pub async fn install_pack(
         if dependency.project_id.as_ref().is_some_and(|id| id != &target.project_id) {
             return Err(error("Modrinth returned the wrong dependency project."));
         }
-        stage_version(&instance, &api, target, None).await?.publish(directory)?;
+        stage_version(&instance, &api, target, None, false).await?.publish(directory)?;
         report("Resolving required mod dependencies", index + 1, required.len());
     }
     report("Registering instance", 0, 0);
@@ -674,6 +674,16 @@ pub async fn stage(
     version_id: &str,
     timeout: u64,
 ) -> Result<StagedMod> {
+    stage_with_api(instance, project, version_id, timeout, false).await
+}
+
+pub async fn stage_with_api(
+    instance: &Instance,
+    project: &str,
+    version_id: &str,
+    timeout: u64,
+    provided_fabric_api: bool,
+) -> Result<StagedMod> {
     let loader = loader(instance)?;
     let project = id(project)?;
     let client = client(timeout)?;
@@ -683,7 +693,7 @@ pub async fn stage(
             "This mod version does not match the selected Minecraft version and loader.",
         ));
     }
-    stage_version(instance, &client, version, None).await
+    stage_version(instance, &client, version, None, provided_fabric_api).await
 }
 
 pub(super) async fn install_pack_mod(
@@ -704,7 +714,7 @@ pub(super) async fn install_pack_mod(
         .filter(|version| jar(version).is_some_and(|file| jar_spec(file).is_ok()))
         .take(3)
     {
-        match stage_version(instance, client, version, Some(cache)).await
+        match stage_version(instance, client, version, Some(cache), false).await
             .and_then(|staged| staged.publish(&instance.game_directory))
         {
             Ok(_) => return Ok(true),
@@ -722,6 +732,7 @@ async fn stage_version(
     client: &reqwest::Client,
     version: Version,
     cache: Option<&Path>,
+    provided_fabric_api: bool,
 ) -> Result<StagedMod> {
     let loader = loader(instance)?;
     let folder = mods_directory(&instance.game_directory)?;
@@ -771,6 +782,10 @@ async fn stage_version(
             .into_iter()
             .filter(|dep| dep.dependency_type == "required")
         {
+            if provided_fabric_api && dep.version_id.is_none()
+                && dep.project_id.as_deref() == Some(super::multiplayer::FABRIC_API) {
+                continue;
+            }
             if queue.len() >= 48 {
                 return Err(error("There are too many required mod dependencies."));
             }

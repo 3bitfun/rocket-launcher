@@ -16,7 +16,7 @@ if (api == null) {
 }
 
 group = 'com.rocketlauncher'
-version = "2.3.0+mc${game}"
+version = "2.4.0+mc${game}"
 
 base {
     archivesName = 'rocketlauncher-client'
@@ -56,6 +56,8 @@ def generateSources = tasks.register('generateSources', Copy) {
             adapted = adapted.replace('client.screen ==', 'client.gui.screen() ==')
                 .replace('.setScreen(', '.gui.setScreen(')
                 .replace('client.options.hideGui', 'client.gui.hud.isHidden()')
+                .replace('client.gui.setScreen(new net.minecraft.client.gui.screens.ShareToLanScreen(parent));',
+                    'try { if (!client.getSingleplayerServer().publishServer(net.minecraft.server.MinecraftServer.MultiplayerScope.LAN, WorldSharing.availablePort())) return false; } catch (java.io.IOException unavailable) { return false; }')
         }
         adapted
     }

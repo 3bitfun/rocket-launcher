@@ -1,10 +1,11 @@
-import { Boxes, Download, LayoutDashboard, Puzzle, Settings2, UserRound, ArrowUpRight } from 'lucide-react';
+import { Boxes, Download, LayoutDashboard, Puzzle, Settings2, UserRound, Users, ArrowUpRight } from 'lucide-react';
 import type { AccountsSummary, Page } from '../../types';
 
 const navigation = [
   { id: 'launchpad', title: 'Launch Pad', icon: LayoutDashboard },
   { id: 'instances', title: 'Instances', icon: Boxes },
   { id: 'mods', title: 'Mods', icon: Puzzle },
+  { id: 'multiplayer', title: 'Multiplayer', icon: Users },
   { id: 'downloads', title: 'Downloads', icon: Download },
   { id: 'settings', title: 'Settings', icon: Settings2 },
 ] as const;

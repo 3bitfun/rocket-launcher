@@ -7,7 +7,7 @@ use crate::{
         java,
         launch::{self, GameStatus, ProcessManager, Readiness},
         metadata::Platform,
-        modrinth, pack, rocket_client, versions,
+        modrinth, multiplayer, pack, rocket_client, versions,
     },
     models::{AppSnapshot, Instance, Loader},
 };
@@ -89,7 +89,96 @@ pub fn set_instance_mod_enabled(
     }
     let store = state.store()?;
     let instance = store.find_instance(&instance_id)?;
+    if enabled && instance.loader == Loader::Fabric {
+        multiplayer::ensure_addon_can_enable(instance, &file_name)?;
+    }
     crate::instances::set_mod_enabled(&instance.game_directory, &file_name, enabled)
+}
+
+#[tauri::command]
+pub fn saved_servers(state: State<'_, LauncherState>) -> Result<Vec<multiplayer::SavedServer>> {
+    let store = state.store()?;
+    multiplayer::saved_servers(&store.paths.data)
+}
+
+#[tauri::command]
+pub fn save_server(state: State<'_, LauncherState>, server: multiplayer::SavedServer) -> Result<Vec<multiplayer::SavedServer>> {
+    let store = state.store()?;
+    if let Some(id) = server.instance_id.as_deref() { store.find_instance(id)?; }
+    multiplayer::save_server(&store.paths.data, server)
+}
+
+#[tauri::command]
+pub fn remove_saved_server(state: State<'_, LauncherState>, id: String) -> Result<Vec<multiplayer::SavedServer>> {
+    let store = state.store()?;
+    multiplayer::remove_server(&store.paths.data, &id)
+}
+
+#[tauri::command]
+pub async fn ping_server(state: State<'_, LauncherState>, address: String) -> Result<multiplayer::ServerStatus> {
+    modpack_timeout(&state)?;
+    multiplayer::ping(multiplayer::Address::parse(&address)?).await
+}
+
+#[tauri::command]
+pub async fn multiplayer_addons(state: State<'_, LauncherState>, instance_id: String) -> Result<Vec<multiplayer::InstalledAddon>> {
+    let instance = state.store()?.find_instance(&instance_id)?.clone();
+    tokio::task::spawn_blocking(move || multiplayer::addons(&instance)).await
+        .map_err(|reason| AppError::new("MULTIPLAYER", format!("Could not inspect installed add-ons: {reason}")))?
+}
+
+#[tauri::command]
+pub async fn install_multiplayer_addon(
+    state: State<'_, LauncherState>, jobs: State<'_, GameJobs>, instance_id: String, feature: String,
+) -> Result<String> {
+    let _guard = jobs.operation.try_lock().map_err(|_| AppError::new("BUSY", "Wait for the current Minecraft operation."))?;
+    if jobs.processes.contains(&instance_id) { return Err(AppError::new("BUSY", "Close this instance before adding multiplayer mods.")); }
+    let input = input(&state, &instance_id)?;
+    require_online(&input)?;
+    let instance = &input.instance;
+    if instance.loader != Loader::Fabric { return Err(AppError::new("MULTIPLAYER", "Choose a Fabric instance.")); }
+    let projects: &[&str] = match feature.as_str() {
+        "via" => &[multiplayer::VIA_PLUS, multiplayer::VIA_FABRIC],
+        "hosting" => &[multiplayer::E4MC],
+        _ => return Err(AppError::new("MULTIPLAYER", "Unknown multiplayer add-on.")),
+    };
+    let installed = multiplayer::addons(instance)?;
+    let matching: Vec<_> = installed.iter().filter(|item| if feature == "via" {
+        multiplayer::is_via(&item.id)
+    } else {
+        multiplayer::is_hosting(&item.id)
+    }).collect();
+    let active: Vec<_> = matching.iter().filter(|item| item.enabled).collect();
+    if active.len() > 1 { return Err(AppError::new("MULTIPLAYER", "Disable duplicate add-ons in Installed mods.")); }
+    if let Some(item) = active.first() { return Ok(item.filename.clone()); }
+    if !matching.is_empty() {
+        return Err(AppError::new("MULTIPLAYER", "An installed copy is disabled. Enable it in Installed mods or remove it before installing a new copy."));
+    }
+    let mut candidate = None;
+    for project in projects {
+        if let Some(version) = modrinth::preferred_version(instance, project, input.timeout).await? {
+            candidate = Some((*project, version));
+            break;
+        }
+    }
+    let (project, version) = candidate.ok_or_else(|| AppError::new("MULTIPLAYER", "Modrinth has no compatible build for this Minecraft version."))?;
+    let api = rocket_client::installed_fabric_api(instance)?;
+    let addon = modrinth::stage_with_api(instance, project, &version, input.timeout, true).await?;
+    let staged_api = if api.is_none() {
+        let version = modrinth::preferred_version(instance, multiplayer::FABRIC_API, input.timeout).await?
+            .ok_or_else(|| AppError::new("MULTIPLAYER", "Fabric API has no compatible build for this instance."))?;
+        Some(modrinth::stage(instance, multiplayer::FABRIC_API, &version, input.timeout).await?)
+    } else { None };
+    require_online(&input)?;
+    let store = state.store()?;
+    let current = store.find_instance(&instance_id)?;
+    if current.version != instance.version || current.loader != instance.loader
+        || current.loader_version != instance.loader_version || current.game_directory != instance.game_directory {
+        return Err(AppError::new("MULTIPLAYER", "The instance changed during installation. Try again."));
+    }
+    if let Some(api) = staged_api { api.publish(&current.game_directory)?; }
+    if let Some((filename, false)) = api { crate::instances::set_mod_enabled(&current.game_directory, &filename, true)?; }
+    addon.publish(&current.game_directory)
 }
 
 #[tauri::command]
@@ -376,6 +465,12 @@ pub async fn install_modrinth(
     }
     let original = input(&state, &instance_id)?;
     require_online(&original)?;
+    if matches!(project_id.as_str(), multiplayer::VIA_PLUS | multiplayer::VIA_FABRIC) {
+        let opposite = if project_id == multiplayer::VIA_PLUS { "viafabric" } else { "viafabricplus" };
+        if multiplayer::addons(&original.instance)?.iter().any(|item| item.enabled && item.id == opposite) {
+            return Err(AppError::new("MULTIPLAYER", "Disable the active ViaFabric variant before installing another one."));
+        }
+    }
     let version_id = match version_id {
         Some(id) => id,
         None => {
@@ -652,8 +747,13 @@ pub async fn ignite_game(
     jobs: State<'_, GameJobs>,
     account_jobs: State<'_, crate::auth::accounts::AccountJobs>,
     id: String,
+    server: Option<String>,
 ) -> Result<()> {
     let input = input(&state, &id)?;
+    let server = if let Some(address) = server {
+        require_online(&input)?;
+        Some(multiplayer::Address::parse(&address)?.minecraft())
+    } else { None };
     let _guard = jobs
         .operation
         .try_lock()
@@ -744,6 +844,7 @@ pub async fn ignite_game(
                 sync,
                 rocket_client_config: input.sync_rocket_client
                     .then(|| input.data.join("instance-sync").join("rocket-client.properties")),
+                server,
             },
             move |status| publish_game(&event_app, status),
         )

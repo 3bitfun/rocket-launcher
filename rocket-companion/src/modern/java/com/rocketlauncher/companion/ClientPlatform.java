@@ -29,6 +29,12 @@ final class ClientPlatform {
 
     static boolean debugVisible(Minecraft client) { return client.getDebugOverlay().showDebugScreen(); }
 
+    static boolean openLan(Screen parent, Minecraft client) {
+        if (client.getSingleplayerServer() == null || client.getSingleplayerServer().isPublished()) return false;
+        client.setScreen(new net.minecraft.client.gui.screens.ShareToLanScreen(parent));
+        return true;
+    }
+
     static void registerCrosshair() {
         HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (graphics, delta) -> {
             if (!CrosshairRenderer.renderInGame(graphics)) vanilla.render(graphics, delta);

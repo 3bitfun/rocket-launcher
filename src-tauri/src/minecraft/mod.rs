@@ -10,3 +10,4 @@ pub mod modrinth;
 pub mod pack;
 pub mod rocket_client;
 pub mod sync;
+pub mod multiplayer;
