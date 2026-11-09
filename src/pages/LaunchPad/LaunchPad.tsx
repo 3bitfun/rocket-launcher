@@ -1,9 +1,16 @@
-import { ArrowRight, Box, Cpu, Download, Plus, Puzzle, Rocket, Settings2, Wrench } from 'lucide-react';
+import { ArrowRight, Box, Cpu, Download, Plus, Puzzle, Rocket, Settings2, Users, Wrench } from 'lucide-react';
 import type { AppSnapshot, GameStatus, Instance, Page } from '../../types';
 import { loaderName } from '../../services/loaders';
 import { readinessLabel } from '../../services/readiness';
 import { InstanceCard } from '../../components/instances/InstanceCard';
 import { formatRam } from '../../components/ui/Primitives';
+import { FlightScene } from '../../components/launcher/FlightScene';
+
+const shortcuts = [
+  { page: 'multiplayer', icon: Users, title: 'Multiplayer', detail: 'Join or share a world' },
+  { page: 'mods', icon: Puzzle, title: 'Mods & packs', detail: 'Find your next setup' },
+  { page: 'downloads', icon: Download, title: 'Downloads', detail: 'Check installation progress' },
+] as const;
 
 export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onManage = onEdit, onSelect, onNavigate, onInstall, onIgnite, onCheck }: {
   snapshot: AppSnapshot; busy: boolean;
@@ -26,7 +33,7 @@ export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onManage =
 
   return <>
     <section className="play-panel" aria-label={selected ? 'Selected instance' : 'Getting started'}>
-      <img className="play-scenery" src="/herobanner.png" alt="" fetchPriority="high" />
+      <FlightScene readiness={selected?.readiness} />
       <div className="play-content">
         <div className="play-context">
           {selected ? <label className="play-picker">
@@ -40,7 +47,7 @@ export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onManage =
           </label> : <span className="eyebrow">MINECRAFT JAVA EDITION</span>}
           {selected && <button className="icon-button play-edit" title="Manage instance" aria-label="Manage selected instance" aria-haspopup="dialog" onClick={() => onManage(selected)}><Settings2 size={16} /></button>}
         </div>
-        <h2>{selected?.name ?? 'Set up your first instance'}</h2>
+        <h2 className="play-title" key={selected?.id ?? 'first-instance'}>{selected?.name ?? 'Set up your first instance'}</h2>
         {selected ? <>
           <div className="play-meta">
             <span><Box size={15} />Minecraft {selected.version}</span>
@@ -53,12 +60,20 @@ export function LaunchPad({ snapshot, busy, status, onCreate, onEdit, onManage =
           </div>
         </> : <p className="play-empty">Choose a Minecraft version and mod loader, or start with Rocket Pack.</p>}
         <div className="play-actions">
-          <button className="button primary" disabled={!action.run || busy} onClick={action.run} aria-describedby={status?.message ? 'launch-status' : undefined}><ActionIcon size={18} />{action.label}</button>
+          <button className={`button primary ${ActionIcon === Rocket ? 'play-ignition' : ''}`} disabled={!action.run || busy} onClick={action.run} aria-describedby={status?.message ? 'launch-status' : undefined}><ActionIcon size={18} />{action.label}</button>
           {selected && readiness !== 'requires_download' && <button className="button secondary play-secondary" disabled={busy || active} onClick={() => onInstall(selected)}><Wrench size={16} />Repair files</button>}
           {!selected && <button className="button secondary play-secondary" onClick={() => onNavigate('mods')}><Puzzle size={16} />Browse Rocket Pack</button>}
         </div>
       </div>
     </section>
+
+    <nav className="flight-shortcuts" aria-label="Launch Pad shortcuts">
+      {shortcuts.map(({ page, icon: Icon, title, detail }) => <button key={page} type="button" className="flight-shortcut" onClick={() => onNavigate(page)}>
+        <span className="flight-shortcut-icon"><Icon size={18} /></span>
+        <span className="flight-shortcut-label"><strong>{title}</strong><small>{detail}</small></span>
+        <ArrowRight size={14} className="flight-shortcut-arrow" />
+      </button>)}
+    </nav>
 
     {recent.length > 0 && <section className="recent-section">
       <div className="section-heading">

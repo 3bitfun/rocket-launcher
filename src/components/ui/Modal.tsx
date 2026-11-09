@@ -16,7 +16,7 @@ export function Modal({ title, description, children, onClose, busy = false, wid
     <dialog ref={dialog} aria-labelledby={titleId} className={`modal ${wide ? 'modal-wide' : ''}`}
       onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="modal-inner">
+      <motion.div initial={{ opacity: 0, y: 8, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="modal-inner">
         <div className="modal-heading"><div><h2 id={titleId}>{title}</h2>{description && <p>{description}</p>}</div>
           <button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose} disabled={busy}><X size={19} /></button>
         </div>

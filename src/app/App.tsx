@@ -105,7 +105,7 @@ export default function App() {
         {downloading ? <button className="button secondary small-button" onClick={() => navigate('downloads')}><Download size={15} /> View download</button>
           : accounts?.offline && <span className="tag">Offline mode</span>}
       </header>
-        <AnimatePresence mode="wait" initial={false}><motion.div key={page} className="page-content" initial={{ opacity: 0, y: reduced ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : -4 }} transition={{ duration: reduced ? 0 : 0.16 }}>
+        <motion.div key={page} className="page-content" initial={reduced ? false : { opacity: 0.55, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? 0 : 0.18, ease: 'easeOut' }}>
           {page === 'launchpad' && <LaunchPad snapshot={snapshot} busy={busy} status={selected && game.status(selected)} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onSelect={select} onNavigate={navigate} onInstall={(instance) => void game.run(instance, 'install')} onIgnite={(instance) => void game.run(instance, 'launch')} onCheck={(instance) => void game.check(instance.id)} />}
           {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onDuplicate={duplicate} onDelete={openRemoval} />}
           {page === 'downloads' && <Downloads catalog={catalog} error={catalogError} fetching={fetching} onRefresh={() => void launcher.refreshVersions()} progress={game.download} onRetry={!busy && retry ? () => void game.run(retry, 'install') : undefined} />}
@@ -113,7 +113,7 @@ export default function App() {
           {page === 'multiplayer' && <Multiplayer snapshot={snapshot} offline={accounts?.offline ?? false} busy={busy}
             onManage={openManager} onJoin={(instance, address) => game.run(instance, 'launch', address)} />}
           {page === 'settings' && <Settings snapshot={snapshot} busy={busy} onSave={(settings) => mutate(() => native.settings(settings), 'Preferences saved. Make yourself at home.')} onDirtyChange={setSettingsDirty} onAuthStateChanged={setAccounts} />}
-        </motion.div></AnimatePresence>
+        </motion.div>
       </main>
     </div>
     {managed && !editor && !removing && <InstanceManager key={managed.id} instance={managed} status={game.status(managed)}

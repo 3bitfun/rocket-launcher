@@ -91,6 +91,16 @@ h1, h2, h3, .brand, .ignite-button { font-family: var(--font-display); }
 .nav-item { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; background: transparent; padding: 13px 15px; color: var(--muted); text-align: left; border-radius: var(--corner); margin-bottom: 5px; border: 1px solid transparent; font-size: 13px; font-weight: 600; }
 .nav-item:hover { background: var(--card); border-color: var(--border); color: var(--text); }
 .nav-item.active { color: var(--text); background: color-mix(in srgb, var(--brand-blue) 20%, var(--card)); border-color: color-mix(in srgb, var(--brand-blue) 66%, var(--border)); box-shadow: var(--bevel); }
+.nav-item::before {
+  content: '';
+  position: absolute;
+  inset: 7px auto 7px 0;
+  width: 3px;
+  background: var(--brand-blue);
+  transform: scaleY(0);
+  transition: transform .18s ease-out;
+}
+.nav-item.active::before { transform: scaleY(1); }
 .nav-count { margin-left: auto; font-size: 10px; min-width: 19px; padding: 2px 5px; text-align: center; border-radius: var(--corner); background: var(--card); }
 .sidebar-bottom { margin-top: auto; padding-top: 26px; }
 .build-note { border: 1px solid var(--border); border-radius: var(--corner); padding: 17px 15px; margin: 12px 7px 25px; background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 4%, var(--surface)), var(--sidebar)); }
@@ -135,6 +145,7 @@ main:focus { outline: none; }
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 10px 16px; font-size: 12px; font-weight: 650; border-radius: var(--corner); white-space: nowrap; border: 1px solid transparent; box-shadow: var(--bevel); }
 .button.primary { background: var(--accent); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 78%, #000); }
 .button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 87%, var(--accent-ink)); }
+.button:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 2px #0003; }
 .button.secondary { background: var(--card); border-color: var(--border); color: var(--text); }
 .button.secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--card) 88%, var(--text)); border-color: var(--subtle); }
 .hero-button { background: #edf2e9; color: #20352c; min-height: 34px; padding: 8px 12px; font-size: 10px; }
@@ -351,7 +362,7 @@ main:focus { outline: none; }
 .settings-save { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; padding: 16px 0; background: var(--bg); border-top: 1px solid var(--border); margin-top: 23px; z-index: 1; }
 .settings-save > span { font-size: 10px; color: var(--muted); }
 .log-view { max-height: 55vh; overflow: auto; padding: 16px; font: 11px/1.8 var(--font-mono); background: var(--bg); border: 1px solid var(--border); border-radius: var(--corner); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
-.toast { position: fixed; z-index: 20; left: calc(50% + 110px); bottom: 25px; transform: translateX(-50%); max-width: min(600px, calc(100vw - 270px)); display: flex; gap: 12px; align-items: center; border: 1px solid var(--border); border-radius: var(--corner); padding: 12px 14px; background: var(--card); box-shadow: 0 10px 40px #0005; font-size: 12px; }
+.toast { position: fixed; z-index: 20; left: calc(50% + 110px); bottom: 25px; translate: -50% 0; max-width: min(600px, calc(100vw - 270px)); display: flex; gap: 12px; align-items: center; border: 1px solid var(--border); border-radius: var(--corner); padding: 12px 14px; background: var(--card); box-shadow: 0 10px 40px #0005; font-size: 12px; }
 .toast > svg { color: var(--green); flex-shrink: 0; }
 .toast.error > svg { color: var(--danger); }
 .toast > span { line-height: 1.6; overflow-wrap: anywhere; }
@@ -425,7 +436,7 @@ main:focus { outline: none; }
   box-shadow: var(--shadow);
 }
 .play-panel { min-height: 270px; display: flex; align-items: center; }
-.play-scenery, .rocket-pack > img {
+.flight-scene, .rocket-pack > img {
   position: absolute;
   inset: 0 0 0 auto;
   width: var(--art-width);
@@ -433,6 +444,84 @@ main:focus { outline: none; }
   object-fit: cover;
   border-left: 1px solid var(--border);
 }
+.flight-scene {
+  display: flex;
+  align-items: end;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 12px;
+  background: #161d29;
+  --flight-signal: #a6c4f9;
+}
+.play-scenery {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 65% center;
+  transition: transform .8s cubic-bezier(.2,.65,.3,1);
+}
+.flight-scene[data-phase="ignition"] .play-scenery,
+.flight-scene[data-phase="flight"] .play-scenery { transform: scale(1.065); }
+.flight-crosshair {
+  position: absolute;
+  inset: 10px;
+  background:
+    linear-gradient(#fff9,#fff9) left top / 11px 1px,
+    linear-gradient(#fff9,#fff9) left top / 1px 11px,
+    linear-gradient(#fff9,#fff9) right top / 11px 1px,
+    linear-gradient(#fff9,#fff9) right top / 1px 11px;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+.flight-telemetry {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  padding: 5px 10px 5px 5px;
+  border: 1px solid #536680;
+  border-left: 2px solid var(--flight-signal);
+  background: #121925f5;
+  color: #f2f4f8;
+}
+.flight-viewport {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border: 1px solid #37455f;
+  background: #1b263a;
+}
+.flight-rocket { image-rendering: pixelated; animation: flight-settle .75s steps(6, end); }
+.flight-trail { position: absolute; opacity: 0; }
+.flight-readout { display: grid; gap: 5px; min-width: 0; }
+.flight-readout > span { font: 600 9px/1.1 var(--font-mono); letter-spacing: .09em; color: #b0bfd4; }
+.flight-readout > strong { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.1; }
+.flight-readout i { flex: none; width: 6px; height: 6px; background: var(--flight-signal); }
+.flight-scene[data-phase="prep"] { --flight-signal: #e4b675; }
+.flight-scene[data-phase="ignition"] { --flight-signal: #ffb98a; }
+.flight-scene[data-phase="flight"] { --flight-signal: #90c9af; }
+.flight-scene[data-phase="alert"] { --flight-signal: #ff9999; }
+.flight-scene[data-phase="ignition"] .flight-rocket { animation: rocket-liftoff .7s steps(6, end); }
+.flight-scene[data-phase="flight"] .flight-rocket { transform: translate(4px, -4px); }
+.flight-scene:is([data-phase="ignition"], [data-phase="flight"]) .flight-trail { opacity: .8; }
+.flight-scene:is([data-phase="ignition"], [data-phase="prep"]) .flight-readout i {
+  animation: flight-signal 1.2s steps(2, end) 4;
+}
+@keyframes flight-settle { from { transform: translate(-5px, 5px); opacity: .6; } }
+@keyframes rocket-liftoff {
+  30% { transform: translate(-2px, 2px); }
+  75% { transform: translate(8px, -8px); }
+}
+@keyframes flight-signal { 50% { opacity: .38; } }
 .play-content, .rocket-pack-content { width: calc(100% - var(--art-width)); min-width: 0; }
 .play-content { padding: clamp(20px, 3vw, 33px); }
 .play-context, .play-actions, .play-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -444,6 +533,8 @@ main:focus { outline: none; }
 .play-edit.icon-button { border: 1px solid var(--border); background: var(--card); box-shadow: var(--bevel); }
 .play-edit.icon-button:hover:not(:disabled) { border-color: var(--subtle); }
 .play-panel h2 { overflow-wrap: anywhere; margin: 14px 0 9px; font-size: clamp(26px, 3.1vw, 40px); line-height: 1.14; font-weight: 700; letter-spacing: -.025em; }
+.play-title { animation: title-arrive .22s ease-out; }
+@keyframes title-arrive { from { opacity: .65; transform: translateY(4px); } }
 .play-meta > span, .play-state { display: inline-flex; align-items: center; gap: 6px; }
 .play-meta { color: var(--muted); font-size: 12px; }
 .play-status, .play-empty { color: var(--muted); margin: 16px 0 20px; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
@@ -451,12 +542,59 @@ main:focus { outline: none; }
 .play-state .status-dot { background: #e4b675; }
 .play-state.is-ready .status-dot { background: var(--green); }
 .play-actions .button { min-height: 42px; font-size: 13px; }
+.play-ignition:not(:disabled):is(:hover, :focus-visible) svg { animation: ignition-nudge .28s ease-out both; }
+@keyframes ignition-nudge { 65% { transform: translate(2px, -2px); } }
+.flight-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 13px;
+}
+.flight-shortcut {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner);
+  text-align: left;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.flight-shortcut:is(:hover, :focus-visible) { border-color: var(--brand-blue); background: var(--card); }
+.flight-shortcut-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--corner);
+  background: color-mix(in srgb, var(--brand-blue) 16%, var(--card));
+}
+.flight-shortcut-label { flex: 1; min-width: 0; }
+.flight-shortcut-label :is(strong, small) { display: block; overflow-wrap: anywhere; }
+.flight-shortcut-label strong { font-size: 12px; }
+.flight-shortcut-label small { margin-top: 3px; font-size: 10px; color: var(--muted); }
+.flight-shortcut-arrow { color: var(--subtle); transition: transform .16s ease-out; }
+.flight-shortcut:is(:hover, :focus-visible) .flight-shortcut-arrow { transform: translateX(2px); color: var(--text); }
 .mod-workspace-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .instance-target { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
 .instance-target select { max-width: 205px; padding-block: 7px; }
 .rocket-pack-content > .button { margin: 0 8px 5px 0; }
 .settings-section-title p, .account-button strong { font-size: 12px; }
 .game-progress { accent-color: var(--accent); width: 100%; height: 8px; }
+.activity-progress { appearance: none; height: 12px; border: 1px solid var(--border); }
+.activity-progress::-webkit-progress-bar { background: var(--bg); }
+.activity-progress::-webkit-progress-value { background: var(--accent); }
+.activity-progress:is([data-stage="downloading"], [data-stage="installing"])::-webkit-progress-value {
+  background: repeating-linear-gradient(90deg, var(--accent) 0 9px, color-mix(in srgb, var(--accent) 65%, var(--bg)) 9px 12px);
+  background-size: 12px 100%;
+  animation: progress-pixels .85s steps(4, end) infinite;
+}
+.activity-progress[data-stage="complete"]::-webkit-progress-value { background: var(--green); }
+@keyframes progress-pixels { to { background-position: 12px 0; } }
 .modrinth-search { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
 .modrinth-search .field { flex: 1 1 160px; }
 .modrinth-results li > div { flex: 1; min-width: 0; }
@@ -472,7 +610,8 @@ main:focus { outline: none; }
 .rocket-pack-content h2 { margin: 8px 0 4px; }
 .rocket-pack-content p { margin: 0 0 12px; color: var(--muted); }
 .rocket-pack-content .field { max-width: 280px; margin-bottom: 12px; }
-.instance-scenery { display: block; width: 100%; height: 100%; object-fit: cover; }
+.instance-scenery { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease-out; }
+.instance-select:is(:hover, :focus-visible) .instance-scenery { transform: scale(1.035); }
 .instance-card:hover, .instance-card:focus-within { border-color: var(--subtle); }
 .instance-card.selected:hover, .instance-card.selected:focus-within { border-color: var(--brand-blue); }
 .pack-progress { width: min(100%, 320px); margin-top: 14px; }
