@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Check, Copy, Download, FolderOpen, Pencil, Puzzle, Rocket, Trash2, Wrench } from 'lucide-react';
+import { Check, Copy, Download, FolderOpen, Pencil, Puzzle, Rocket, Square, Terminal, Trash2, Wrench } from 'lucide-react';
 import { errorMessage, native } from '../../services/native';
 import { loaderName } from '../../services/loaders';
-import { readinessLabel } from '../../services/readiness';
+import { isGameActive, readinessLabel } from '../../services/readiness';
 import type { GameStatus, Instance, RocketClientStatus, Toast } from '../../types';
 import { Modal } from '../ui/Modal';
 import { formatRam, Spinner } from '../ui/Primitives';
+import { InstanceLog } from './InstanceLog';
 
 interface Props {
   instance: Instance;
@@ -15,8 +16,10 @@ interface Props {
   synced: boolean;
   busy: boolean;
   notice: Toast | null;
+  stopping: boolean;
   onClose: () => void;
   onPlay: () => void;
+  onStop: () => void;
   onInstall: () => void;
   onCheck: () => void;
   onProfile: () => void;
@@ -33,19 +36,22 @@ const clientAction = {
   upgrade: 'Update Rocket Client',
 } as const;
 
-export function InstanceManager({ instance, status, active, offline, synced, busy, notice, onClose, onPlay, onInstall,
+export function InstanceManager({ instance, status, active, offline, synced, busy, notice, stopping, onClose, onPlay, onStop, onInstall,
   onCheck, onProfile, onActivate, onEdit, onMods, onDuplicate, onRemove }: Props) {
   const [client, setClient] = useState<RocketClientStatus | null>(null);
   const [error, setError] = useState('');
   const [clientError, setClientError] = useState('');
   const [installing, setInstalling] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
   const { id, loader, loaderVersion, version } = instance;
-  const running = status.readiness === 'running' || status.readiness === 'launching';
+  const running = isGameActive(status.readiness);
   const locked = busy || installing;
   const needsInstall = status.readiness === 'requires_download';
   const canPlay = status.readiness === 'ready' || status.readiness === 'missing_files';
   const primary = canPlay ? { label: 'Play Minecraft', icon: Rocket, run: onPlay }
-    : needsInstall ? { label: 'Install Minecraft', icon: Download, run: onInstall }
+    : needsInstall ? instance.rocketPack
+      ? { label: 'Install & play', icon: Rocket, run: onPlay }
+      : { label: 'Install Minecraft', icon: Download, run: onInstall }
     : status.readiness === 'java_required' ? { label: 'Configure Java', icon: Pencil, run: onEdit }
     : status.readiness === 'authentication_required' ? { label: 'Set up player profile', icon: Pencil, run: onProfile }
     : status.readiness === 'error' ? { label: 'Check again', icon: Wrench, run: onCheck }
@@ -99,7 +105,9 @@ export function InstanceManager({ instance, status, active, offline, synced, bus
           <h3>{readinessLabel[status.readiness]}</h3>
           <p role="status">{status.message}{status.exitCode !== null && ` Exit code ${status.exitCode}.`}</p>
         </div>
-        {primary && PrimaryIcon && <button className="button primary" disabled={locked} onClick={primary.run}>
+        {running ? <button className="button danger" onClick={onStop} disabled={stopping}>
+          <Square size={16} />{stopping ? 'Stopping…' : status.readiness === 'running' ? 'Stop Minecraft' : 'Abort launch'}
+        </button> : primary && PrimaryIcon && <button className="button primary" disabled={locked || (needsInstall && offline)} onClick={primary.run}>
           <PrimaryIcon size={17} />{primary.label}
         </button>}
       </div>
@@ -126,6 +134,15 @@ export function InstanceManager({ instance, status, active, offline, synced, bus
           {error && <p className="form-error" role="alert">{error}</p>}
         </div>
         <button className="button secondary small-button" onClick={() => void openGameFolder()}>Open folder</button>
+      </section>
+      <section className="manager-section" aria-label="Minecraft session log">
+        <span className="manager-icon"><Terminal size={19} /></span>
+        <div className="manager-section-content">
+          <h3>Minecraft log</h3>
+          <p>View output from this instance’s latest Minecraft session.</p>
+        </div>
+        <button className="button secondary small-button" aria-expanded={logsOpen} aria-controls="instance-log-content" onClick={() => setLogsOpen(!logsOpen)}>{logsOpen ? 'Hide log' : 'View log'}</button>
+        <div className="manager-log-content" id="instance-log-content" hidden={!logsOpen}>{logsOpen && <InstanceLog id={id} />}</div>
       </section>
       <div className="manager-actions">
         {!active && <button className="button secondary small-button" disabled={locked} onClick={onActivate}><Check size={15} /> Make active</button>}

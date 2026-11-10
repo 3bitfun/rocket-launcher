@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { InstanceEditor } from '../components/instances/InstanceEditor';
+import { QuickSearch } from '../components/layout/QuickSearch';
 import { Downloads } from '../pages/Downloads/Downloads';
 import { LaunchPad } from '../pages/LaunchPad/LaunchPad';
 import { ModrinthBrowser } from '../pages/Mods/ModrinthBrowser';
@@ -9,6 +10,22 @@ import { Settings } from '../pages/Settings/Settings';
 import { errorMessage, native } from '../services/native';
 import { snapshot, catalog } from './fixtures';
 import type { Instance } from '../types';
+
+it('opens a matching favorite instance from quick search with the keyboard', async () => {
+  const favorite: Instance = {
+    id: 'favorite', name: 'Survival', version: '1.21.1', versionType: 'release', loader: 'fabric',
+    loaderVersion: '0.20.1', gameDirectory: 'C:\\test', ramMb: 4096, javaPath: null,
+    createdAt: 0, updatedAt: 0, lastSelectedAt: 0, readiness: 'ready', favorite: true,
+  };
+  const recent = { ...favorite, id: 'recent', name: 'Creative', lastSelectedAt: 10, favorite: false };
+  const onManage = vi.fn();
+  render(<QuickSearch instances={[recent, favorite]} pages={[{ id: 'settings', title: 'Settings' }]}
+    onManage={onManage} onNavigate={vi.fn()} onClose={vi.fn()} />);
+  const user = userEvent.setup();
+  await user.type(screen.getByRole('textbox', { name: 'Search launcher' }), 'fabric 1.21{Enter}');
+  expect(onManage).toHaveBeenCalledWith(favorite);
+  expect(screen.queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument();
+});
 
 describe('instance editor', () => {
   it('keeps a saved Fabric loader when the loader catalogue cannot be reached', async () => {
@@ -168,7 +185,7 @@ it('creates and selects a chosen offline username', async () => {
     render(<Settings snapshot={snapshot} busy={false} onSave={vi.fn()} onDirtyChange={vi.fn()} onAuthStateChanged={changed} />);
     await screen.findByText('No Minecraft account connected');
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Offline username'), 'RocketPlayer');
+    await user.type(screen.getByLabelText('New offline username'), 'RocketPlayer');
     await user.click(screen.getByRole('button', { name: 'Use offline username' }));
     expect(create).toHaveBeenCalledWith('RocketPlayer');
     expect(await screen.findByText('Offline · RocketPlayer')).toBeInTheDocument();

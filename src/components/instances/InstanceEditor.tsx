@@ -11,7 +11,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
   offline?: boolean;
   onRefresh: () => void; onSave: (input: InstanceInput, onPackProgress?: (progress: [number, number]) => void) => Promise<boolean>; onClose: () => void;
 }) {
-  const [name, setName] = useState(instance?.name ?? 'Rocket Pack');
+  const [name, setName] = useState(instance?.name ?? '');
   const [version, setVersion] = useState(instance?.version ?? '');
   const [loader, setLoader] = useState<Loader>(instance?.loader ?? 'fabric');
   const [rocketPack, setRocketPack] = useState(!instance);
@@ -29,6 +29,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
   const [error, setError] = useState<string | null>(null);
   const lockedPack = instance?.rocketPack === true;
   const selectedVersion = version || catalog?.latest.release || '';
+  const defaultName = rocketPack && selectedVersion ? `Rocket Pack ${selectedVersion}` : '';
   const packUnavailable = rocketPack && (offline || catalog?.versions.find((entry) => entry.id === selectedVersion)?.type === 'snapshot');
   const needsLoader = !rocketPack && !lockedPack && loader !== 'vanilla';
   const versions = useMemo(() => catalog?.versions.filter((entry) => (showSnapshots || entry.type === 'release' || entry.id === selectedVersion) && entry.id.toLowerCase().includes(query.toLowerCase())) ?? [], [catalog, query, selectedVersion, showSnapshots]);
@@ -67,7 +68,6 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
 
   function selectLoader(next: Loader) {
     setRocketPack(false);
-    if (!instance && next !== 'fabric' && name === 'Rocket Pack') setName('');
     if (!instance) setParent(settings.minecraftDirectory);
     if (next === loader) return;
     setLoader(next);
@@ -78,13 +78,14 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(null);
-    if (!name.trim()) { setError('Give your instance a name.'); return; }
+    const instanceName = name.trim() || defaultName;
+    if (!instanceName) { setError('Give your instance a name.'); return; }
     if (!selectedVersion) { setError('Fetch the version catalogue and choose a Minecraft version.'); return; }
     if (packUnavailable) return;
     if (needsLoader && !loaderVersion) { setError('Choose a compatible mod loader version.'); return; }
     setPackProgress(null);
     const input: InstanceInput = {
-      name: name.trim(), version: selectedVersion, loader, loaderVersion: needsLoader || lockedPack ? loaderVersion : null,
+      name: instanceName, version: selectedVersion, loader, loaderVersion: needsLoader || lockedPack ? loaderVersion : null,
       ramMb: ram, javaPath: java.trim() || null, parentDirectory: instance ? null : parent.trim(),
     };
     const saved = await (rocketPack ? onSave(input, setPackProgress) : onSave(input));
@@ -94,7 +95,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
   return <Modal title={instance ? 'Edit instance' : 'Create an instance'} description={instance ? 'Make this little world your own.' : 'Every adventure starts with a space of its own.'} onClose={onClose} busy={busy}>
     <form onSubmit={(event) => void submit(event)}>
       <fieldset disabled={busy} className="editor-fields">
-        <label className="field"><span>Instance name</span><input autoFocus maxLength={64} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunday survival" required /></label>
+        <label className="field"><span>Instance name</span><input autoFocus maxLength={64} value={name} onChange={(e) => setName(e.target.value)} placeholder={defaultName || 'e.g. Sunday survival'} required={!rocketPack} /></label>
         {lockedPack ? <div className="notice"><Rocket size={18} /><span>Rocket Pack · Minecraft {selectedVersion} · Fabric {loaderVersion}. Switch versions from Default (Rocket) on the Launch Pad.</span></div> : <>
         <div className="field"><div className="field-title"><label htmlFor="mc-version">Minecraft version</label><button type="button" className="text-button" onClick={onRefresh} disabled={fetching}>{fetching ? <Spinner size={13} /> : <RefreshCw size={13} />} Refresh</button></div>
           <input aria-label="Filter Minecraft versions" placeholder="Find a version…" value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -115,7 +116,6 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
           {!instance && <button type="button" className={`loader-option ${rocketPack ? 'selected' : ''}`} onClick={() => {
             selectLoader('fabric');
             setRocketPack(true);
-            if (!name.trim()) setName('Rocket Pack');
             setParent(`${settings.minecraftDirectory}\\Rocket`);
           }} aria-pressed={rocketPack}>
             <Rocket size={19} /><div><strong>Fabric Rocket Pack</strong><small>Recommended mods matched to your version</small></div>{rocketPack && <span className="tag">Selected</span>}

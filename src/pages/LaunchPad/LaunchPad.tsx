@@ -1,7 +1,7 @@
 import { ArrowRight, Box, Cpu, Download, Plus, Puzzle, Rocket, Settings2, Square, Users, Wrench } from 'lucide-react';
 import type { AppSnapshot, GameStatus, Instance, Page, VersionCatalog } from '../../types';
 import { loaderName, recommendedRocketVersion } from '../../services/loaders';
-import { readinessLabel } from '../../services/readiness';
+import { isGameActive, readinessLabel } from '../../services/readiness';
 import { InstanceCard } from '../../components/instances/InstanceCard';
 import { formatRam } from '../../components/ui/Primitives';
 import { FlightScene } from '../../components/launcher/FlightScene';
@@ -14,7 +14,7 @@ const shortcuts = [
 
 const defaultRocket = 'default-rocket';
 
-export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, packProgress, fabricVersions, packCatalogueError, onRetryPackCatalogue, offline = false, stopping = false, status, onCreate, onEdit, onManage = onEdit, onSelect, onNavigate, onInstall, onIgnite, onAbort = () => {}, onChooseRocket, onSwitchVersion, onPlayNewRocket, onCheck }: {
+export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, packProgress, fabricVersions, packCatalogueError, onRetryPackCatalogue, offline = false, stopping = false, status, onCreate, onEdit, onManage = onEdit, onSelect, onNavigate, onInstall, onIgnite, onAbort = () => {}, onChooseRocket, onSwitchVersion, onPlayNewRocket, onFavorite, onCheck }: {
   snapshot: AppSnapshot; busy: boolean;
   catalog?: VersionCatalog | null;
   status?: GameStatus; onInstall: (instance: Instance) => void; onIgnite: (instance: Instance) => void; onCheck: (instance: Instance) => void;
@@ -30,6 +30,7 @@ export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, 
   onChooseRocket?: () => void;
   onSwitchVersion?: (version: string) => void;
   onPlayNewRocket?: () => void;
+  onFavorite?: (instance: Instance) => void;
   onCreate: () => void; onEdit: (instance: Instance) => void; onManage?: (instance: Instance) => void; onSelect: (instance: Instance) => void; onNavigate: (page: Page) => void;
 }) {
   const choosingVersion = rocketMode === 'choose';
@@ -42,8 +43,11 @@ export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, 
     ...installedVersions,
   ]);
   const readiness = selected?.readiness ?? 'checking';
-  const recent = [...snapshot.instances].sort((a, b) => b.lastSelectedAt - a.lastSelectedAt).slice(0, 3);
-  const active = ['launching', 'running'].includes(readiness);
+  const favorites = snapshot.instances.filter((instance) => instance.favorite);
+  const otherInstances = snapshot.instances.filter((instance) => !instance.favorite);
+  const recent = [...snapshot.instances].sort((a, b) => Number(Boolean(b.favorite)) - Number(Boolean(a.favorite))
+    || b.lastSelectedAt - a.lastSelectedAt).slice(0, 3);
+  const active = isGameActive(readiness);
 
   const action = !selected ? { label: 'Create instance', icon: Plus, run: onCreate } :
     readiness === 'requires_download' ? selected.rocketPack
@@ -74,7 +78,8 @@ export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, 
             }}>
               {!selected && !rocketMode && <option value="" disabled>Choose an instance…</option>}
               {onChooseRocket && <option value={defaultRocket}>Default (Rocket)</option>}
-              {snapshot.instances.map((instance) => <option key={instance.id} value={instance.id}>{instance.name}</option>)}
+              {favorites.length > 0 && <optgroup label="Favorites">{favorites.map((instance) => <option key={instance.id} value={instance.id}>{instance.name}</option>)}</optgroup>}
+              {otherInstances.map((instance) => <option key={instance.id} value={instance.id}>{instance.name}</option>)}
             </select>
           </label> : <span className="play-edition">Minecraft Java Edition</span>}
           {selected && <button className="icon-button play-edit" title="Manage instance" aria-label="Manage selected instance" aria-haspopup="dialog" onClick={() => onManage(selected)}><Settings2 size={16} /></button>}
@@ -125,10 +130,10 @@ export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, 
 
     {recent.length > 0 && <section className="recent-section">
       <div className="section-heading">
-        <div><h2>Recent instances</h2><p>Switch versions or pick up where you left off.</p></div>
+        <div><h2>{favorites.length ? 'Favorites & recent' : 'Recent instances'}</h2><p>Switch versions or pick up where you left off.</p></div>
         <button className="button secondary small-button" onClick={() => onNavigate('instances')}>Manage instances <ArrowRight size={15} /></button>
       </div>
-      <div className="instance-grid">{recent.map((instance) => <InstanceCard key={instance.id} instance={instance} compact active={instance.id === snapshot.activeInstanceId} busy={busy} onManage={() => onManage(instance)} onEdit={() => onEdit(instance)} />)}</div>
+      <div className="instance-grid">{recent.map((instance) => <InstanceCard key={instance.id} instance={instance} compact active={instance.id === snapshot.activeInstanceId} busy={busy} onManage={() => onManage(instance)} onEdit={() => onEdit(instance)} onFavorite={onFavorite && (() => onFavorite(instance))} />)}</div>
     </section>}
   </>;
 }

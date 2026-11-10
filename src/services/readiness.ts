@@ -1,5 +1,7 @@
 import type { Readiness } from '../types';
 
+export const isGameActive = (readiness: Readiness) => readiness === 'running' || readiness === 'launching';
+
 export const readinessLabel: Record<Readiness, string> = {
   checking: 'Checking local files',
   requires_download: 'Installation required',

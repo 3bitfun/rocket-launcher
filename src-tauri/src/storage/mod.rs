@@ -3,6 +3,7 @@ use crate::{
     models::*,
 };
 use std::{
+    collections::BTreeSet,
     fs,
     io::Write,
     path::{Component, Path},
@@ -105,6 +106,28 @@ pub fn validate_settings(settings: &Settings) -> Result<()> {
 }
 
 impl Store {
+    fn favorites(&self) -> Result<BTreeSet<String>> {
+        match fs::read(self.paths.data.join("instance-favorites.json")) {
+            Ok(bytes) => serde_json::from_slice(&bytes)
+                .map_err(|e| AppError::new("FAVORITES", format!("Could not read instance favorites: {e}"))),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(BTreeSet::new()),
+            Err(e) => Err(AppError::io("read instance favorites", e)),
+        }
+    }
+
+    pub fn set_favorite(&self, id: &str, favorite: bool) -> Result<AppSnapshot> {
+        self.find_instance(id)?;
+        let mut favorites = self.favorites()?;
+        favorites.retain(|id| self.config.instances.iter().any(|instance| &instance.id == id));
+        if favorite {
+            favorites.insert(id.into());
+        } else {
+            favorites.remove(id);
+        }
+        atomic_json(&self.paths.data.join("instance-favorites.json"), &favorites)?;
+        Ok(self.snapshot())
+    }
+
     pub fn open(data_dir: std::path::PathBuf) -> Result<Self> {
         let paths = AppPaths {
             cache: data_dir.join("cache"),
@@ -172,6 +195,7 @@ impl Store {
     }
 
     pub fn snapshot(&self) -> AppSnapshot {
+        let favorites = self.favorites().unwrap_or_default();
         AppSnapshot {
             app_version: env!("CARGO_PKG_VERSION"),
             settings: self.config.settings.clone(),
@@ -179,7 +203,10 @@ impl Store {
                 .config
                 .instances
                 .iter()
-                .map(InstanceView::from)
+                .map(|instance| InstanceView {
+                    favorite: favorites.contains(&instance.id),
+                    ..InstanceView::from(instance)
+                })
                 .collect(),
             active_instance_id: self.config.active_instance_id.clone(),
             paths: self.paths.clone(),

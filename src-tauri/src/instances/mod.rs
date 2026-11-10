@@ -310,6 +310,7 @@ mod tests {
         };
         store.create_instance(input.clone(), "release").unwrap();
         let id = store.config.active_instance_id.clone().unwrap();
+        store.set_favorite(&id, true).unwrap();
         let path = store.find_instance(&id).unwrap().game_directory.clone();
         fs::write(path.join("world.txt"), "keep me").unwrap();
         let mut edited = input;
@@ -324,6 +325,9 @@ mod tests {
         store.select_instance(&id).unwrap();
         let mut reopened = Store::open(temp.path().into()).unwrap();
         assert_eq!(reopened.find_instance(&id).unwrap().name, "New name");
+        let favorites = reopened.snapshot().instances;
+        assert_eq!(favorites.iter().filter(|instance| instance.favorite).count(), 1);
+        assert!(favorites.iter().any(|instance| instance.favorite && instance.instance.id == id));
         assert_eq!(
             reopened.config.active_instance_id.as_deref(),
             Some(id.as_str())

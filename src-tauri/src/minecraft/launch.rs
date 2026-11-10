@@ -331,13 +331,14 @@ impl ProcessManager {
     pub fn contains(&self, id: &str) -> bool {
         self.0.lock().is_ok_and(|state| state.contains_key(id))
     }
-    pub fn cancel(&self, id: &str) -> Result<()> {
+    pub fn cancel(&self, id: &str) -> Result<bool> {
         let state = self.0.lock()
             .map_err(|_| AppError::new("PROCESS", "Process manager is unavailable."))?;
         if let Some(stop) = state.get(id) {
             stop.send_replace(true);
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 }
 
@@ -423,7 +424,7 @@ pub async fn start(
     })
     .await
     .map_err(|e| AppError::new("PROCESS", e.to_string()))??;
-    let logs = log_root.join("game").join(uuid::Uuid::new_v4().to_string());
+    let logs = log_root.join("game").join(&instance.id).join(uuid::Uuid::new_v4().to_string());
     tokio::fs::create_dir_all(&logs)
         .await
         .map_err(|e| AppError::io("create game log directory", e))?;

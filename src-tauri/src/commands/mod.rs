@@ -128,9 +128,11 @@ pub fn create_instance(
 #[tauri::command]
 pub fn update_instance(
     state: State<'_, LauncherState>,
+    jobs: State<'_, game::GameJobs>,
     id: String,
     input: InstanceInput,
 ) -> Result<AppSnapshot> {
+    let _guard = jobs.lock_instance_edit(&id)?;
     let mut store = state.store()?;
     let original = store.find_instance(&id)?;
     let kind = if original.version == input.version {
@@ -147,7 +149,13 @@ pub fn select_instance(state: State<'_, LauncherState>, id: String) -> Result<Ap
 }
 
 #[tauri::command]
-pub fn remove_instance(state: State<'_, LauncherState>, id: String) -> Result<AppSnapshot> {
+pub fn set_instance_favorite(state: State<'_, LauncherState>, id: String, favorite: bool) -> Result<AppSnapshot> {
+    state.store()?.set_favorite(&id, favorite)
+}
+
+#[tauri::command]
+pub fn remove_instance(state: State<'_, LauncherState>, jobs: State<'_, game::GameJobs>, id: String) -> Result<AppSnapshot> {
+    let _guard = jobs.lock_instance_edit(&id)?;
     state.store()?.remove_instance(&id)
 }
 
@@ -243,6 +251,10 @@ pub fn read_logs(state: State<'_, LauncherState>) -> Result<String> {
     let Some(path) = paths.last() else {
         return Ok("No log entries yet.".into());
     };
+    read_log_tail(path)
+}
+
+fn read_log_tail(path: &std::path::Path) -> Result<String> {
     let mut file =
         std::fs::File::open(path).map_err(|e| AppError::io("open the current log", e))?;
     let length = file

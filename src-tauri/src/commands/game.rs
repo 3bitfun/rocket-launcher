@@ -23,6 +23,16 @@ pub struct GameJobs {
 }
 
 impl GameJobs {
+    pub(super) fn lock_instance_edit(&self, id: &str) -> Result<tokio::sync::MutexGuard<'_, ()>> {
+        let guard = self.operation.try_lock().map_err(|_| {
+            AppError::new("BUSY", "Wait for the current Minecraft operation to finish.")
+        })?;
+        if self.processes.contains(id) {
+            return Err(AppError::new("BUSY", "Stop this Minecraft instance before editing or removing it."));
+        }
+        Ok(guard)
+    }
+
     pub(super) fn lock_for_update(&self) -> Result<tokio::sync::MutexGuard<'_, ()>> {
         let guard = self.operation.try_lock().map_err(|_| {
             AppError::new("BUSY", "Wait for the current Minecraft operation to finish before updating.")
@@ -875,8 +885,47 @@ pub async fn ignite_game(
 }
 
 #[tauri::command]
-pub fn abort_game(jobs: State<'_, GameJobs>, instance_id: String) -> Result<()> {
+pub fn abort_game(jobs: State<'_, GameJobs>, instance_id: String) -> Result<bool> {
     jobs.processes.cancel(&instance_id)
+}
+
+#[tauri::command]
+pub async fn read_instance_log(
+    state: State<'_, LauncherState>,
+    id: String,
+    errors: bool,
+) -> Result<Option<String>> {
+    let root = {
+        let store = state.store()?;
+        store.find_instance(&id)?;
+        store.paths.logs.clone()
+    };
+    tokio::task::spawn_blocking(move || {
+        use std::fs;
+        let root = fs::canonicalize(root).map_err(|e| AppError::io("open launcher logs", e))?;
+        let directory = root.join("game").join(id);
+        let entries = match fs::read_dir(&directory) {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(AppError::io("find Minecraft sessions", e)),
+        };
+        let latest = entries.flatten().filter_map(|entry| {
+            uuid::Uuid::parse_str(entry.file_name().to_str()?).ok()?;
+            let metadata = entry.metadata().ok()?;
+            metadata.is_dir().then(|| (metadata.created().ok(), entry.path()))
+        }).max();
+        let Some((_, session)) = latest else { return Ok(None) };
+        let path = session.join(if errors { "stderr.log" } else { "stdout.log" });
+        let canonical = match fs::canonicalize(&path) {
+            Ok(canonical) => canonical,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Some(String::new())),
+            Err(e) => return Err(AppError::io("open Minecraft log", e)),
+        };
+        if canonical != path || !canonical.is_file() {
+            return Err(AppError::new("LOG", "The Minecraft log is not a regular file in the session directory."));
+        }
+        super::read_log_tail(&canonical).map(Some)
+    }).await.map_err(|e| AppError::new("LOG", format!("Could not load Minecraft logs: {e}")))?
 }
 
 #[cfg(test)]

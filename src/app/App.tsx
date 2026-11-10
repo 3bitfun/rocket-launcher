@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react';
-import { AlertCircle, CheckCircle2, Download, Monitor, X } from 'lucide-react';
+import { Activity, AlertCircle, ArrowRight, CheckCircle2, Download, Monitor, Search, X } from 'lucide-react';
 import { Sidebar } from '../components/layout/Sidebar';
+import { QuickSearch } from '../components/layout/QuickSearch';
 import { InstanceEditor } from '../components/instances/InstanceEditor';
 import { InstanceManager } from '../components/instances/InstanceManager';
 import { Modal } from '../components/ui/Modal';
@@ -15,6 +16,7 @@ import { Settings } from '../pages/Settings/Settings';
 import { useLauncher } from '../hooks/useLauncher';
 import { useGame } from '../hooks/useGame';
 import { isDesktop, native } from '../services/native';
+import { isGameActive, readinessLabel } from '../services/readiness';
 import type { AccountsSummary, Instance, Page } from '../types';
 
 const pageDetails: Record<Page, { title: string; subtitle: string }> = {
@@ -25,6 +27,7 @@ const pageDetails: Record<Page, { title: string; subtitle: string }> = {
   downloads: { title: 'Downloads', subtitle: 'Track game installs and refresh the version catalogue.' },
   settings: { title: 'Settings', subtitle: 'Manage accounts, game defaults, and launcher updates.' },
 };
+const searchPages = (Object.keys(pageDetails) as Page[]).map((id) => ({ id, title: pageDetails[id].title }));
 
 function accentInk(hex: string) {
   const components = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255).map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
@@ -51,6 +54,8 @@ export default function App() {
   const [removing, setRemoving] = useState<Instance | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [pendingPage, setPendingPage] = useState<Page | null>(null);
+  const [quickSearch, setQuickSearch] = useState(false);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
   const systemReduced = useReducedMotion();
   const reduced = Boolean(systemReduced || stored?.settings.reducedMotion === 'always' || stored?.settings.animations === false);
   const snapshot = stored && { ...stored, instances: stored.instances.map((instance) => ({ ...instance, readiness: game.status(instance).readiness })) };
@@ -68,6 +73,18 @@ export default function App() {
   }, [browsingRocketVersions, fabricVersions, packCatalogueRetry]);
 
   useEffect(() => { main.current?.scrollTo(0, 0); }, [page]);
+
+  const dialogOpen = Boolean(quickSearch || sessionsOpen || editor || managedId || removing || pendingPage);
+  useEffect(() => {
+    if (!stored || dialogOpen) return;
+    function openSearch(event: KeyboardEvent) {
+      if (event.isComposing || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
+      event.preventDefault();
+      setQuickSearch(true);
+    }
+    window.addEventListener('keydown', openSearch);
+    return () => window.removeEventListener('keydown', openSearch);
+  }, [stored, dialogOpen]);
 
   useEffect(() => {
     let active = true;
@@ -143,6 +160,13 @@ export default function App() {
   function duplicate(instance: Instance) {
     void mutate(() => native.duplicate(instance.id), 'Configuration duplicated into a new, empty instance.');
   }
+  function toggleFavorite(instance: Instance) {
+    const favorite = !instance.favorite;
+    void mutate(() => native.favorite(instance.id, favorite), favorite ? 'Added to favorites.' : 'Removed from favorites.');
+  }
+  function play(instance: Instance) {
+    void game.run(instance, instance.rocketPack && instance.readiness === 'requires_download' ? 'first-launch' : 'launch');
+  }
 
   if (!isDesktop()) return <div className="startup-screen"><span className="brand-mark"><img src="/rocket.svg" alt="" /></span><h1>Rocket Launcher</h1><p>This is a native desktop application.<br />Open the Tauri app to use real storage and Minecraft versions.</p><code>npm run desktop</code><span className="tag"><Monitor size={14} /> Browser view · native features unavailable</span></div>;
   if (!snapshot) return <div className="startup-screen"><span className="brand-mark"><img src="/rocket.svg" alt="" /></span><h1>Rocket Launcher</h1>{launcher.startupError ? <><p role="alert" className="form-error">{launcher.startupError}</p><button className="button primary" onClick={() => void launcher.load()}>Try again</button></> : <><Spinner size={25} /><p>Preparing your launch pad…</p></>}</div>;
@@ -152,13 +176,24 @@ export default function App() {
   const managed = snapshot.instances.find((instance) => instance.id === managedId);
   const retry = snapshot.instances.find((instance) => instance.id === game.download?.instanceId && instance.version === game.download.version);
   const downloading = game.download?.stage === 'downloading' || game.download?.stage === 'installing';
+  const activeGames = snapshot.instances.filter((instance) => isGameActive(instance.readiness));
+  const percent = downloading && game.download?.totalBytes
+    ? Math.min(100, Math.floor(game.download.verifiedBytes / game.download.totalBytes * 100))
+    : null;
 
   return <MotionConfig reducedMotion={reduced ? 'always' : 'user'} transition={{ duration: reduced ? 0 : 0.2 }}>
     <div className="app-shell"><a className="skip-link" href="#main-content">Skip to content</a><Sidebar page={page} onNavigate={navigate} count={snapshot.instances.length} version={snapshot.appVersion} account={activeAccount} offline={accounts?.offline ?? false} />
       <main ref={main} id="main-content" tabIndex={-1}><header className="page-header">
         <div className="page-header-title"><span className="page-section-mark" aria-hidden="true" /><div><h1>{pageDetails[page].title}</h1><p>{pageDetails[page].subtitle}</p></div></div>
-        {downloading ? <button className="button secondary small-button" onClick={() => navigate('downloads')}><Download size={15} /> View download</button>
-          : accounts?.offline && <span className="tag">Offline mode</span>}
+        <div className="header-actions">
+          {downloading ? <button className="button secondary small-button" onClick={() => navigate('downloads')}><Download size={15} />{percent === null ? 'View download' : `Download · ${percent}%`}</button>
+            : accounts?.offline && <span className="tag">Offline mode</span>}
+          {activeGames.length > 0 && <button className="button secondary small-button" aria-haspopup="dialog" onClick={() => {
+            if (activeGames.length === 1) openManager(activeGames[0]);
+            else setSessionsOpen(true);
+          }}><Activity size={15} />{activeGames.length === 1 ? readinessLabel[activeGames[0].readiness] : `Sessions · ${activeGames.length}`}</button>}
+          <button className="button secondary small-button quick-search-button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" onClick={() => setQuickSearch(true)}><Search size={15} /> Search <kbd aria-hidden="true">Ctrl K</kbd></button>
+        </div>
       </header>
         <motion.div key={page} className="page-content" initial={reduced ? false : { opacity: 0.45, y: 9 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? 0 : 0.28, ease: [0.18, 0.72, 0.28, 1] }}>
           {page === 'launchpad' && <LaunchPad snapshot={snapshot} catalog={catalog} busy={busy}
@@ -167,9 +202,9 @@ export default function App() {
             onChooseRocket={() => setRocketSelection({ version: '', instanceId: null })} onSwitchVersion={switchRocketVersion} onPlayNewRocket={() => void playNewRocketPack()}
             status={selected && game.status(selected)} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager}
             onSelect={select} onNavigate={navigate} onInstall={(instance) => void game.run(instance, 'install')}
-            onIgnite={(instance) => void game.run(instance, instance.rocketPack && instance.readiness === 'requires_download' ? 'first-launch' : 'launch')}
-            stopping={game.stopping === selected?.id} onAbort={(instance) => void game.abort(instance)} onCheck={(instance) => void game.check(instance.id)} />}
-          {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onDuplicate={duplicate} onDelete={openRemoval} />}
+            onIgnite={play} onFavorite={toggleFavorite}
+            stopping={Boolean(selected && game.stopping.has(selected.id))} onAbort={(instance) => void game.abort(instance)} onCheck={(instance) => void game.check(instance.id)} />}
+          {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onDuplicate={duplicate} onDelete={openRemoval} onFavorite={toggleFavorite} />}
           {page === 'downloads' && <Downloads catalog={catalog} error={catalogError} fetching={fetching} onRefresh={() => void launcher.refreshVersions()} progress={game.download} onRetry={!busy && retry ? () => void game.run(retry, 'install') : undefined} />}
           {page === 'mods' && <Mods snapshot={snapshot} catalog={catalog} offline={accounts?.offline ?? false} busy={busy} initialInstanceId={modsTarget} onPlay={() => navigate('launchpad')} onModpackInstalled={() => void launcher.load()} onInstallPack={(version, progress) => mutate(() => native.installRocketPack(version, progress), 'Rocket Pack instance created.')} />}
           {page === 'multiplayer' && <Multiplayer snapshot={snapshot} offline={accounts?.offline ?? false} busy={busy}
@@ -178,9 +213,21 @@ export default function App() {
         </motion.div>
       </main>
     </div>
+    {quickSearch && <QuickSearch instances={snapshot.instances} pages={searchPages} onClose={() => setQuickSearch(false)}
+      onNavigate={(next) => { setQuickSearch(false); navigate(next); }}
+      onManage={(instance) => { setQuickSearch(false); openManager(instance); }} />}
+    {sessionsOpen && <Modal title="Minecraft sessions" description="Open a session to see its status, logs, and stop controls." onClose={() => setSessionsOpen(false)}>
+      <div className="quick-search-results">
+        {activeGames.map((instance) => <button key={instance.id} className="quick-result" onClick={() => { setSessionsOpen(false); openManager(instance); }}>
+          <Activity size={16} /><span><strong>{instance.name}</strong><small>Minecraft {instance.version} · {readinessLabel[instance.readiness]}</small></span><ArrowRight size={15} />
+        </button>)}
+        {activeGames.length === 0 && <p className="panel-footnote">All Minecraft sessions have ended.</p>}
+      </div>
+    </Modal>}
     {managed && !editor && !removing && <InstanceManager key={managed.id} instance={managed} status={game.status(managed)}
       active={managed.id === snapshot.activeInstanceId} offline={accounts?.offline ?? false} synced={snapshot.settings.syncRocketClient} busy={busy} notice={launcher.toast}
-      onClose={() => setManagedId(null)} onPlay={() => void game.run(managed, 'launch')} onInstall={() => void game.run(managed, 'install')}
+      stopping={game.stopping.has(managed.id)} onStop={() => void game.abort(managed)}
+      onClose={() => setManagedId(null)} onPlay={() => play(managed)} onInstall={() => void game.run(managed, 'install')}
       onCheck={() => void game.check(managed.id)} onProfile={() => { setManagedId(null); navigate('settings'); }}
       onActivate={() => select(managed)} onEdit={() => openEditor(managed)}
       onMods={() => { setManagedId(null); navigate('mods'); setModsTarget(managed.id); }}

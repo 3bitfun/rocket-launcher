@@ -7,16 +7,24 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
   const [statuses, setStatuses] = useState<Record<string, GameStatus>>({});
   const [download, setDownload] = useState<DownloadProgress | null>(null);
   const [working, setWorking] = useState(false);
-  const [stopping, setStopping] = useState<string | null>(null);
+  const [stopping, setStopping] = useState<ReadonlySet<string>>(() => new Set());
   const operation = useRef(false);
   const revisions = useRef(new Map<string, number>());
+  const clearStop = useCallback((id: string) => {
+    setStopping((current) => {
+      if (!current.has(id)) return current;
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+  }, []);
   const publish = useCallback((status: GameStatus) => {
     revisions.current.set(status.instanceId, (revisions.current.get(status.instanceId) ?? 0) + 1);
     setStatuses((old) => ({ ...old, [status.instanceId]: status }));
     if (status.readiness !== 'launching' && status.readiness !== 'running') {
-      setStopping((id) => id === status.instanceId ? null : id);
+      clearStop(status.instanceId);
     }
-  }, []);
+  }, [clearStop]);
   const check = useCallback(async (id: string) => {
     const version = (revisions.current.get(id) ?? 0) + 1;
     revisions.current.set(id, version);
@@ -121,11 +129,11 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
   }
 
   async function abort(instance: Instance) {
-    setStopping(instance.id);
+    setStopping((current) => new Set(current).add(instance.id));
     try {
-      await native.abort(instance.id);
+      if (!await native.abort(instance.id)) clearStop(instance.id);
     } catch (error) {
-      setStopping(null);
+      clearStop(instance.id);
       notify({ kind: 'error', message: errorMessage(error) });
     }
   }
