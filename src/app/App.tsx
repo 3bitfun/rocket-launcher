@@ -39,7 +39,11 @@ export default function App() {
   const game = useGame(stored, launcher.setToast, accounts);
   const busy = launcher.busy || game.working || game.download?.stage === 'installing' || game.download?.stage === 'downloading';
   const [page, setPage] = useState<Page>('launchpad');
-  const [rocketSelection, setRocketSelection] = useState<{ instanceId: string | null } | null>(null);
+  const [rocketSelection, setRocketSelection] = useState<{ version: string; instanceId: string | null } | null>(null);
+  const [packProgress, setPackProgress] = useState<[number, number] | null>(null);
+  const [fabricVersions, setFabricVersions] = useState<string[] | null>(null);
+  const [packCatalogueError, setPackCatalogueError] = useState(false);
+  const [packCatalogueRetry, setPackCatalogueRetry] = useState(0);
   const main = useRef<HTMLElement>(null);
   const [editor, setEditor] = useState<Instance | 'new' | null>(null);
   const [managedId, setManagedId] = useState<string | null>(null);
@@ -51,6 +55,17 @@ export default function App() {
   const reduced = Boolean(systemReduced || stored?.settings.reducedMotion === 'always' || stored?.settings.animations === false);
   const snapshot = stored && { ...stored, instances: stored.instances.map((instance) => ({ ...instance, readiness: game.status(instance).readiness })) };
   const activeAccount = accounts?.profiles.find((account) => account.id === accounts.activeId);
+  const browsingRocketVersions = page === 'launchpad' && rocketSelection !== null && accounts?.offline === false;
+
+  useEffect(() => {
+    if (!browsingRocketVersions || fabricVersions) return;
+    let active = true;
+    setPackCatalogueError(false);
+    void native.fabricGameVersions()
+      .then((versions) => { if (active) setFabricVersions(versions); })
+      .catch(() => { if (active) setPackCatalogueError(true); });
+    return () => { active = false; };
+  }, [browsingRocketVersions, fabricVersions, packCatalogueRetry]);
 
   useEffect(() => { main.current?.scrollTo(0, 0); }, [page]);
 
@@ -91,11 +106,36 @@ export default function App() {
     }
   }
   function switchRocketVersion(version: string) {
+    if (!rocketSelection || busy) return;
+    const installed = snapshot?.instances.filter((instance) => instance.rocketPack && instance.version === version)
+      .sort((a, b) => b.lastSelectedAt - a.lastSelectedAt)[0];
+    if (!installed || installed.id === snapshot?.activeInstanceId) {
+      setRocketSelection({ version, instanceId: installed?.id ?? null });
+      return;
+    }
     void mutate(async () => {
-      const next = await native.installRocketPack(version, () => {});
-      setRocketSelection({ instanceId: next.activeInstanceId });
+      const next = await native.select(installed.id);
+      setRocketSelection({ version, instanceId: installed.id });
       return next;
     }, `Rocket Pack ${version} is on the launch pad.`);
+  }
+  async function playNewRocketPack() {
+    if (!rocketSelection?.version || rocketSelection.instanceId || busy || accounts?.offline) return;
+    const { version } = rocketSelection;
+    let instance: Instance | undefined;
+    setPackProgress([0, 0]);
+    try {
+      const saved = await mutate(async () => {
+        const next = await native.installRocketPack(version, setPackProgress);
+        instance = next.instances.find((item) => item.id === next.activeInstanceId);
+        if (!instance) throw new Error('Rocket Pack was created but could not be selected.');
+        setRocketSelection({ version, instanceId: instance.id });
+        return next;
+      }, `Rocket Pack ${version} is on the launch pad.`);
+      if (saved && instance) await game.run(instance, 'first-launch');
+    } finally {
+      setPackProgress(null);
+    }
   }
   function openEditor(instance: Instance | 'new') { launcher.setToast(null); setEditor(instance); }
   function openRemoval(instance: Instance) { launcher.setToast(null); setRemoving(instance); }
@@ -122,10 +162,13 @@ export default function App() {
       </header>
         <motion.div key={page} className="page-content" initial={reduced ? false : { opacity: 0.45, y: 9 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? 0 : 0.28, ease: [0.18, 0.72, 0.28, 1] }}>
           {page === 'launchpad' && <LaunchPad snapshot={snapshot} catalog={catalog} busy={busy}
-            rocketMode={rocketMode} onChooseRocket={() => setRocketSelection({ instanceId: null })} onSwitchVersion={switchRocketVersion}
+            rocketMode={rocketMode} rocketVersion={rocketSelection?.version} packProgress={packProgress} offline={accounts?.offline ?? false}
+            fabricVersions={fabricVersions} packCatalogueError={packCatalogueError} onRetryPackCatalogue={() => setPackCatalogueRetry((attempt) => attempt + 1)}
+            onChooseRocket={() => setRocketSelection({ version: '', instanceId: null })} onSwitchVersion={switchRocketVersion} onPlayNewRocket={() => void playNewRocketPack()}
             status={selected && game.status(selected)} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager}
             onSelect={select} onNavigate={navigate} onInstall={(instance) => void game.run(instance, 'install')}
-            onIgnite={(instance) => void game.run(instance, 'launch')} onAbort={(instance) => void game.abort(instance)} onCheck={(instance) => void game.check(instance.id)} />}
+            onIgnite={(instance) => void game.run(instance, instance.rocketPack && instance.readiness === 'requires_download' ? 'first-launch' : 'launch')}
+            stopping={game.stopping === selected?.id} onAbort={(instance) => void game.abort(instance)} onCheck={(instance) => void game.check(instance.id)} />}
           {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onDuplicate={duplicate} onDelete={openRemoval} />}
           {page === 'downloads' && <Downloads catalog={catalog} error={catalogError} fetching={fetching} onRefresh={() => void launcher.refreshVersions()} progress={game.download} onRetry={!busy && retry ? () => void game.run(retry, 'install') : undefined} />}
           {page === 'mods' && <Mods snapshot={snapshot} catalog={catalog} offline={accounts?.offline ?? false} busy={busy} initialInstanceId={modsTarget} onPlay={() => navigate('launchpad')} onModpackInstalled={() => void launcher.load()} onInstallPack={(version, progress) => mutate(() => native.installRocketPack(version, progress), 'Rocket Pack instance created.')} />}

@@ -7,11 +7,15 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
   const [statuses, setStatuses] = useState<Record<string, GameStatus>>({});
   const [download, setDownload] = useState<DownloadProgress | null>(null);
   const [working, setWorking] = useState(false);
+  const [stopping, setStopping] = useState<string | null>(null);
   const operation = useRef(false);
   const revisions = useRef(new Map<string, number>());
   const publish = useCallback((status: GameStatus) => {
     revisions.current.set(status.instanceId, (revisions.current.get(status.instanceId) ?? 0) + 1);
     setStatuses((old) => ({ ...old, [status.instanceId]: status }));
+    if (status.readiness !== 'launching' && status.readiness !== 'running') {
+      setStopping((id) => id === status.instanceId ? null : id);
+    }
   }, []);
   const check = useCallback(async (id: string) => {
     const version = (revisions.current.get(id) ?? 0) + 1;
@@ -70,10 +74,11 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
     };
   }, [profiles, check, accountRevision]);
 
-  async function run(instance: Instance, action: 'install' | 'launch', server?: string) {
+  async function run(instance: Instance, action: 'install' | 'launch' | 'first-launch', server?: string) {
     if (operation.current) return false;
     operation.current = true;
     setWorking(true);
+    let installingForLaunch = false;
     if (action === 'install') publish({ instanceId: instance.id, readiness: 'downloading', message: 'Preparing installation…', exitCode: null });
     try {
       if (action === 'install') {
@@ -81,17 +86,33 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
         await check(instance.id);
         notify({ kind: 'success', message: 'Minecraft files verified.' });
       } else {
+        if (action === 'first-launch') {
+          let status = await native.checkGame(instance.id);
+          if (status.readiness === 'requires_download') {
+            installingForLaunch = true;
+            publish({ ...status, readiness: 'downloading', message: 'Installing Minecraft and Fabric…' });
+            await native.installGame(instance.id);
+            installingForLaunch = false;
+            status = await native.checkGame(instance.id);
+          }
+          if (status.readiness !== 'ready') {
+            publish(status);
+            return false;
+          }
+        }
         await native.ignite(instance.id, server);
       }
       return true;
     } catch (error) {
       const message = errorMessage(error);
-      const missing = typeof error === 'object' && error !== null && 'code' in error && error.code === 'MISSING_FILES';
-      publish({ instanceId: instance.id, readiness: missing ? 'missing_files' : 'error', message, exitCode: null });
+      const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : null;
+      if (code === 'ABORTED') return false;
+      const readiness = installingForLaunch ? 'requires_download' : code === 'MISSING_FILES' ? 'missing_files' : 'error';
+      publish({ instanceId: instance.id, readiness, message, exitCode: null });
       notify({ kind: 'error', message });
       return false;
     } finally {
-      if (action === 'install') {
+      if (action !== 'launch') {
         try { setDownload(await native.downloadStatus()); } catch { /* Events also carry the latest state. */ }
       }
       operation.current = false;
@@ -100,11 +121,11 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
   }
 
   async function abort(instance: Instance) {
+    setStopping(instance.id);
     try {
       await native.abort(instance.id);
-      publish({ instanceId: instance.id, readiness: 'error', message: 'Launch aborted.', exitCode: null });
-      notify({ kind: 'success', message: 'Minecraft launch stopped.' });
     } catch (error) {
+      setStopping(null);
       notify({ kind: 'error', message: errorMessage(error) });
     }
   }
@@ -117,5 +138,5 @@ export function useGame(snapshot: AppSnapshot | null, notify: (toast: Toast) => 
     return statuses[instance.id] ?? { instanceId: instance.id, readiness: instance.readiness, message: 'Checking local files…', exitCode: null };
   }
 
-  return { status, download, working, run, abort, check };
+  return { status, download, working, stopping, run, abort, check };
 }

@@ -260,7 +260,16 @@ pub async fn install_rocket_pack(
         .try_lock()
         .map_err(|_| AppError::new("BUSY", "Another Minecraft operation is in progress."))?;
     let (input, parent, cache, timeout) = {
-        let store = state.store()?;
+        let mut store = state.store()?;
+        if input.is_none() {
+            let existing = store.config.instances.iter()
+                .filter(|instance| instance.version == version && instance.is_rocket_pack())
+                .max_by_key(|instance| instance.last_selected_at)
+                .map(|instance| instance.id.clone());
+            if let Some(id) = existing {
+                return store.select_instance(&id);
+            }
+        }
         if accounts::Accounts::read(&store.paths.data)?.offline {
             return Err(accounts::offline_error());
         }
@@ -281,15 +290,6 @@ pub async fn install_rocket_pack(
         });
         if input.version != version || input.loader != crate::models::Loader::Fabric {
             return Err(AppError::new("PACK", "Rocket Pack requires a matching Fabric instance."));
-        }
-        if let Some(existing) = store.config.instances.iter().find(|instance| {
-            instance.name.starts_with("Rocket Pack")
-                && instance.version == version
-                && instance.loader == crate::models::Loader::Fabric
-        }) {
-            let id = existing.id.clone();
-            drop(store);
-            return state.store()?.select_instance(&id);
         }
         let parent = input.parent_directory.clone()
             .unwrap_or_else(|| settings.minecraft_directory.join("Rocket"));
@@ -783,9 +783,7 @@ pub async fn ignite_game(
         let installed = verify(&input, false, true)
             .await?
             .ok_or_else(|| AppError::new("MISSING_FILES", "Install Minecraft before launching."))?;
-        if jobs.processes.cancelled(&id) {
-            return Err(AppError::new("ABORTED", "Minecraft launch aborted."));
-        }
+        reservation.check_cancelled()?;
         let platform = Platform::windows()?;
         let java = java::resolve(
             input.java,
@@ -794,6 +792,7 @@ pub async fn ignite_game(
             platform.arch,
         )
         .await?;
+        reservation.check_cancelled()?;
         let _account_guard = account_jobs
             .0
             .try_lock()
@@ -820,6 +819,7 @@ pub async fn ignite_game(
                 launch::LaunchAuth::Offline { player, uuid }
             }
         };
+        reservation.check_cancelled()?;
         let sync = if input.sync_servers || input.sync_keybinds {
             let root = input.data.join("instance-sync");
             let game = input.instance.game_directory.clone();
@@ -864,10 +864,10 @@ pub async fn ignite_game(
     }
     .await;
     if let Err(error) = &result {
-        let readiness = if error.code == "MISSING_FILES" {
-            Readiness::MissingFiles
-        } else {
-            Readiness::Error
+        let readiness = match error.code {
+            "MISSING_FILES" => Readiness::MissingFiles,
+            "ABORTED" => Readiness::Ready,
+            _ => Readiness::Error,
         };
         publish_game(&app, GameStatus::new(&id, readiness, &error.message));
     }

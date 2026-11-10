@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import { Download, FileArchive, FolderOpen, Puzzle, RefreshCw, Search } from 'lucide-react';
 import type { AppSnapshot, InstalledMod, VersionCatalog } from '../../types';
 import { native, errorMessage } from '../../services/native';
+import { recommendedRocketVersion as recommendedVersion } from '../../services/loaders';
 import { EmptyState, Spinner } from '../../components/ui/Primitives';
 import { ModrinthBrowser } from './ModrinthBrowser';
-
-const recommendedVersion = '1.21.11';
 
 export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPlay, onInstallPack, onModpackInstalled }: { snapshot: AppSnapshot; catalog: VersionCatalog | null; offline: boolean; busy: boolean; initialInstanceId?: string; onPlay: () => void; onInstallPack: (version: string, progress: (files: [number, number]) => void) => Promise<boolean>; onModpackInstalled?: () => void }) {
   const [view, setView] = useState<'browse' | 'installed' | 'pack'>(initialInstanceId ? 'installed' : snapshot.instances.length ? 'browse' : 'pack');

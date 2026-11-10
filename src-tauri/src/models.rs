@@ -84,12 +84,21 @@ pub struct Instance {
     pub last_selected_at: u64,
 }
 
+impl Instance {
+    pub fn is_rocket_pack(&self) -> bool {
+        self.loader == Loader::Fabric
+            && self.game_directory.file_name().and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("rocket-pack-"))
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceView {
     #[serde(flatten)]
     pub instance: Instance,
     pub readiness: crate::minecraft::launch::Readiness,
+    pub rocket_pack: bool,
 }
 
 impl From<&Instance> for InstanceView {
@@ -97,6 +106,7 @@ impl From<&Instance> for InstanceView {
         Self {
             instance: instance.clone(),
             readiness: crate::minecraft::launch::Readiness::Checking,
+            rocket_pack: instance.is_rocket_pack(),
         }
     }
 }

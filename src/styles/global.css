@@ -210,6 +210,10 @@ main:focus { outline: none; }
 .toolbar select { font-size: 10px; background: var(--surface); }
 .toolbar-count { color: var(--muted); font-size: 10px; margin-left: auto; white-space: nowrap; }
 .instance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.rocket-folder { display: grid; gap: 12px; margin-bottom: 16px; }
+.rocket-folder-toggle.button { justify-content: flex-start; width: 100%; }
+.rocket-folder-toggle > svg:last-child { margin-left: auto; }
+.rocket-folder-toggle[aria-expanded="false"] > svg:last-child { transform: rotate(-90deg); }
 .instance-card { min-width: 0; border: 1px solid var(--border); border-radius: var(--corner); overflow: hidden; background: var(--surface); transition: border-color .2s ease, translate .2s ease, box-shadow .2s ease; }
 .instance-card.selected { border-color: color-mix(in srgb, var(--brand-blue) 72%, var(--border)); }
 .instance-card:hover { translate: 0 -2px; box-shadow: var(--shadow); }

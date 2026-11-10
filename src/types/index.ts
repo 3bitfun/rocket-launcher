@@ -51,6 +51,7 @@ export interface Instance {
   updatedAt: number;
   lastSelectedAt: number;
   readiness: Readiness;
+  rocketPack?: boolean;
 }
 export interface AppSnapshot {
   appVersion: string;

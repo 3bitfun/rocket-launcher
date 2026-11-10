@@ -27,9 +27,10 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
   const [query, setQuery] = useState('');
   const [showSnapshots, setShowSnapshots] = useState(settings.showSnapshots);
   const [error, setError] = useState<string | null>(null);
+  const lockedPack = instance?.rocketPack === true;
   const selectedVersion = version || catalog?.latest.release || '';
   const packUnavailable = rocketPack && (offline || catalog?.versions.find((entry) => entry.id === selectedVersion)?.type === 'snapshot');
-  const needsLoader = !rocketPack && loader !== 'vanilla';
+  const needsLoader = !rocketPack && !lockedPack && loader !== 'vanilla';
   const versions = useMemo(() => catalog?.versions.filter((entry) => (showSnapshots || entry.type === 'release' || entry.id === selectedVersion) && entry.id.toLowerCase().includes(query.toLowerCase())) ?? [], [catalog, query, selectedVersion, showSnapshots]);
   const selectedMissing = selectedVersion && !versions.some((entry) => entry.id === selectedVersion);
   const loaderOptions = fabricLoaders ?? [];
@@ -41,7 +42,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
       : !fabricLoaders.length ? `No compatible loaders for ${selectedVersion || 'this version'}` : 'Choose a loader…';
 
   useEffect(() => {
-    if (rocketPack || loader === 'vanilla' || !selectedVersion) return;
+    if (!needsLoader || !selectedVersion) return;
     let cancelled = false;
     setFabricLoading(true); setFabricError(null);
     (loader === 'forge' ? native.forgeLoaders(selectedVersion) : native.fabricLoaders(selectedVersion))
@@ -62,7 +63,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
       })
       .finally(() => { if (!cancelled) setFabricLoading(false); });
     return () => { cancelled = true; };
-  }, [rocketPack, loader, selectedVersion, fabricRevision, instance?.version, instance?.loaderVersion, instance?.loader]);
+  }, [needsLoader, loader, selectedVersion, fabricRevision, instance?.version, instance?.loaderVersion, instance?.loader]);
 
   function selectLoader(next: Loader) {
     setRocketPack(false);
@@ -83,7 +84,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
     if (needsLoader && !loaderVersion) { setError('Choose a compatible mod loader version.'); return; }
     setPackProgress(null);
     const input: InstanceInput = {
-      name: name.trim(), version: selectedVersion, loader, loaderVersion: needsLoader ? loaderVersion : null,
+      name: name.trim(), version: selectedVersion, loader, loaderVersion: needsLoader || lockedPack ? loaderVersion : null,
       ramMb: ram, javaPath: java.trim() || null, parentDirectory: instance ? null : parent.trim(),
     };
     const saved = await (rocketPack ? onSave(input, setPackProgress) : onSave(input));
@@ -94,6 +95,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
     <form onSubmit={(event) => void submit(event)}>
       <fieldset disabled={busy} className="editor-fields">
         <label className="field"><span>Instance name</span><input autoFocus maxLength={64} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunday survival" required /></label>
+        {lockedPack ? <div className="notice"><Rocket size={18} /><span>Rocket Pack · Minecraft {selectedVersion} · Fabric {loaderVersion}. Switch versions from Default (Rocket) on the Launch Pad.</span></div> : <>
         <div className="field"><div className="field-title"><label htmlFor="mc-version">Minecraft version</label><button type="button" className="text-button" onClick={onRefresh} disabled={fetching}>{fetching ? <Spinner size={13} /> : <RefreshCw size={13} />} Refresh</button></div>
           <input aria-label="Filter Minecraft versions" placeholder="Find a version…" value={query} onChange={(e) => setQuery(e.target.value)} />
           <select id="mc-version" value={selectedVersion} onChange={(e) => {
@@ -138,6 +140,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
           {fabricError && <small className="warning-text">{fabricError}</small>}
           {!fabricError && <small>The recommended loader is preselected when available.</small>}
         </div>}
+        </>}
         <label className="field"><span className="field-title">Memory allocation <strong>{formatRam(ram)}</strong></span><input type="range" min="1024" max="16384" step="256" value={Math.min(ram, 16384)} onChange={(e) => setRam(Number(e.target.value))} /><div className="ram-input"><input aria-label="Memory in MB" type="number" min="1024" max="65536" step="256" value={ram} onChange={(e) => setRam(Number(e.target.value))} required /><small>MB · leave memory for Windows and other apps</small></div></label>
         {instance ? <label className="field"><span>Game directory</span><input value={instance.gameDirectory} readOnly /><small>Existing directories stay in place. Create a new instance to choose another location.</small></label> : <PathField label="Instance parent directory" value={parent} onChange={setParent} onError={setError} hint="A unique game folder is created here. Your existing files stay untouched." />}
         <PathField label="Java executable override" kind="java" value={java} onChange={setJava} onError={setError} hint="Optional. Leave blank to use the launcher default or automatic detection." />
@@ -145,7 +148,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
       <div className="notice"><AlertCircle size={16} /><span>{rocketPack
         ? offline ? 'Go online to download Rocket Pack, or choose another setup.'
           : packUnavailable ? 'Choose a Minecraft release for Rocket Pack, or choose another setup for this snapshot.'
-          : 'Rocket Pack downloads compatible mods during creation. Install Minecraft from the Launch Pad afterward.'
+          : 'Rocket Pack downloads compatible mods during creation. Use Install & play on the Launch Pad to finish setup.'
         : 'Install or verify Minecraft files from the Launch Pad after saving.'}</span></div>
       {rocketPack && busy && packProgress && <div className="pack-progress">
         <p role="status">{packProgress[0]} of {packProgress[1]} pack steps complete</p>

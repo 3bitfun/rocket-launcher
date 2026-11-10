@@ -9,7 +9,7 @@ use crate::{
 };
 use serde::Serialize;
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Arc, Mutex},
@@ -17,6 +17,7 @@ use std::{
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader},
     process::{Child, Command},
+    sync::watch,
 };
 
 /// Only native account code may issue this after ownership, profile and expiry checks.
@@ -282,25 +283,25 @@ impl GameStatus {
     }
 }
 
-#[derive(Default)]
-struct ProcessState {
-    running: HashSet<String>,
-    cancelled: HashSet<String>,
-    pids: HashMap<String, u32>,
-}
-
 #[derive(Clone, Default)]
-pub struct ProcessManager(Arc<Mutex<ProcessState>>);
+pub struct ProcessManager(Arc<Mutex<HashMap<String, watch::Sender<bool>>>>);
 pub struct Reservation {
     manager: ProcessManager,
     id: String,
+    stop: watch::Receiver<bool>,
+}
+impl Reservation {
+    pub fn check_cancelled(&self) -> Result<()> {
+        if *self.stop.borrow() {
+            return Err(AppError::new("ABORTED", "Minecraft launch aborted."));
+        }
+        Ok(())
+    }
 }
 impl Drop for Reservation {
     fn drop(&mut self) {
         if let Ok(mut state) = self.manager.0.lock() {
-            state.running.remove(&self.id);
-            state.cancelled.remove(&self.id);
-            state.pids.remove(&self.id);
+            state.remove(&self.id);
         }
     }
 }
@@ -310,46 +311,33 @@ impl ProcessManager {
             .0
             .lock()
             .map_err(|_| AppError::new("PROCESS", "Process manager is unavailable."))?;
-        if !state.running.insert(id.into()) {
+        if state.contains_key(id) {
             return Err(AppError::new(
                 "PROCESS",
                 "This instance is already launching or running.",
             ));
         }
-        state.cancelled.remove(id);
+        let (send, stop) = watch::channel(false);
+        state.insert(id.into(), send);
         Ok(Reservation {
             manager: self.clone(),
             id: id.into(),
+            stop,
         })
     }
     pub fn busy(&self) -> bool {
-        self.0.lock().map_or(true, |state| !state.running.is_empty())
+        self.0.lock().map_or(true, |state| !state.is_empty())
     }
     pub fn contains(&self, id: &str) -> bool {
-        self.0.lock().is_ok_and(|state| state.running.contains(id))
+        self.0.lock().is_ok_and(|state| state.contains_key(id))
     }
     pub fn cancel(&self, id: &str) -> Result<()> {
-        let pid = {
-            let mut state = self.0.lock().map_err(|_| AppError::new("PROCESS", "Process manager is unavailable."))?;
-            if !state.running.contains(id) {
-                return Err(AppError::new("PROCESS", "Nothing is currently launching for this instance."));
-            }
-            state.cancelled.insert(id.into());
-            state.pids.get(id).copied()
-        };
-        if let Some(pid) = pid {
-            #[cfg(windows)]
-            {
-                let _ = std::process::Command::new("taskkill").args(["/PID", &pid.to_string(), "/T", "/F"]).status();
-            }
+        let state = self.0.lock()
+            .map_err(|_| AppError::new("PROCESS", "Process manager is unavailable."))?;
+        if let Some(stop) = state.get(id) {
+            stop.send_replace(true);
         }
         Ok(())
-    }
-    pub fn cancelled(&self, id: &str) -> bool {
-        self.0.lock().is_ok_and(|state| state.cancelled.contains(id))
-    }
-    pub fn register_pid(&self, id: &str, pid: u32) {
-        if let Ok(mut state) = self.0.lock() { state.pids.insert(id.into(), pid); }
     }
 }
 
@@ -370,6 +358,7 @@ pub async fn start(
     request: LaunchRequest,
     report: impl Fn(GameStatus) + Send + Sync + 'static,
 ) -> Result<()> {
+    reservation.check_cancelled()?;
     let LaunchRequest {
         installed,
         instance,
@@ -460,16 +449,11 @@ pub async fn start(
     if expires_at.is_some_and(|expires_at| expires_at <= now()) {
         return Err(authentication_required());
     }
+    reservation.check_cancelled()?;
     let mut child = spawn(&mut command)?;
-    let manager = reservation.manager.clone();
-    manager.register_pid(&instance.id, child.id().unwrap_or_default());
-    if manager.cancelled(&instance.id) {
-        let _ = child.kill().await;
-        return Err(AppError::new("ABORTED", "Minecraft launch aborted."));
-    }
     #[cfg(windows)]
-    let job = match windows_job(&child) {
-        Ok(job) => job,
+    let mut job = match windows_job(&child) {
+        Ok(job) => Some(job),
         Err(error) => {
             let _ = child.kill().await;
             return Err(error);
@@ -488,12 +472,24 @@ pub async fn start(
             child.id().unwrap_or_default()
         )
     };
-    report(GameStatus::new(&instance.id, Readiness::Running, running_message));
+    if reservation.check_cancelled().is_ok() {
+        report(GameStatus::new(&instance.id, Readiness::Running, running_message));
+    }
     tauri::async_runtime::spawn(async move {
         let token = access_token;
         let mut out = tokio::spawn(capture(out, stdout, token.clone()));
         let mut err = tokio::spawn(capture(err, stderr, token));
-        let exit = child.wait().await;
+        let mut stop = reservation.stop.clone();
+        let (exit, stopped) = tokio::select! {
+            biased;
+            _ = async { let _ = stop.wait_for(|requested| *requested).await; } => {
+                #[cfg(windows)]
+                drop(job.take());
+                let _ = child.start_kill();
+                (child.wait().await, true)
+            }
+            exit = child.wait() => (exit, false),
+        };
         #[cfg(windows)]
         drop(job);
         if tokio::time::timeout(std::time::Duration::from_secs(2), async {
@@ -521,6 +517,7 @@ pub async fn start(
                 format!("Minecraft exited. Instance sync will retry on the next launch: {}", sync_error.unwrap_or_default()),
                 status.code(),
             ),
+            Ok(_) if stopped => (Readiness::Ready, "Minecraft stopped.".into(), None),
             Ok(status) if status.success() => (
                 Readiness::Ready,
                 "Minecraft exited normally.".into(),

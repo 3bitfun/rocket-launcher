@@ -128,6 +128,12 @@ impl Store {
             .iter_mut()
             .find(|i| i.id == id)
             .ok_or_else(not_found)?;
+        if instance.is_rocket_pack()
+            && (instance.version != input.version || instance.loader != input.loader
+                || instance.loader_version != input.loader_version)
+        {
+            return Err(AppError::new("VALIDATION", "Choose another Rocket Pack version from the Launch Pad to keep each version's mods and saves separate."));
+        }
         instance.name = input.name.trim().into();
         instance.version = input.version;
         instance.version_type = version_type.into();
