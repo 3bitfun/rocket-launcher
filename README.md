@@ -2,11 +2,22 @@
 
 **Beyond the Built Limit.** A native Windows Minecraft Java Edition launcher built with Tauri 2, Rust, React, TypeScript, Vite, Tailwind CSS, Motion, and Lucide.
 
+## Getting started
+
+1. Download the Windows x64 installer or standalone executable from [GitHub Releases](https://github.com/3bitfun/rocket-launcher/releases). Releases currently use GitHub's prerelease channel. Run the installer to install Rocket Launcher, or run the standalone EXE directly.
+2. In **Settings → Accounts**, create a username under **New offline username**, or sign in with a Microsoft account that owns Minecraft Java Edition. Microsoft sign-in requires the configured app registration described below.
+3. On the **Launch Pad**, choose **Default (Rocket)**, select a Minecraft version, and click **Install & play**. The launcher prepares the Rocket Pack, downloads Minecraft and Fabric as needed, checks Java and the player profile, and starts the game.
+4. For another setup, open **Instances → Create instance** and choose Fabric Rocket Pack, Vanilla, Fabric, or Forge. Click an instance card to open its manager.
+
+The first setup requires an internet connection. Once the files and a compatible Java runtime are installed, an offline profile can play single-player without Microsoft sign-in. Enable **Offline mode** in Settings to pause launcher network requests. Changing an offline username changes its offline player ID, which can affect world and server player data.
+
 ## Launcher features
 
 Rocket Launcher manages Vanilla, Fabric, and Forge instances on Windows. Choose a local offline profile for single-player or sign in with Microsoft for authenticated play. Forge offers recommended and latest builds for Minecraft 1.20.1 and newer releases when listed by Forge.
 
-- Launch Pad, Instances, Mods, Downloads, and Settings navigation.
+- Launch Pad, Instances, Multiplayer, Mods, Downloads, and Settings navigation.
+- **Ctrl+K** opens quick search for launcher pages and instances by name, game version, or loader. The search supports keyboard navigation.
+- Star instances to keep favorites at the top of the Launch Pad picker and instance lists. Filter Instances to show favorites only. Rocket Pack instances are grouped in the **Rocket** folder in Instances.
 - Click an instance to open its manager, where you can play, repair files, install Rocket Client, and open the instance’s folder or installed mods.
 - Create, rename, edit, select, duplicate, and remove instances.
 - Separate UUID-named game directories; configurable Minecraft version, RAM, and Java executable path.
@@ -15,22 +26,30 @@ Rocket Launcher manages Vanilla, Fabric, and Forge instances on Windows. Choose 
 - Live official Mojang version catalogue, release/snapshot filters, local cache, bounded requests, timeout, one retry, and explicit failure/fallback states.
 - Mojang client, libraries, assets, logging configuration and native archives, with streaming downloads, SHA-1 verification, shared cache reuse, and offline repair checks.
 - Java discovery with exact version and architecture matching. A manually selected executable takes priority.
-- Launch Pad install and repair actions, measured Downloads progress, and native launch preparation behind an ownership-verified session boundary.
+- Launch Pad **Install & play** for Rocket Pack, separate install and repair actions, measured Downloads progress, and native launch preparation. The header shows download progress and provides access to active Minecraft sessions.
+- Abort a launch or stop a running game from the Launch Pad or instance manager. Running sessions are accessible from the header on other pages. The manager can display, refresh, and copy output and error logs from the latest session recorded by launcher v0.1.20 or later.
 - Optional server list, keybind, and Rocket Client HUD sync across instances, enabled by default.
 - Microsoft OAuth sign-in, Xbox/Minecraft ownership verification, Windows Credential Manager refresh-token storage, and authenticated launch sessions.
 - Dark, light, and system themes; custom accent colours; animation and reduced-motion preferences.
-- Built-in Modrinth search for Fabric and Forge instances, matching Minecraft versions and loader. Install directly from search results or choose a specific release. Rocket Launcher verifies the JAR and resolves required Modrinth dependencies.
-- Local `.jar` file listing from each instance's mods directory.
+- Built-in Modrinth mod and modpack browsing, compatible mod version selection, dependency resolution, and verified downloads.
+- Local `.jar` listing, search, individual and bulk enable/disable controls, and a shortcut to each instance's mods folder.
+- Saved multiplayer servers, status checks, direct joining on supported versions, and optional ViaFabric and e4mc installation for compatible Fabric instances.
 - Local rotating structured logs and an in-app log viewer.
 - Keyboard-accessible controls, native modal focus management, responsive desktop layout.
 
 Java runtimes are selected from installed runtimes. Launcher updates are applied from Settings.
 
-## Install mods
+## Rocket Pack and instances
 
-**Create an instance** defaults to **Fabric Rocket Pack**. You can also choose plain Fabric, Vanilla, or Forge. To create a pack with the default instance settings, pick a Minecraft release in **Mods → Rocket Pack**. The full 1.21.11 pack uses Fabric Loader 0.20.1 and pinned mods from the supplied Tuff pack. Other releases draw from 24 Tuff projects, including Sodium, AppleSkin, Jade, Zoomify, and Iris. Rocket Pack installs the matching Fabric builds and their required dependencies when available. Install the Minecraft files from **Launch Pad** and use the Java version it requests.
+**Create an instance** defaults to **Fabric Rocket Pack**. You can also choose plain Fabric, Vanilla, or Forge. The Launch Pad's **Default (Rocket)** option exposes a version picker, while named instances use their own saved version. Choosing a version is immediate; **Install & play** begins downloading on first launch. An existing Rocket Pack instance for that version is reused. You can also create a pack through **Mods → Rocket Pack** or the instance editor.
+
+The full 1.21.11 pack uses Fabric Loader 0.20.1 and pinned mods from the supplied Tuff pack. Other releases draw from 24 Tuff projects, including Sodium, AppleSkin, Jade, Zoomify, and Iris. Rocket Pack selects compatible Fabric builds and required dependencies when available, so its contents vary by Minecraft version. Litematica is excluded. Fabric and compatible project availability determine which versions can be installed.
 
 The full pack downloads 68 mods and 28 resource and shader packs from the original pack index. It uses a newer Simple Voice Chat build to satisfy Flashback’s compatibility requirement. The original archive’s three local overrides are separate from these downloads. Rocket Launcher keeps verified downloads in a shared cache and copies them into new full-pack instances.
+
+Each instance has its own game directory and settings. The manager provides launch, installation, repair, Java and RAM settings, mod management, Rocket Client installation, and folder access. Duplicating copies the configuration into a new empty directory. Removing an instance removes its launcher entry while preserving its files. Rocket Pack game and loader versions are locked in the editor; choose another version on the Launch Pad to keep its files separate.
+
+## Rocket Client
 
 **Rocket Client** comes with the full pack and compatible starter packs. For another instance, click its card and select **Install Rocket Client**. The launcher picks the JAR built for that Minecraft release and installs Fabric API if needed. The instance manager reports availability and the minimum Fabric Loader version for the selected release.
 
@@ -38,19 +57,33 @@ The launcher bundles 34 Fabric builds covering the stable Minecraft Java release
 
 Click **Rocket** on Minecraft’s title or pause menu to toggle FPS, coordinates, heading, world time, server ping, Java heap usage, movement keys, and armor. Select **Edit HUD layout** and drag the widgets into position. The layout scales with the screen, and **Reset positions** restores the defaults. Assign the optional **Open Rocket menu** shortcut in Minecraft’s Controls. The **Sync Rocket Client HUD** setting shares module choices and positions across compatible instances.
 
+The **Crosshair Editor** offers vanilla, custom, and hidden modes with a live preview. Choose cross, dot, circle, T-shape, or combinations; adjust size, thickness, gap, opacity, outline, shadow, and RGB or hex colors; and enable dynamic expansion or a target color. Built-in presets and custom save slots persist between sessions. Rocket Client settings are shared across compatible instances when the launcher’s HUD sync is enabled.
+
 To rebuild a mapped client JAR, run `.\gradlew.bat remapJar '-PmcVersion=1.21.11'` from `rocket-companion` on JDK 21. For 26.x, use JDK 25 and Gradle 9.9 with `gradle -p unobfuscated jar '-PmcVersion=26.3'`. Copy the built JAR to `src-tauri/resources/rocket-client/<minecraft-version>.jar` to bundle it.
 
 For a custom Minecraft title screen or pause menu, install the matching Fabric release of [FancyMenu](https://modrinth.com/mod/fancymenu), open Minecraft and create a layout from the FancyMenu toolbar. Share your layout by copying its [configuration folder](https://docs.fancymenu.net/docs/en-US/modpacks) into the pack. [ImproperUI](https://modrinth.com/mod/improperui) is also available for scripted in-game screens.
 
-Create or select a Fabric or Forge instance, then open **Mods**. Click **Install** on a result to choose a compatible release automatically, or use **Versions** to pick one yourself. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, disable its old JAR in **Installed mods** before installing the replacement. Offline Mode keeps local mod files available and pauses catalogue requests and downloads.
+## Mods and modpacks
+
+Create or select a Fabric or Forge instance, then open **Mods → Browse mods**. Click **Install** on a result to choose a compatible release automatically, or use **Versions** to pick one yourself. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, disable its old JAR in **Installed mods** before installing the replacement. Offline mode keeps local mod files available and pauses catalogue requests and downloads.
+
+Switch the browser to **Modpacks** to search Modrinth projects. Cards include project artwork, descriptions, downloads, update dates, loaders, and supported versions when available. Search results can be sorted and filtered by Minecraft version, loader, category, compatibility, and featured or popular collections. Filters can be combined, removed individually, or cleared. Open a pack to view its description, gallery, versions, dependencies, and installation choices.
+
+Select a pack version, Minecraft version, and supported loader, then choose **Install in new instance**. The browser supports Fabric and supported Forge installations; Quilt and NeoForge can be used as browsing filters. Installation reports progress and errors, checks downloaded files, and creates a separate instance. To try a newer pack release, install it into a new instance and retain the old instance and worlds; updates do not migrate saves automatically.
 
 Use **Installed mods** to filter the list, open the mods folder, or select and enable or disable JARs after closing Minecraft. Disabling a mod keeps its file as `.jar.disabled`.
 
 Rocket Launcher keeps a copy of an instance’s original server and keybind files before applying shared values. Server and keybind sync allow one running instance at a time. **Repair files** is available as a separate action on the Launch Pad and in the instance manager.
 
+## Multiplayer and shared worlds
+
+The **Multiplayer** page stores server names and addresses, favorites, recent joins, and an optional preferred instance. Check a server's version, player count, and latency, copy its address, or join directly through Minecraft Quick Play when the selected Minecraft version supports it. On older versions, copy the address and use Minecraft's **Multiplayer → Direct Connection**.
+
+For a compatible Fabric instance, **Server version compatibility** installs ViaFabricPlus or ViaFabric when a matching Modrinth build exists. **Share your world** installs e4mc and its required Fabric API when available. Open a single-player world, use **Share World** in the Rocket Client pause menu or Minecraft's **Open to LAN**, and share the address provided by e4mc. e4mc supplies the relay and temporary address. Anyone with that address can attempt to join, and server rules and matching gameplay mods still apply.
+
 ## Run locally on Windows 10/11
 
-The **Launcher updates** row in Settings checks the project's GitHub releases for a newer Windows x64 installer. Select **Download and install** to stream it to disk and verify its size and SHA-256 checksum against GitHub's release metadata. Rocket Launcher closes while the installer applies the update, then reopens. Close Minecraft before updating.
+The **Launcher updates** row in Settings checks the project's GitHub releases, including prereleases, for a newer Windows x64 installer. If the GitHub API cannot be read, the launcher tries the repository's release manifest. Select **Download and install** to stream the installer to disk and verify its size and SHA-256 checksum against the release metadata. Rocket Launcher closes while the installer applies the update, then reopens. Close Minecraft before updating.
 
 Prerequisites:
 
@@ -122,11 +155,13 @@ The application uses Tauri's local application data directory, normally `%LOCALA
 | Path | Contents |
 | --- | --- |
 | `launcher.json` | Versioned settings, instance configurations, and active selection |
+| `instance-favorites.json` | Favorite instance IDs |
 | `instances\<UUID>\` | Default isolated game directories |
+| `instances\Rocket\rocket-pack-…\` | Default Rocket Pack game directories |
 | `cache\versions.json` | Validated Mojang catalogue with fetch timestamp |
 | `cache\minecraft\` | Shared version metadata, client JARs, libraries, assets, extracted natives, and installation records |
 | `instance-sync\rocket-client.properties` | Shared Rocket Client module preferences and HUD positions |
-| `logs\game\` | Per-launch stdout and stderr |
+| `logs\game\<instance-ID>\<session-ID>\` | Minecraft stdout and stderr for sessions started with launcher v0.1.20 or newer |
 | `logs\launcher.log.*` | Daily JSON logs, at most seven files |
 
 Configuration writes use a same-directory temporary file, flush to disk, then atomically replace the destination. Invalid configuration is preserved rather than silently reset. Back up `launcher.json` before manual edits. A different launcher schema version is rejected.
@@ -146,7 +181,7 @@ src/
   app/                 Application composition, navigation, theme application
   components/          Layout, reusable controls, instance forms, vector artwork
   hooks/               Native state and operation lifecycle
-  pages/               Launch Pad, Instances, Mods, Downloads, Settings
+  pages/               Launch Pad, Instances, Multiplayer, Mods, Downloads, Settings
   services/            Typed Tauri command bridge; no browser fallback backend
   styles/              Design tokens, Tailwind entry point, responsive styles
   types/               IPC contracts
