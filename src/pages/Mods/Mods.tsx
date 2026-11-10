@@ -170,7 +170,7 @@ export function Mods({ snapshot, catalog, offline, busy, initialInstanceId, onPl
         </li>)}</ul> : <p className="panel-footnote">No mods match your search.</p>}
       </> : !error && <EmptyState icon={<FileArchive size={26} />} title={id ? 'No local mod files' : 'No instance to inspect'} description={id ? 'Install a mod or add a JAR to this instance’s mods folder.' : 'Create an instance first to inspect its local mods folder.'} />}
     </section>}
-    {view === 'browse' && (offline ? <section className="panel mods-panel"><EmptyState icon={<Puzzle size={26} />} title="Modrinth is offline" description="Turn off Offline Mode in Settings to browse and install mods." /></section>
+    {view === 'browse' && (offline ? <section className="panel mods-panel"><EmptyState icon={<Puzzle size={26} />} title="Mod browsing is offline" description="Turn off Offline Mode in Settings to browse and install mods." /></section>
       : <ModrinthBrowser instance={instance?.loader !== 'vanilla' ? instance : undefined}
           gameVersions={[...new Set((catalog?.versions ?? []).filter((version) => version.type === 'release').map((version) => version.id).concat(snapshot.instances.map((item) => item.version)))]}
           onInstalled={() => setRevision((value) => value + 1)} onPackInstalled={() => onModpackInstalled?.()} />)}

@@ -138,6 +138,12 @@ it('installs the chosen Modrinth version into the selected Fabric instance', asy
     { id: 'Version2', versionNumber: '1.0', versionType: 'release', fileName: 'example-1.0.jar', requiredDependencies: [] },
   ]);
   const install = vi.spyOn(native, 'installMod').mockResolvedValue('example-1.0.jar');
+  const gallery = vi.spyOn(native, 'modrinthGallery').mockResolvedValue(['https://cdn.modrinth.com/data/Project1/gallery.png']);
+  const curseSearch = vi.spyOn(native, 'searchCurseForge').mockResolvedValue({
+    totalHits: 1,
+    hits: [{ projectId: '42', title: 'CurseForge Example', description: 'Another mod', author: 'Test author', downloads: 10 }],
+  });
+  const keySaved = vi.spyOn(native, 'curseForgeKeySaved').mockResolvedValue(true);
   const refresh = vi.fn();
   try {
     render(<ModrinthBrowser instance={instance} onInstalled={refresh} />);
@@ -149,15 +155,24 @@ it('installs the chosen Modrinth version into the selected Fabric instance', asy
     await waitFor(() => expect(search).toHaveBeenLastCalledWith(instance.id, 'example', 0, 'updated'));
     await user.click(await screen.findByRole('button', { name: 'View versions of Example Mod' }));
     expect(versions).toHaveBeenCalledWith(instance.id, 'Project1');
+    expect(await screen.findByRole('img', { name: 'Project preview for Example Mod' }))
+      .toHaveAttribute('src', 'https://cdn.modrinth.com/data/Project1/gallery.png');
     await user.selectOptions(await screen.findByLabelText('Compatible version'), 'Version2');
     await user.click(screen.getByRole('button', { name: 'Install mod' }));
     expect(install).toHaveBeenCalledWith(instance.id, 'Project1', 'Version2');
     expect(await screen.findByRole('status')).toHaveTextContent('Installed example-1.0.jar');
     expect(refresh).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole('button', { name: /^CurseForge$/ }));
+    expect(await screen.findByText('CurseForge Example')).toBeInTheDocument();
+    expect(curseSearch).toHaveBeenCalledWith(instance.id, 'example', 0, undefined);
+    expect(screen.queryByText('Example Mod')).not.toBeInTheDocument();
   } finally {
     search.mockRestore();
     versions.mockRestore();
     install.mockRestore();
+    gallery.mockRestore();
+    curseSearch.mockRestore();
+    keySaved.mockRestore();
   }
 });
 

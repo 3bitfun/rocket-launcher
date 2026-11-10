@@ -502,6 +502,21 @@ pub async fn start(
             out.abort();
             err.abort();
         }
+        let session_result = super::diagnostics::SessionResult {
+            outcome: match &exit {
+                Ok(_) if stopped => super::diagnostics::Outcome::Stopped,
+                Ok(status) if status.success() => super::diagnostics::Outcome::Exited,
+                Ok(_) => super::diagnostics::Outcome::Failed,
+                Err(_) => super::diagnostics::Outcome::Unknown,
+            },
+            exit_code: exit.as_ref().ok().and_then(|status| status.code()),
+        };
+        let result_path = logs.join(super::diagnostics::SESSION_RESULT);
+        if let Ok(Err(error)) = tokio::task::spawn_blocking(move || {
+            crate::storage::atomic_json(&result_path, &session_result)
+        }).await {
+            tracing::warn!(%error, "Could not save Minecraft session result");
+        }
         let sync_error = if let Some((root, pending)) = sync {
             match tokio::task::spawn_blocking(move || super::sync::finish(&root, &pending)).await {
                 Ok(Ok(())) => None,

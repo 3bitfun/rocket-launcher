@@ -23,29 +23,29 @@ const MAX_JAR_BYTES: u64 = 256 * 1024 * 1024;
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all(serialize = "camelCase"))]
 pub struct Project {
-    project_id: String,
-    title: String,
-    description: String,
-    author: String,
-    downloads: u64,
-    icon_url: Option<String>,
-    featured_gallery: Option<String>,
+    pub(super) project_id: String,
+    pub(super) title: String,
+    pub(super) description: String,
+    pub(super) author: String,
+    pub(super) downloads: u64,
+    pub(super) icon_url: Option<String>,
+    pub(super) featured_gallery: Option<String>,
     #[serde(default)]
-    display_categories: Vec<String>,
+    pub(super) display_categories: Vec<String>,
     #[serde(default)]
-    categories: Vec<String>,
+    pub(super) categories: Vec<String>,
     #[serde(default)]
-    versions: Vec<String>,
-    date_modified: Option<String>,
+    pub(super) versions: Vec<String>,
+    pub(super) date_modified: Option<String>,
     #[serde(default)]
-    gallery: Vec<String>,
+    pub(super) gallery: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all(serialize = "camelCase"))]
 pub struct SearchPage {
-    hits: Vec<Project>,
-    total_hits: u32,
+    pub(super) hits: Vec<Project>,
+    pub(super) total_hits: u32,
 }
 
 #[derive(Deserialize)]
@@ -88,10 +88,10 @@ struct Dependency {
 #[serde(rename_all = "camelCase")]
 pub struct ModVersion {
     pub id: String,
-    version_number: String,
+    pub(super) version_number: String,
     pub version_type: String,
-    file_name: String,
-    required_dependencies: Vec<String>,
+    pub(super) file_name: String,
+    pub(super) required_dependencies: Vec<String>,
 }
 
 #[derive(Default, Deserialize)]
@@ -186,6 +186,17 @@ async fn pack_project(client: &reqwest::Client, project: &str) -> Result<PackPro
         return Err(error("This project is not a Modrinth modpack."));
     }
     Ok(details)
+}
+
+pub async fn mod_gallery(project: &str, timeout: u64) -> Result<Vec<String>> {
+    let project = id(project)?;
+    let details: PackProject = get(client(timeout)?.get(format!("{BASE}/project/{project}"))).await?;
+    if details.id != project || details.project_type != "mod" {
+        return Err(error("This project is not a Modrinth mod."));
+    }
+    let mut gallery = details.gallery;
+    gallery.sort_by_key(|image| !image.featured);
+    Ok(gallery.into_iter().take(8).map(|image| image.url).collect())
 }
 
 fn pack_file(version: &Version) -> Option<&VersionFile> {
@@ -637,9 +648,10 @@ pub async fn preferred_version(instance: &Instance, project: &str, timeout: u64)
 }
 
 pub struct StagedMod {
-    staging: tempfile::TempDir,
-    primary: String,
-    files: BTreeMap<String, (String, FileSpec)>,
+    pub(super) staging: tempfile::TempDir,
+    pub(super) primary: String,
+    pub(super) files: BTreeMap<String, (String, FileSpec)>,
+    pub(super) index_name: &'static str,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -649,12 +661,16 @@ struct InstalledVersion {
 }
 
 fn installed_index(folder: &Path) -> Result<BTreeMap<String, InstalledVersion>> {
-    let path = folder.join(".rocket-modrinth.json");
+    read_index(folder, ".rocket-modrinth.json")
+}
+
+fn read_index(folder: &Path, index_name: &str) -> Result<BTreeMap<String, InstalledVersion>> {
+    let path = folder.join(index_name);
     match fs::read(&path) {
         Ok(bytes) if bytes.len() <= 1024 * 1024 => serde_json::from_slice(&bytes)
-            .map_err(|_| error("The Modrinth installation index is invalid.")),
+            .map_err(|_| error("The mod installation index is invalid.")),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(BTreeMap::new()),
-        _ => Err(error("Could not read the Modrinth installation index.")),
+        _ => Err(error("Could not read the mod installation index.")),
     }
 }
 
@@ -876,6 +892,7 @@ async fn stage_version(
         staging,
         primary,
         files,
+        index_name: ".rocket-modrinth.json",
     })
 }
 
@@ -889,7 +906,7 @@ fn ensure_enabled(folder: &Path, filename: &str) -> Result<()> {
 impl StagedMod {
     pub fn publish(self, game: &Path) -> Result<String> {
         let folder = mods_directory(game)?;
-        let mut installed = installed_index(&folder)?;
+        let mut installed = read_index(&folder, self.index_name)?;
         let mut added = Vec::new();
         let result = (|| {
             for (project, (version, spec)) in &self.files {
@@ -927,7 +944,7 @@ impl StagedMod {
                     },
                 );
             }
-            atomic_json(&folder.join(".rocket-modrinth.json"), &installed)
+            atomic_json(&folder.join(self.index_name), &installed)
         })();
         if result.is_err() {
             for file in added {

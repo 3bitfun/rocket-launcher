@@ -196,6 +196,7 @@ impl Store {
 
     pub fn snapshot(&self) -> AppSnapshot {
         let favorites = self.favorites().unwrap_or_default();
+        let rocket_folder = self.config.settings.minecraft_directory.join("Rocket");
         AppSnapshot {
             app_version: env!("CARGO_PKG_VERSION"),
             settings: self.config.settings.clone(),
@@ -205,6 +206,8 @@ impl Store {
                 .iter()
                 .map(|instance| InstanceView {
                     favorite: favorites.contains(&instance.id),
+                    rocket_folder_pending: instance.is_rocket_pack()
+                        && instance.game_directory.parent() != Some(rocket_folder.as_path()),
                     ..InstanceView::from(instance)
                 })
                 .collect(),

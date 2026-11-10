@@ -28,6 +28,7 @@ Rocket Launcher manages Vanilla, Fabric, and Forge instances on Windows. Choose 
 - Java discovery with exact version and architecture matching. A manually selected executable takes priority.
 - Launch Pad **Install & play** for Rocket Pack, separate install and repair actions, measured Downloads progress, and native launch preparation. The header shows download progress and provides access to active Minecraft sessions.
 - Abort a launch or stop a running game from the Launch Pad or instance manager. Running sessions are accessible from the header on other pages. The manager can display, refresh, and copy output and error logs from the latest session recorded by launcher v0.1.20 or later.
+- **Diagnose crash** opens the instance’s crash and log viewer. It checks captured output, the Minecraft log, crash reports, and JVM reports for common Java, memory, mod, and graphics failures. The session picker lets you review up to 12 captured sessions, including earlier failures after relaunching. Use **Copy summary** to share the suggested causes without copying the full logs.
 - Optional server list, keybind, and Rocket Client HUD sync across instances, enabled by default.
 - Microsoft OAuth sign-in, Xbox/Minecraft ownership verification, Windows Credential Manager refresh-token storage, and authenticated launch sessions.
 - Dark, light, and system themes; custom accent colours; animation and reduced-motion preferences.
@@ -47,6 +48,8 @@ The full 1.21.11 pack uses Fabric Loader 0.20.1 and pinned mods from the supplie
 
 The full pack downloads 68 mods and 28 resource and shader packs from the original pack index. It uses a newer Simple Voice Chat build to satisfy Flashback’s compatibility requirement. The original archive’s three local overrides are separate from these downloads. Rocket Launcher keeps verified downloads in a shared cache and copies them into new full-pack instances.
 
+The version picker shows whether each Rocket Pack is installed, needs a download, or needs repair. New Rocket Packs live in the **Rocket** subfolder of your configured instance directory. On startup, the launcher moves existing Rocket Pack folders on the same drive into that folder and updates their saved paths. Instances that could not be moved remain usable at their original location.
+
 Each instance has its own game directory and settings. The manager provides launch, installation, repair, Java and RAM settings, mod management, Rocket Client installation, and folder access. Duplicating copies the configuration into a new empty directory. Removing an instance removes its launcher entry while preserving its files. Rocket Pack game and loader versions are locked in the editor; choose another version on the Launch Pad to keep its files separate.
 
 ## Rocket Client
@@ -64,6 +67,10 @@ To rebuild a mapped client JAR, run `.\gradlew.bat remapJar '-PmcVersion=1.21.11
 For a custom Minecraft title screen or pause menu, install the matching Fabric release of [FancyMenu](https://modrinth.com/mod/fancymenu), open Minecraft and create a layout from the FancyMenu toolbar. Share your layout by copying its [configuration folder](https://docs.fancymenu.net/docs/en-US/modpacks) into the pack. [ImproperUI](https://modrinth.com/mod/improperui) is also available for scripted in-game screens.
 
 ## Mods and modpacks
+
+In **Mods → Browse mods**, switch between **Modrinth** and **CurseForge**. Select a Fabric or Forge target to browse individual mods matched to that instance. Open **Versions** to see project previews and select a specific file.
+
+For CurseForge, open **API key setup**, paste a key from the CurseForge for Studios developer console, and click **Save key**. The launcher keeps the key in Windows Credential Manager. You can also set `ROCKET_CURSEFORGE_API_KEY` before starting the app. CurseForge installations resolve required dependencies and verify downloads with SHA-1 when the publisher makes the files available to third-party launchers. Use Modrinth for the built-in modpack browser.
 
 Create or select a Fabric or Forge instance, then open **Mods → Browse mods**. Click **Install** on a result to choose a compatible release automatically, or use **Versions** to pick one yourself. Required Modrinth dependencies are resolved against the same instance. An external dependency without a Modrinth version must already be in the instance's mods folder. To switch an installed project's release, disable its old JAR in **Installed mods** before installing the replacement. Offline mode keeps local mod files available and pauses catalogue requests and downloads.
 

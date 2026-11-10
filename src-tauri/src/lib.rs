@@ -25,7 +25,7 @@ pub fn run() {
         .manage(GameJobs::default())
         .manage(auth::accounts::AccountJobs::default())
         .setup(|app| {
-            let store = storage::Store::open(app.path().app_local_data_dir()?)?;
+            let mut store = storage::Store::open(app.path().app_local_data_dir()?)?;
             clean_staged_installers(&store.paths.cache);
             let appender = tracing_appender::rolling::Builder::new()
                 .rotation(tracing_appender::rolling::Rotation::DAILY)
@@ -38,6 +38,9 @@ pub fn run() {
                 .with_ansi(false)
                 .with_writer(writer)
                 .try_init();
+            if let Err(error) = store.relocate_rocket_instances() {
+                tracing::warn!(%error, "Could not finish organizing Rocket Pack instances");
+            }
             tracing::info!(
                 event = "launcher_started",
                 version = env!("CARGO_PKG_VERSION")
@@ -59,6 +62,7 @@ pub fn run() {
         select_instance,
         set_instance_favorite,
         read_instance_log,
+        diagnose_instance,
         get_accounts,
         create_offline_account,
         rename_offline_profile,
@@ -86,6 +90,12 @@ pub fn run() {
         ignite_game,
         abort_game,
         search_modrinth,
+        modrinth_gallery,
+        search_curseforge,
+        curseforge_key_saved,
+        set_curseforge_key,
+        curseforge_versions,
+        install_curseforge,
         search_modpacks,
         modpack_details,
         install_modpack,
@@ -111,6 +121,7 @@ pub fn run() {
         select_instance,
         set_instance_favorite,
         read_instance_log,
+        diagnose_instance,
         get_accounts,
         create_offline_account,
         rename_offline_profile,
@@ -137,6 +148,12 @@ pub fn run() {
         ignite_game,
         abort_game,
         search_modrinth,
+        modrinth_gallery,
+        search_curseforge,
+        curseforge_key_saved,
+        set_curseforge_key,
+        curseforge_versions,
+        install_curseforge,
         search_modpacks,
         modpack_details,
         install_modpack,

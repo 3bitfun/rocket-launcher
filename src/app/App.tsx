@@ -17,6 +17,7 @@ import { useLauncher } from '../hooks/useLauncher';
 import { useGame } from '../hooks/useGame';
 import { isDesktop, native } from '../services/native';
 import { isGameActive, readinessLabel } from '../services/readiness';
+import { rocketInstancesByVersion } from '../services/loaders';
 import type { AccountsSummary, Instance, Page } from '../types';
 
 const pageDetails: Record<Page, { title: string; subtitle: string }> = {
@@ -50,6 +51,7 @@ export default function App() {
   const main = useRef<HTMLElement>(null);
   const [editor, setEditor] = useState<Instance | 'new' | null>(null);
   const [managedId, setManagedId] = useState<string | null>(null);
+  const [managerDiagnostics, setManagerDiagnostics] = useState(false);
   const [modsTarget, setModsTarget] = useState<string>();
   const [removing, setRemoving] = useState<Instance | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -124,8 +126,7 @@ export default function App() {
   }
   function switchRocketVersion(version: string) {
     if (!rocketSelection || busy) return;
-    const installed = snapshot?.instances.filter((instance) => instance.rocketPack && instance.version === version)
-      .sort((a, b) => b.lastSelectedAt - a.lastSelectedAt)[0];
+    const installed = rocketInstancesByVersion(snapshot?.instances ?? []).get(version);
     if (!installed || installed.id === snapshot?.activeInstanceId) {
       setRocketSelection({ version, instanceId: installed?.id ?? null });
       return;
@@ -156,7 +157,11 @@ export default function App() {
   }
   function openEditor(instance: Instance | 'new') { launcher.setToast(null); setEditor(instance); }
   function openRemoval(instance: Instance) { launcher.setToast(null); setRemoving(instance); }
-  function openManager(instance: Instance) { launcher.setToast(null); setManagedId(instance.id); }
+  function openManager(instance: Instance, diagnostics = false) {
+    launcher.setToast(null);
+    setManagerDiagnostics(diagnostics);
+    setManagedId(instance.id);
+  }
   function duplicate(instance: Instance) {
     void mutate(() => native.duplicate(instance.id), 'Configuration duplicated into a new, empty instance.');
   }
@@ -199,10 +204,10 @@ export default function App() {
           {page === 'launchpad' && <LaunchPad snapshot={snapshot} catalog={catalog} busy={busy}
             rocketMode={rocketMode} rocketVersion={rocketSelection?.version} packProgress={packProgress} offline={accounts?.offline ?? false}
             fabricVersions={fabricVersions} packCatalogueError={packCatalogueError} onRetryPackCatalogue={() => setPackCatalogueRetry((attempt) => attempt + 1)}
-            onChooseRocket={() => setRocketSelection({ version: '', instanceId: null })} onSwitchVersion={switchRocketVersion} onPlayNewRocket={() => void playNewRocketPack()}
+            onChooseRocket={() => setRocketSelection(selected?.rocketPack ? { version: selected.version, instanceId: selected.id } : { version: '', instanceId: null })} onSwitchVersion={switchRocketVersion} onPlayNewRocket={() => void playNewRocketPack()}
             status={selected && game.status(selected)} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager}
             onSelect={select} onNavigate={navigate} onInstall={(instance) => void game.run(instance, 'install')}
-            onIgnite={play} onFavorite={toggleFavorite}
+            onIgnite={play} onFavorite={toggleFavorite} onDiagnose={(instance) => openManager(instance, true)}
             stopping={Boolean(selected && game.stopping.has(selected.id))} onAbort={(instance) => void game.abort(instance)} onCheck={(instance) => void game.check(instance.id)} />}
           {page === 'instances' && <Instances snapshot={snapshot} busy={busy} onCreate={() => openEditor('new')} onEdit={openEditor} onManage={openManager} onDuplicate={duplicate} onDelete={openRemoval} onFavorite={toggleFavorite} />}
           {page === 'downloads' && <Downloads catalog={catalog} error={catalogError} fetching={fetching} onRefresh={() => void launcher.refreshVersions()} progress={game.download} onRetry={!busy && retry ? () => void game.run(retry, 'install') : undefined} />}
@@ -226,7 +231,7 @@ export default function App() {
     </Modal>}
     {managed && !editor && !removing && <InstanceManager key={managed.id} instance={managed} status={game.status(managed)}
       active={managed.id === snapshot.activeInstanceId} offline={accounts?.offline ?? false} synced={snapshot.settings.syncRocketClient} busy={busy} notice={launcher.toast}
-      stopping={game.stopping.has(managed.id)} onStop={() => void game.abort(managed)}
+      stopping={game.stopping.has(managed.id)} showDiagnostics={managerDiagnostics} onStop={() => void game.abort(managed)}
       onClose={() => setManagedId(null)} onPlay={() => play(managed)} onInstall={() => void game.run(managed, 'install')}
       onCheck={() => void game.check(managed.id)} onProfile={() => { setManagedId(null); navigate('settings'); }}
       onActivate={() => select(managed)} onEdit={() => openEditor(managed)}

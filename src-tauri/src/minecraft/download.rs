@@ -63,6 +63,9 @@ fn official_url(url: &str) -> Result<reqwest::Url> {
                     | "maven.fabricmc.net"
                     | "maven.minecraftforge.net"
                     | "cdn.modrinth.com"
+                    | "edge.forgecdn.net"
+                    | "media.forgecdn.net"
+                    | "mediafilez.forgecdn.net"
             )
         )
     {

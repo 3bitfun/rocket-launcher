@@ -1,6 +1,6 @@
 import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import type { AccountsSummary, AppSnapshot, DownloadProgress, FabricLoaderVersion, GameStatus, InstanceInput, InstalledMod, ModrinthPage, ModrinthVersion, RocketClientStatus, Settings, VersionCatalog } from '../types';
+import type { AccountsSummary, AppSnapshot, CrashDiagnostics, DownloadProgress, FabricLoaderVersion, GameStatus, InstanceInput, InstalledMod, ModrinthPage, ModrinthVersion, RocketClientStatus, Settings, VersionCatalog } from '../types';
 import type { ModpackDetails, ModpackFilters, ModpackProgress, MultiplayerAddon, SavedServer, ServerStatus } from '../types';
 
 export const isDesktop = () => isTauri();
@@ -24,6 +24,7 @@ export const native = {
   ignite: (id: string, server?: string) => call<void>('ignite_game', server ? { id, server } : { id }),
   abort: (id: string) => call<boolean>('abort_game', { instanceId: id }),
   instanceLog: (id: string, errors: boolean) => call<string | null>('read_instance_log', { id, errors }),
+  diagnoseInstance: (id: string, sessionId?: string) => call<CrashDiagnostics>('diagnose_instance', { id, sessionId }),
   savedServers: () => call<SavedServer[]>('saved_servers'),
   saveServer: (server: SavedServer) => call<SavedServer[]>('save_server', { server }),
   removeSavedServer: (id: string) => call<SavedServer[]>('remove_saved_server', { id }),
@@ -51,6 +52,13 @@ export const native = {
   rocketClientStatus: (instanceId: string) => call<RocketClientStatus>('rocket_client_status', { instanceId }),
   installRocketClient: (instanceId: string) => call<void>('install_rocket_client', { instanceId }),
   searchMods: (instanceId: string, query: string, offset: number, sort?: string) => call<ModrinthPage>('search_modrinth', { instanceId, query, offset, sort }),
+  modrinthGallery: (projectId: string) => call<string[]>('modrinth_gallery', { projectId }),
+  searchCurseForge: (instanceId: string, query: string, offset: number, sort?: string) => call<ModrinthPage>('search_curseforge', { instanceId, query, offset, sort }),
+  curseForgeKeySaved: () => call<boolean>('curseforge_key_saved'),
+  setCurseForgeKey: (key: string | null) => call<void>('set_curseforge_key', { key }),
+  curseForgeVersions: (instanceId: string, projectId: string) => call<ModrinthVersion[]>('curseforge_versions', { instanceId, projectId: Number(projectId) }),
+  installCurseForge: (instanceId: string, projectId: string, versionId?: string) =>
+    call<string>('install_curseforge', { instanceId, projectId: Number(projectId), versionId: versionId === undefined ? undefined : Number(versionId) }),
   searchModpacks: (query: string, offset: number, sort: string, filters: ModpackFilters) =>
     call<ModrinthPage>('search_modpacks', { query, offset, sort, filters }),
   modpackDetails: (projectId: string) => call<ModpackDetails>('modpack_details', { projectId }),

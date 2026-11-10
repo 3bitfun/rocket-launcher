@@ -1,6 +1,6 @@
-import { ArrowRight, Box, Cpu, Download, Plus, Puzzle, Rocket, Settings2, Square, Users, Wrench } from 'lucide-react';
+import { ArrowRight, Box, Cpu, Download, Plus, Puzzle, Rocket, Settings2, Square, Terminal, Users, Wrench } from 'lucide-react';
 import type { AppSnapshot, GameStatus, Instance, Page, VersionCatalog } from '../../types';
-import { loaderName, recommendedRocketVersion } from '../../services/loaders';
+import { loaderName, recommendedRocketVersion, rocketInstallLabel, rocketInstancesByVersion } from '../../services/loaders';
 import { isGameActive, readinessLabel } from '../../services/readiness';
 import { InstanceCard } from '../../components/instances/InstanceCard';
 import { formatRam } from '../../components/ui/Primitives';
@@ -14,7 +14,7 @@ const shortcuts = [
 
 const defaultRocket = 'default-rocket';
 
-export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, packProgress, fabricVersions, packCatalogueError, onRetryPackCatalogue, offline = false, stopping = false, status, onCreate, onEdit, onManage = onEdit, onSelect, onNavigate, onInstall, onIgnite, onAbort = () => {}, onChooseRocket, onSwitchVersion, onPlayNewRocket, onFavorite, onCheck }: {
+export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, packProgress, fabricVersions, packCatalogueError, onRetryPackCatalogue, offline = false, stopping = false, status, onCreate, onEdit, onManage = onEdit, onSelect, onNavigate, onInstall, onIgnite, onAbort = () => {}, onChooseRocket, onSwitchVersion, onPlayNewRocket, onFavorite, onCheck, onDiagnose }: {
   snapshot: AppSnapshot; busy: boolean;
   catalog?: VersionCatalog | null;
   status?: GameStatus; onInstall: (instance: Instance) => void; onIgnite: (instance: Instance) => void; onCheck: (instance: Instance) => void;
@@ -31,16 +31,17 @@ export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, 
   onSwitchVersion?: (version: string) => void;
   onPlayNewRocket?: () => void;
   onFavorite?: (instance: Instance) => void;
+  onDiagnose?: (instance: Instance) => void;
   onCreate: () => void; onEdit: (instance: Instance) => void; onManage?: (instance: Instance) => void; onSelect: (instance: Instance) => void; onNavigate: (page: Page) => void;
 }) {
   const choosingVersion = rocketMode === 'choose';
   const selected = choosingVersion ? undefined : snapshot.instances.find((instance) => instance.id === snapshot.activeInstanceId);
-  const installedVersions = new Set(snapshot.instances.filter((instance) => instance.rocketPack).map((instance) => instance.version));
+  const localVersions = rocketInstancesByVersion(snapshot.instances);
   const compatible = new Set(fabricVersions);
-  const versions = offline ? installedVersions : new Set([
+  const versions = new Set(offline ? localVersions.keys() : [
     recommendedRocketVersion,
     ...(catalog?.versions ?? []).filter((entry) => entry.type === 'release' && compatible.has(entry.id)).map((entry) => entry.id),
-    ...installedVersions,
+    ...localVersions.keys(),
   ]);
   const readiness = selected?.readiness ?? 'checking';
   const favorites = snapshot.instances.filter((instance) => instance.favorite);
@@ -87,9 +88,10 @@ export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, 
             <span>Version</span>
             <select value={rocketVersion && versions.has(rocketVersion) ? rocketVersion : ''} disabled={busy || !versions.size} onChange={(event) => onSwitchVersion(event.target.value)}>
               <option value="" disabled>{versions.size ? 'Choose a Minecraft version…' : 'No local Rocket Packs'}</option>
-              {[...versions].map((version) => <option key={version} value={version}>{version}{installedVersions.has(version) ? ' · Local instance' : version === recommendedRocketVersion ? ' · Recommended' : ''}</option>)}
+              {[...versions].map((version) => <option key={version} value={version}>{version} · {rocketInstallLabel(localVersions.get(version))}{version === recommendedRocketVersion ? ' · Recommended' : ''}</option>)}
             </select>
           </label>}
+          {rocketMode && rocketVersion && versions.has(rocketVersion) && <span className="tag" role="status">{rocketInstallLabel(selected ?? localVersions.get(rocketVersion))}</span>}
         </div>
         {rocketMode && !offline && packCatalogueError && <p className="play-empty" role="status">Could not load additional Fabric versions. <button className="button secondary small-button" type="button" onClick={onRetryPackCatalogue}>Retry</button></p>}
         <h2 className="play-title" key={selected?.id ?? rocketMode ?? 'first-instance'}>{selected?.name ?? (choosingVersion ? `Rocket Pack${rocketVersion ? ` ${rocketVersion}` : ''}` : 'Set up your first instance')}</h2>
@@ -115,6 +117,7 @@ export function LaunchPad({ snapshot, busy, catalog, rocketMode, rocketVersion, 
             : choosingVersion ? <button className="button primary play-ignition" disabled={busy || offline || !rocketVersion} onClick={onPlayNewRocket}><Rocket size={18} />Install &amp; play</button>
               : <button className={`button primary ${ActionIcon === Rocket ? 'play-ignition' : ''}`} disabled={!action.run || busy} onClick={action.run} aria-describedby={status?.message ? 'launch-status' : undefined}><ActionIcon size={18} />{action.label}</button>}
           {selected && readiness !== 'requires_download' && <button className="button secondary play-secondary" disabled={busy || active} onClick={() => onInstall(selected)}><Wrench size={16} />Repair files</button>}
+          {selected && readiness === 'error' && onDiagnose && <button className="button secondary play-secondary" aria-haspopup="dialog" onClick={() => onDiagnose(selected)}><Terminal size={16} />Diagnose crash</button>}
           {!selected && <button className="button secondary play-secondary" onClick={() => onNavigate('mods')}><Puzzle size={16} />Browse Rocket Pack</button>}
         </div>
       </div>

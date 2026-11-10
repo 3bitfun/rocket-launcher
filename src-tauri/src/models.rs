@@ -99,6 +99,7 @@ pub struct InstanceView {
     pub instance: Instance,
     pub readiness: crate::minecraft::launch::Readiness,
     pub rocket_pack: bool,
+    pub rocket_folder_pending: bool,
     pub favorite: bool,
 }
 
@@ -108,6 +109,7 @@ impl From<&Instance> for InstanceView {
             instance: instance.clone(),
             readiness: crate::minecraft::launch::Readiness::Checking,
             rocket_pack: instance.is_rocket_pack(),
+            rocket_folder_pending: false,
             favorite: false,
         }
     }

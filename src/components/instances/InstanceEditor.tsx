@@ -86,7 +86,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
     setPackProgress(null);
     const input: InstanceInput = {
       name: instanceName, version: selectedVersion, loader, loaderVersion: needsLoader || lockedPack ? loaderVersion : null,
-      ramMb: ram, javaPath: java.trim() || null, parentDirectory: instance ? null : parent.trim(),
+      ramMb: ram, javaPath: java.trim() || null, parentDirectory: instance || rocketPack ? null : parent.trim(),
     };
     const saved = await (rocketPack ? onSave(input, setPackProgress) : onSave(input));
     if (saved) onClose();
@@ -142,7 +142,9 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
         </div>}
         </>}
         <label className="field"><span className="field-title">Memory allocation <strong>{formatRam(ram)}</strong></span><input type="range" min="1024" max="16384" step="256" value={Math.min(ram, 16384)} onChange={(e) => setRam(Number(e.target.value))} /><div className="ram-input"><input aria-label="Memory in MB" type="number" min="1024" max="65536" step="256" value={ram} onChange={(e) => setRam(Number(e.target.value))} required /><small>MB · leave memory for Windows and other apps</small></div></label>
-        {instance ? <label className="field"><span>Game directory</span><input value={instance.gameDirectory} readOnly /><small>Existing directories stay in place. Create a new instance to choose another location.</small></label> : <PathField label="Instance parent directory" value={parent} onChange={setParent} onError={setError} hint="A unique game folder is created here. Your existing files stay untouched." />}
+        {instance ? <label className="field"><span>Game directory</span><input value={instance.gameDirectory} readOnly /></label>
+          : rocketPack ? <label className="field"><span>Rocket folder</span><input value={`${settings.minecraftDirectory}\\Rocket`} readOnly /></label>
+          : <PathField label="Instance parent directory" value={parent} onChange={setParent} onError={setError} hint="A unique game folder is created here. Your existing files stay untouched." />}
         <PathField label="Java executable override" kind="java" value={java} onChange={setJava} onError={setError} hint="Optional. Leave blank to use the launcher default or automatic detection." />
       </fieldset>
       <div className="notice"><AlertCircle size={16} /><span>{rocketPack

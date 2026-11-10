@@ -11,8 +11,24 @@ const loaders = ['fabric', 'forge', 'neoforge', 'quilt'];
 const categories = ['adventure', 'challenging', 'combat', 'kitchen-sink', 'lightweight', 'magic', 'multiplayer', 'optimization', 'quests', 'technology'];
 const emptyFilters: ModpackFilters = { game: '', loader: '', category: '', side: '', collection: '' };
 
+const imageHosts = new Set(['cdn.modrinth.com', 'cdn-raw.modrinth.com', 'media.forgecdn.net', 'mediafilez.forgecdn.net']);
+
+function imageSources(urls: (string | null | undefined)[]) {
+  return [...new Set(urls.filter((value): value is string => {
+    if (!value) return false;
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' && !url.username && !url.password && !url.port && imageHosts.has(url.hostname);
+    } catch { return false; }
+  }))];
+}
+
 function ProjectImage({ urls, alt, className }: { urls: (string | null | undefined)[]; alt: string; className: string }) {
-  const sources = [...new Set(urls.filter((url): url is string => !!url?.startsWith('https://cdn.modrinth.com/')))];
+  const sources = imageSources(urls);
+  return <ImagePreview key={JSON.stringify(sources)} sources={sources} alt={alt} className={className} />;
+}
+
+function ImagePreview({ sources, alt, className }: { sources: string[]; alt: string; className: string }) {
   const [index, setIndex] = useState(0);
   const [ready, setReady] = useState(false);
   return <div className={`${className} project-image ${sources[index] && !ready ? 'image-loading' : ''}`}>
@@ -23,19 +39,22 @@ function ProjectImage({ urls, alt, className }: { urls: (string | null | undefin
 }
 
 function ModIcon({ project }: { project: ModrinthProject }) {
-  const [failed, setFailed] = useState(false);
-  return <span className="modrinth-icon">
-    {project.iconUrl?.startsWith('https://cdn.modrinth.com/') && !failed
-      ? <img src={project.iconUrl} alt="" loading="lazy" onError={() => setFailed(true)} />
-      : <Puzzle size={22} />}
-  </span>;
+  return <ProjectImage className="modrinth-icon" urls={[project.iconUrl, project.featuredGallery, ...(project.gallery ?? [])]} alt="" />;
 }
 
 export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPackInstalled }: {
   instance?: Instance; gameVersions?: string[]; onInstalled: () => void; onPackInstalled?: () => void;
 }) {
   const [kind, setKind] = useState<'mod' | 'modpack'>(instance ? 'mod' : 'modpack');
-  const pack = kind === 'modpack' || !instance;
+  const [source, setSource] = useState<'modrinth' | 'curseforge'>('modrinth');
+  const curseForge = source === 'curseforge';
+  const provider = curseForge ? 'CurseForge' : 'Modrinth';
+  const pack = !curseForge && (kind === 'modpack' || !instance);
+  const [previews, setPreviews] = useState<Record<string, string[]>>({});
+  const [apiKey, setApiKey] = useState('');
+  const [keySaved, setKeySaved] = useState(false);
+  const [keyBusy, setKeyBusy] = useState(false);
+  const [keyError, setKeyError] = useState('');
   const [filters, setFilters] = useState(emptyFilters);
   const [details, setDetails] = useState<ModpackDetails | null>(null);
   const [game, setGame] = useState('');
@@ -62,6 +81,30 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
   const packVersion = details?.versions.find((item) => item.id === selectedId);
 
   useEffect(() => {
+    if (!curseForge) return;
+    let active = true;
+    void native.curseForgeKeySaved().then((saved) => {
+      if (active) setKeySaved(saved);
+    }).catch((error) => { if (active) setKeyError(errorMessage(error)); });
+    return () => { active = false; };
+  }, [curseForge]);
+
+  async function changeKey(key: string | null) {
+    setKeyBusy(true);
+    setKeyError('');
+    try {
+      await native.setCurseForgeKey(key);
+      setApiKey('');
+      setKeySaved(key !== null);
+      setRetry((value) => value + 1);
+    } catch (error) {
+      setKeyError(errorMessage(error));
+    } finally {
+      setKeyBusy(false);
+    }
+  }
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       setSearch((value) => value.query === draft.trim() ? value : { ...value, query: draft.trim(), offset: 0 });
     }, 320);
@@ -72,14 +115,15 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
     let active = true;
     setPage(null);
     setSearchError('');
+    if (!pack && !instanceId) return;
     const request = pack
       ? native.searchModpacks(search.query, search.offset, search.sort || 'relevance', filters)
-      : native.searchMods(instanceId!, search.query, search.offset, search.sort || undefined);
+      : (curseForge ? native.searchCurseForge : native.searchMods)(instanceId!, search.query, search.offset, search.sort || undefined);
     void request
       .then((result) => { if (active) setPage(result); })
       .catch((error) => { if (active) setSearchError(errorMessage(error)); });
     return () => { active = false; };
-  }, [instanceId, instanceVersion, instanceLoader, instanceLoaderVersion, pack, filters, search, retry]);
+  }, [instanceId, instanceVersion, instanceLoader, instanceLoaderVersion, pack, curseForge, filters, search, retry]);
 
   useEffect(() => {
     if (!project) return;
@@ -102,7 +146,7 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
       return () => { active = false; };
     }
     if (!instanceId) return;
-    void native.modVersions(instanceId, project.projectId)
+    void (curseForge ? native.curseForgeVersions : native.modVersions)(instanceId, project.projectId)
       .then((items) => {
         if (!active) return;
         setVersions(items);
@@ -110,7 +154,16 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
       })
       .catch((error) => { if (active) { setDetailsFailed(true); setVersionError(errorMessage(error)); } });
     return () => { active = false; };
-  }, [instanceId, instanceVersion, instanceLoader, instanceLoaderVersion, project, pack, filters, detailRetry]);
+  }, [instanceId, instanceVersion, instanceLoader, instanceLoaderVersion, project, pack, curseForge, filters, detailRetry]);
+
+  useEffect(() => {
+    if (!project || pack || curseForge || previews[project.projectId]) return;
+    let active = true;
+    void native.modrinthGallery(project.projectId).then((images) => {
+      if (active) setPreviews((current) => ({ ...current, [project.projectId]: images }));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [project, pack, curseForge, previews]);
 
   async function install(target: ModrinthProject, versionId?: string) {
     if (installing || !instanceId) return;
@@ -118,7 +171,7 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
     setVersionError('');
     setInstalled('');
     try {
-      const filename = await native.installMod(instanceId, target.projectId, versionId);
+      const filename = await (curseForge ? native.installCurseForge : native.installMod)(instanceId, target.projectId, versionId);
       setInstalled(`Installed ${filename}`);
       onInstalled();
     } catch (error) {
@@ -159,12 +212,34 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
   ];
 
   return <section className="panel mods-panel">
-    <div className="section-heading"><h2>Browse Modrinth</h2>{!pack && instance && <span className="tag">Minecraft {instance.version} · {loaderName(instance.loader)}</span>}</div>
-    {!project && <div className="segmented modrinth-kind" role="group" aria-label="Project type">
+    <div className="section-heading"><h2>Browse {provider}</h2>{!pack && instance && <span className="tag">Minecraft {instance.version} · {loaderName(instance.loader)}</span>}</div>
+    <div className="segmented modrinth-kind" role="group" aria-label="Mod source">
+      {(['modrinth', 'curseforge'] as const).map((item) => <button type="button" key={item} className={source === item ? 'active' : ''} aria-pressed={source === item} disabled={!!installing || keyBusy}
+        onClick={() => {
+          if (item === source) return;
+          setSource(item); setProject(null); setPage(null); setSearchError(''); setInstalled(''); setVersionError('');
+          setSearch({ query: draft.trim(), offset: 0, sort: '' });
+        }}>{item === 'modrinth' ? 'Modrinth' : 'CurseForge'}</button>)}
+    </div>
+    {curseForge && !project && <details className="pack-description">
+      <summary>API key setup{keySaved ? ' · Key saved' : ''}</summary>
+      <p>Use your CurseForge for Studios API key. Rocket Launcher stores it in Windows Credential Manager.</p>
+      <form className="modrinth-search" onSubmit={(event) => {
+        event.preventDefault();
+        if (apiKey.trim()) void changeKey(apiKey.trim());
+      }}>
+        <label className="field"><span>CurseForge API key</span><input type="password" value={apiKey} maxLength={512} autoComplete="off"
+          onChange={(event) => setApiKey(event.target.value)} /></label>
+        <button type="submit" className="button secondary small-button" disabled={keyBusy || !apiKey.trim()}>Save key</button>
+        {keySaved && <button type="button" className="button secondary small-button" disabled={keyBusy} onClick={() => void changeKey(null)}>Remove saved key</button>}
+      </form>
+      {keyError && <p className="form-error" role="alert">{keyError}</p>}
+    </details>}
+    {!project && !curseForge && <div className="segmented modrinth-kind" role="group" aria-label="Project type">
       <button type="button" className={!pack ? 'active' : ''} aria-pressed={!pack} disabled={!instance || !!installing} onClick={() => { setKind('mod'); setSearch({ query: draft.trim(), offset: 0, sort: '' }); }}>Mods</button>
       <button type="button" className={pack ? 'active' : ''} aria-pressed={pack} disabled={!!installing} onClick={() => { setKind('modpack'); setSearch({ query: draft.trim(), offset: 0, sort: '' }); }}>Modpacks</button>
     </div>}
-    {project ? <>
+    {curseForge && !instance ? <p className="panel-footnote">Choose a Fabric or Forge target instance to browse compatible CurseForge mods.</p> : project ? <>
       <button type="button" className="text-button" disabled={!!installing} onClick={() => setProject(null)}><ArrowLeft size={15} /> Back to results</button>
       <div className="modrinth-heading"><ModIcon key={project.projectId} project={project} /><div><h3>{project.title}</h3><small>by {project.author} · {counts.format(project.downloads)} downloads</small></div></div>
       <p>{project.description}</p>
@@ -193,7 +268,8 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
           {progress && <div className="pack-progress" role="status"><p>{progress.phase}{progress.total ? ` · ${progress.completed} / ${progress.total}` : ''}</p><progress className="game-progress" max={progress.total || undefined} value={progress.total ? progress.completed : undefined} /></div>}
         </div>}
       </>}
-      {!pack && project.featuredGallery && <ProjectImage urls={[project.featuredGallery]} alt={`Featured screenshot for ${project.title}`} className="pack-screenshot" />}
+      {!pack && <ProjectImage urls={[...(previews[project.projectId] ?? []), project.featuredGallery, ...(project.gallery ?? []), project.iconUrl]}
+        alt={`Project preview for ${project.title}`} className="pack-screenshot" />}
       {(pack ? !details : !versions) && !detailsFailed && <div className="loading-inline"><Spinner />Loading project details…</div>}
       {detailsFailed && <button type="button" className="button secondary small-button" onClick={() => setDetailRetry((value) => value + 1)}>Retry details</button>}
       {!pack && versions?.length === 0 && instance && <p>No downloadable {loaderName(instance.loader)} JAR matches Minecraft {instance.version} for this project.</p>}
@@ -213,7 +289,7 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
         setSearch({ ...search, query: draft.trim(), offset: 0 });
       }}>
         <label className="field"><span>Search {pack ? 'modpacks' : 'mods'}</span><input value={draft} maxLength={100} onChange={(event) => setDraft(event.target.value)} placeholder={pack ? 'Search Modrinth modpacks…' : 'Sodium, Iris, Fabric API…'} /></label>
-        <label className="field"><span>Sort by</span><select value={search.sort} onChange={(event) => setSearch({ ...search, sort: event.target.value, offset: 0 })}><option value="">Best match</option><option value="downloads">Most downloaded</option><option value="updated">Recently updated</option>{pack && <><option value="follows">Most followed</option><option value="newest">Newest</option></>}</select></label>
+        <label className="field"><span>Sort by</span><select value={search.sort} onChange={(event) => setSearch({ ...search, sort: event.target.value, offset: 0 })}><option value="">{curseForge ? 'CurseForge order' : 'Best match'}</option><option value="downloads">Most downloaded</option><option value="updated">Recently updated</option>{pack && <><option value="follows">Most followed</option><option value="newest">Newest</option></>}</select></label>
         <button type="submit" className="button secondary"><Search size={16} /> Search</button>
       </form>
       {pack && <>
@@ -224,7 +300,7 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
           <button className="tag" type="button" key={key} onClick={() => filterBy(key, '')} aria-label={`Remove ${label} filter`}>{filters[key]} ×</button>
         )}<button type="button" className="text-button" onClick={() => { setFilters(emptyFilters); setSearch({ ...search, offset: 0 }); }}>Clear all</button></div>}
       </>}
-      {!page && !searchError && (pack ? <div className="pack-card-grid" role="status" aria-label="Searching Modrinth">{[0, 1, 2, 3].map((item) => <div key={item} className="pack-card pack-skeleton image-loading" />)}</div> : <div className="loading-inline"><Spinner />Searching Modrinth…</div>)}
+      {!page && !searchError && (pack ? <div className="pack-card-grid" role="status" aria-label="Searching Modrinth">{[0, 1, 2, 3].map((item) => <div key={item} className="pack-card pack-skeleton image-loading" />)}</div> : <div className="loading-inline"><Spinner />Searching {provider}…</div>)}
       {searchError && <div><p className="form-error" role="alert">{searchError}</p><button type="button" className="button secondary small-button" onClick={() => setRetry((value) => value + 1)}>Retry search</button></div>}
       {page?.hits.length === 0 && <p className="panel-footnote">No {pack ? 'modpacks' : 'mods'} found. Try another search or clear filters.</p>}
       {pack && !!page?.hits.length && <div className="pack-card-grid">{page.hits.map((hit) => <button type="button" className="pack-card" key={hit.projectId} onClick={() => setProject(hit)}>

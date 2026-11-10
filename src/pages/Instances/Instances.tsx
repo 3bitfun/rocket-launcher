@@ -17,6 +17,7 @@ export function Instances({ snapshot, busy, onCreate, onEdit, onManage, onDuplic
       || (sort === 'name' ? a.name.localeCompare(b.name) : b.lastSelectedAt - a.lastSelectedAt)), [snapshot.instances, search, sort, favoritesOnly]);
   const rocket = instances.filter((instance) => instance.rocketPack);
   const others = instances.filter((instance) => !instance.rocketPack);
+  const pendingMoves = rocket.filter((instance) => instance.rocketFolderPending).length;
   const filtering = Boolean(search.trim()) || favoritesOnly;
   const expanded = rocketExpanded || filtering;
   function renderCard(instance: Instance) {
@@ -32,6 +33,7 @@ export function Instances({ snapshot, busy, onCreate, onEdit, onManage, onDuplic
       <button className="button secondary rocket-folder-toggle" type="button" aria-expanded={expanded} aria-controls="rocket-folder-instances" onClick={() => setRocketExpanded(!expanded)} disabled={filtering}>
         <Folder size={18} /><strong>Rocket</strong><span className="tag">{rocket.length}</span><ChevronDown size={16} />
       </button>
+      {pendingMoves > 0 && <p className="panel-footnote">{pendingMoves} Rocket Pack {pendingMoves === 1 ? 'instance is' : 'instances are'} still at the original location. Restart Rocket Launcher to retry the move. Folders on a different drive stay in place.</p>}
       <div id="rocket-folder-instances" hidden={!expanded}>{expanded && <div className="instance-grid">{rocket.map(renderCard)}</div>}</div>
     </section>}
     {instances.length ? others.length > 0 && <div className="instance-grid">{others.map(renderCard)}</div>

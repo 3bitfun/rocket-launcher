@@ -4,7 +4,19 @@ use crate::{
     models::*,
     storage::{validate_java, validate_path, validate_ram, Store},
 };
-use std::{fs, path::PathBuf};
+use std::{fs, path::{Path, PathBuf}};
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct RocketMove {
+    id: String,
+    from: PathBuf,
+    to: PathBuf,
+}
+
+fn ordinary_directory(path: &Path) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    fs::symlink_metadata(path).is_ok_and(|info| info.is_dir() && info.file_attributes() & 0x400 == 0)
+}
 
 pub(crate) fn validate_input(input: &InstanceInput) -> Result<()> {
     if input.name.trim().is_empty()
@@ -41,6 +53,80 @@ pub(crate) fn validate_input(input: &InstanceInput) -> Result<()> {
 }
 
 impl Store {
+    pub fn relocate_rocket_instances(&mut self) -> Result<()> {
+        let journal = self.paths.data.join("rocket-pack-move.json");
+        match fs::read(&journal) {
+            Ok(bytes) => {
+                let plan: RocketMove = serde_json::from_slice(&bytes)
+                    .map_err(|e| AppError::io("read the Rocket folder move record", e))?;
+                self.finish_rocket_move(&journal, plan)?;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(AppError::io("open the Rocket folder move record", e)),
+        }
+
+        let parent = self.config.settings.minecraft_directory.join("Rocket");
+        let moves: Vec<_> = self.config.instances.iter()
+            .filter(|instance| instance.is_rocket_pack() && instance.game_directory.parent() != Some(parent.as_path()))
+            .filter(|instance| ordinary_directory(&instance.game_directory))
+            .map(|instance| RocketMove {
+                id: instance.id.clone(),
+                from: instance.game_directory.clone(),
+                to: parent.join(format!("rocket-pack-{}", instance.id)),
+            })
+            .collect();
+        if moves.is_empty() { return Ok(()); }
+        validate_path(&parent)?;
+        fs::create_dir_all(&parent).map_err(|e| AppError::io("create the Rocket folder", e))?;
+        for plan in moves {
+            if !ordinary_directory(&parent) || !matches!(fs::symlink_metadata(&plan.to), Err(e) if e.kind() == std::io::ErrorKind::NotFound) {
+                tracing::warn!(instance_id = %plan.id, "Rocket folder destination already exists or is unavailable");
+                continue;
+            }
+            crate::storage::atomic_json(&journal, &plan)?;
+            if let Err(error) = fs::rename(&plan.from, &plan.to) {
+                fs::remove_file(&journal).map_err(|e| AppError::io("clear the Rocket folder move record", e))?;
+                tracing::warn!(instance_id = %plan.id, %error, "Rocket folder move could not be completed");
+                continue;
+            }
+            self.finish_rocket_move(&journal, plan)?;
+        }
+        Ok(())
+    }
+
+    fn finish_rocket_move(&mut self, journal: &Path, plan: RocketMove) -> Result<()> {
+        validate_path(&plan.from)?;
+        validate_path(&plan.to)?;
+        let current = self.find_instance(&plan.id)?;
+        let destination_name = format!("rocket-pack-{}", plan.id);
+        if !current.is_rocket_pack()
+            || plan.to.file_name().and_then(|name| name.to_str()) != Some(destination_name.as_str())
+            || plan.to.parent().and_then(Path::file_name).and_then(|name| name.to_str()) != Some("Rocket")
+            || (current.game_directory != plan.from && current.game_directory != plan.to)
+        {
+            return Err(AppError::new("PACK", "The Rocket folder move record does not match the saved instance."));
+        }
+        if current.game_directory == plan.from {
+            if ordinary_directory(&plan.from) && matches!(fs::symlink_metadata(&plan.to), Err(e) if e.kind() == std::io::ErrorKind::NotFound) {
+                // The move had not started. The next migration pass can retry it.
+            } else if ordinary_directory(&plan.to) && matches!(fs::symlink_metadata(&plan.from), Err(e) if e.kind() == std::io::ErrorKind::NotFound) {
+                let mut next = self.config.clone();
+                let instance = next.instances.iter_mut().find(|instance| instance.id == plan.id).ok_or_else(not_found)?;
+                instance.game_directory = plan.to.clone();
+                if let Err(error) = self.commit(next.clone()) {
+                    if fs::rename(&plan.to, &plan.from).is_err() {
+                        // The journal lets the next startup finish saving the new path.
+                        self.config = next;
+                    }
+                    return Err(error);
+                }
+            } else {
+                return Err(AppError::new("PACK", "Could not safely finish moving this Rocket instance."));
+            }
+        }
+        fs::remove_file(journal).map_err(|e| AppError::io("clear the Rocket folder move record", e))
+    }
+
     pub fn create_instance(
         &mut self,
         input: InstanceInput,
@@ -294,6 +380,32 @@ fn not_found() -> AppError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn moves_existing_rocket_pack_without_losing_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut store = Store::open(temp.path().into()).unwrap();
+        let original = tempfile::Builder::new().prefix("rocket-pack-").tempdir_in(temp.path()).unwrap();
+        let source = original.path().to_owned();
+        fs::write(source.join("world.txt"), "keep me").unwrap();
+        let input = InstanceInput {
+            name: "Rocket".into(),
+            version: "1.21.11".into(),
+            loader: Loader::Fabric,
+            loader_version: Some("0.20.1".into()),
+            ram_mb: 4096,
+            java_path: None,
+            parent_directory: None,
+        };
+        store.create_pack_instance(input, original).unwrap();
+        let id = store.config.active_instance_id.clone().unwrap();
+        store.relocate_rocket_instances().unwrap();
+        let reopened = Store::open(temp.path().into()).unwrap();
+        let instance = reopened.find_instance(&id).unwrap();
+        assert_eq!(instance.game_directory.parent(), Some(reopened.config.settings.minecraft_directory.join("Rocket").as_path()));
+        assert_eq!(fs::read_to_string(instance.game_directory.join("world.txt")).unwrap(), "keep me");
+        assert!(!source.exists());
+    }
 
     #[test]
     fn complete_instance_lifecycle_persists_and_preserves_game_files() {

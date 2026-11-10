@@ -19,6 +19,14 @@ export type Loader = 'vanilla' | 'fabric' | 'forge';
 export type Theme = 'dark' | 'light' | 'system';
 export type Readiness = 'checking' | 'requires_download' | 'missing_files' | 'downloading' | 'installing' | 'java_required' | 'authentication_required' | 'ready' | 'launching' | 'running' | 'error';
 export interface GameStatus { instanceId: string; readiness: Readiness; message: string; exitCode: number | null }
+export type SessionOutcome = 'exited' | 'stopped' | 'failed' | 'unknown';
+export interface CrashDiagnostics {
+  sessions: { id: string; startedAt: number; outcome: SessionOutcome | null }[];
+  selectedSession: string | null;
+  session: { outcome: SessionOutcome; exitCode: number | null } | null;
+  logs: { kind: 'output' | 'errors' | 'game' | 'crash' | 'jvm'; name: string; text: string; truncated: boolean }[];
+  findings: { title: string; suggestion: string; source: string }[];
+}
 export interface DownloadProgress {
   instanceId: string; version: string; stage: 'downloading' | 'installing' | 'complete' | 'error';
   current: string; transferredBytes: number; verifiedBytes: number; totalBytes: number | null; bytesPerSecond: number; error: string | null;
@@ -52,6 +60,7 @@ export interface Instance {
   lastSelectedAt: number;
   readiness: Readiness;
   rocketPack?: boolean;
+  rocketFolderPending?: boolean;
   favorite?: boolean;
 }
 export interface AppSnapshot {

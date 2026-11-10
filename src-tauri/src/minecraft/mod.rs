@@ -11,3 +11,5 @@ pub mod pack;
 pub mod rocket_client;
 pub mod sync;
 pub mod multiplayer;
+pub mod curseforge;
+pub mod diagnostics;

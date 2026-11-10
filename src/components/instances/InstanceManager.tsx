@@ -17,6 +17,7 @@ interface Props {
   busy: boolean;
   notice: Toast | null;
   stopping: boolean;
+  showDiagnostics?: boolean;
   onClose: () => void;
   onPlay: () => void;
   onStop: () => void;
@@ -36,13 +37,13 @@ const clientAction = {
   upgrade: 'Update Rocket Client',
 } as const;
 
-export function InstanceManager({ instance, status, active, offline, synced, busy, notice, stopping, onClose, onPlay, onStop, onInstall,
+export function InstanceManager({ instance, status, active, offline, synced, busy, notice, stopping, showDiagnostics = false, onClose, onPlay, onStop, onInstall,
   onCheck, onProfile, onActivate, onEdit, onMods, onDuplicate, onRemove }: Props) {
   const [client, setClient] = useState<RocketClientStatus | null>(null);
   const [error, setError] = useState('');
   const [clientError, setClientError] = useState('');
   const [installing, setInstalling] = useState(false);
-  const [logsOpen, setLogsOpen] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(showDiagnostics || status.readiness === 'error');
   const { id, loader, loaderVersion, version } = instance;
   const running = isGameActive(status.readiness);
   const locked = busy || installing;
@@ -135,14 +136,14 @@ export function InstanceManager({ instance, status, active, offline, synced, bus
         </div>
         <button className="button secondary small-button" onClick={() => void openGameFolder()}>Open folder</button>
       </section>
-      <section className="manager-section" aria-label="Minecraft session log">
+      <section className="manager-section" aria-label="Minecraft diagnostics">
         <span className="manager-icon"><Terminal size={19} /></span>
         <div className="manager-section-content">
-          <h3>Minecraft log</h3>
-          <p>View output from this instance’s latest Minecraft session.</p>
+          <h3>Crash diagnostics &amp; logs</h3>
+          <p>Check for likely crash causes and read the available Minecraft logs.</p>
         </div>
-        <button className="button secondary small-button" aria-expanded={logsOpen} aria-controls="instance-log-content" onClick={() => setLogsOpen(!logsOpen)}>{logsOpen ? 'Hide log' : 'View log'}</button>
-        <div className="manager-log-content" id="instance-log-content" hidden={!logsOpen}>{logsOpen && <InstanceLog id={id} />}</div>
+        <button className="button secondary small-button" aria-expanded={logsOpen} aria-controls="instance-log-content" onClick={() => setLogsOpen(!logsOpen)}>{logsOpen ? 'Hide diagnostics' : 'View diagnostics'}</button>
+        <div className="manager-log-content" id="instance-log-content" hidden={!logsOpen}>{logsOpen && <InstanceLog instance={instance} status={status} />}</div>
       </section>
       <div className="manager-actions">
         {!active && <button className="button secondary small-button" disabled={locked} onClick={onActivate}><Check size={15} /> Make active</button>}

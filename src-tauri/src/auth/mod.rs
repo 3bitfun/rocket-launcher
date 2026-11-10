@@ -2,7 +2,7 @@
 pub mod accounts;
 pub(crate) mod browser;
 #[cfg(windows)]
-mod credential_store;
+pub(crate) mod credential_store;
 mod microsoft;
 mod pkce;
 mod services;

@@ -2,7 +2,7 @@ use super::LauncherState;
 use crate::{
     errors::{AppError, Result},
     minecraft::{
-        fabric, forge,
+        curseforge, fabric, forge,
         install::{self, Installed, Progress, Stage},
         java,
         launch::{self, GameStatus, ProcessManager, Readiness},
@@ -301,8 +301,7 @@ pub async fn install_rocket_pack(
         if input.version != version || input.loader != crate::models::Loader::Fabric {
             return Err(AppError::new("PACK", "Rocket Pack requires a matching Fabric instance."));
         }
-        let parent = input.parent_directory.clone()
-            .unwrap_or_else(|| settings.minecraft_directory.join("Rocket"));
+        let parent = settings.minecraft_directory.join("Rocket");
         (
             input,
             parent,
@@ -401,6 +400,45 @@ pub async fn search_modrinth(
     let input = input(&state, &instance_id)?;
     require_online(&input)?;
     modrinth::search(&input.instance, &query, offset, input.timeout, sort.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn modrinth_gallery(state: State<'_, LauncherState>, project_id: String) -> Result<Vec<String>> {
+    modrinth::mod_gallery(&project_id, modpack_timeout(&state)?).await
+}
+
+#[tauri::command]
+pub fn curseforge_key_saved() -> Result<bool> {
+    curseforge::has_saved_key()
+}
+
+#[tauri::command]
+pub fn set_curseforge_key(key: Option<String>) -> Result<()> {
+    curseforge::set_key(key)
+}
+
+#[tauri::command]
+pub async fn search_curseforge(state: State<'_, LauncherState>, instance_id: String, query: String, offset: u32, sort: Option<String>) -> Result<modrinth::SearchPage> {
+    let input = input(&state, &instance_id)?;
+    require_online(&input)?;
+    curseforge::search(&input.instance, &query, offset, sort.as_deref(), input.timeout).await
+}
+
+#[tauri::command]
+pub async fn curseforge_versions(state: State<'_, LauncherState>, instance_id: String, project_id: u32) -> Result<Vec<modrinth::ModVersion>> {
+    let input = input(&state, &instance_id)?;
+    require_online(&input)?;
+    curseforge::versions(&input.instance, project_id, input.timeout).await
+}
+
+#[tauri::command]
+pub async fn install_curseforge(state: State<'_, LauncherState>, jobs: State<'_, GameJobs>, instance_id: String, project_id: u32, version_id: Option<u32>) -> Result<String> {
+    let _guard = jobs.lock_instance_edit(&instance_id)?;
+    let original = input(&state, &instance_id)?;
+    require_online(&original)?;
+    let staged = curseforge::stage(&original.instance, project_id, version_id, original.timeout).await?;
+    require_online(&original)?;
+    staged.publish(&original.instance.game_directory)
 }
 
 #[tauri::command]
@@ -900,32 +938,18 @@ pub async fn read_instance_log(
         store.find_instance(&id)?;
         store.paths.logs.clone()
     };
-    tokio::task::spawn_blocking(move || {
-        use std::fs;
-        let root = fs::canonicalize(root).map_err(|e| AppError::io("open launcher logs", e))?;
-        let directory = root.join("game").join(id);
-        let entries = match fs::read_dir(&directory) {
-            Ok(entries) => entries,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(e) => return Err(AppError::io("find Minecraft sessions", e)),
-        };
-        let latest = entries.flatten().filter_map(|entry| {
-            uuid::Uuid::parse_str(entry.file_name().to_str()?).ok()?;
-            let metadata = entry.metadata().ok()?;
-            metadata.is_dir().then(|| (metadata.created().ok(), entry.path()))
-        }).max();
-        let Some((_, session)) = latest else { return Ok(None) };
-        let path = session.join(if errors { "stderr.log" } else { "stdout.log" });
-        let canonical = match fs::canonicalize(&path) {
-            Ok(canonical) => canonical,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Some(String::new())),
-            Err(e) => return Err(AppError::io("open Minecraft log", e)),
-        };
-        if canonical != path || !canonical.is_file() {
-            return Err(AppError::new("LOG", "The Minecraft log is not a regular file in the session directory."));
-        }
-        super::read_log_tail(&canonical).map(Some)
-    }).await.map_err(|e| AppError::new("LOG", format!("Could not load Minecraft logs: {e}")))?
+    tokio::task::spawn_blocking(move || crate::minecraft::diagnostics::read_captured(&root, &id, errors))
+        .await.map_err(|e| AppError::new("LOG", format!("Could not load Minecraft logs: {e}")))?
+}
+
+#[tauri::command]
+pub async fn diagnose_instance(state: State<'_, LauncherState>, id: String, session_id: Option<String>) -> Result<crate::minecraft::diagnostics::Diagnostics> {
+    let (root, game) = {
+        let store = state.store()?;
+        (store.paths.logs.clone(), store.find_instance(&id)?.game_directory.clone())
+    };
+    tokio::task::spawn_blocking(move || crate::minecraft::diagnostics::inspect(&root, &game, &id, session_id.as_deref()))
+        .await.map_err(|e| AppError::new("LOG", format!("Could not diagnose this instance: {e}")))?
 }
 
 #[cfg(test)]
