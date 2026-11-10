@@ -1,12 +1,12 @@
 {
-  "tag_name": "v0.1.18",
+  "tag_name": "v0.1.19",
   "draft": false,
   "assets": [
     {
-      "name": "Rocket.Launcher_0.1.18_x64-setup.exe",
+      "name": "Rocket.Launcher_0.1.19_x64-setup.exe",
       "state": "uploaded",
-      "size": 10237573,
-      "digest": "sha256:646bb21f5ab0f70f75acd717e091f8e79a60aca2090e8fe5cd777f68fb8897df"
+      "size": 10239401,
+      "digest": "sha256:6522b58950a7c39d1040bde1403a822c685e8ea37339f0db66040b63980f032a"
     }
   ]
 }
