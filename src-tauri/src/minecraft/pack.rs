@@ -9,6 +9,7 @@ use crate::{
 use futures_util::{stream, StreamExt};
 use serde::Deserialize;
 use std::{
+    collections::BTreeMap,
     path::{Path, PathBuf},
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -54,6 +55,18 @@ struct PackFile {
     url: String,
     sha1: String,
     size: u64,
+}
+
+pub(super) fn recommended_mod_files(version: &str) -> BTreeMap<String, String> {
+    let Ok(pack) = Pack::recommended() else { return BTreeMap::new() };
+    if pack.minecraft != version {
+        return BTreeMap::new();
+    }
+    pack.files.into_iter().filter_map(|file| {
+        let filename = file.path.strip_prefix("mods/").filter(|name| name.ends_with(".jar"))?;
+        let project = file.url.strip_prefix("https://cdn.modrinth.com/data/")?.split_once("/versions/")?.0;
+        Some((project.to_owned(), filename.to_owned()))
+    }).collect()
 }
 
 impl Pack {

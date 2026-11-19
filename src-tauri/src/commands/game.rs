@@ -619,6 +619,8 @@ pub async fn check_game(
         Err(status) => return Ok(status),
     };
     let arch = Platform::windows()?.arch;
+    let automatic_java = input.java.is_none()
+        && crate::minecraft::java_runtime::supported(installed.version.java_major(), arch);
     match java::resolve(
         input.java,
         &input.data,
@@ -627,6 +629,11 @@ pub async fn check_game(
     )
     .await
     {
+        Err(_) if automatic_java => match crate::auth::accounts::readiness(&input.data) {
+            Ok(_) => Ok(GameStatus::new(&id, Readiness::Ready,
+                format!("Ready to play. Java {} will be set up automatically on launch.", installed.version.java_major()))),
+            Err(error) => Ok(GameStatus::new(&id, Readiness::AuthenticationRequired, error.message)),
+        },
         Err(error) => Ok(GameStatus::new(&id, Readiness::JavaRequired, error.message)),
         Ok(java) => match crate::auth::accounts::readiness(&input.data) {
             Ok(crate::auth::accounts::AccountMode::Microsoft { offline }) => Ok(GameStatus::new(
@@ -736,13 +743,30 @@ pub async fn install_game(
             &id,
             input.timeout,
             |progress| {
-                if !modded || !matches!(progress.stage, Stage::Complete) {
+                if !matches!(progress.stage, Stage::Complete) {
                     publish_progress(&app, progress);
                 }
             },
         )
         .await?;
+        let platform = Platform::windows()?;
+        let installed_java = install::inspect_installed(&input.root, &input.instance.version, &platform, false)?
+            .ok_or_else(|| AppError::new("MISSING_FILES", "Minecraft installation is missing."))?;
+        crate::minecraft::java_runtime::ensure(
+            input.java.clone(), &input.data, installed_java.version.java_major(), platform.arch,
+            false, input.timeout, |message| {
+                let mut progress = initial.clone();
+                progress.stage = Stage::Installing;
+                progress.current = message.into();
+                publish_progress(&app, progress);
+                Ok(())
+            },
+        ).await?;
         if !modded {
+            let mut progress = initial.clone();
+            progress.stage = Stage::Complete;
+            progress.current = "Minecraft and Java installation complete".into();
+            publish_progress(&app, progress);
             return Ok(());
         }
         let loader_version = input.instance.loader_version.as_deref().ok_or_else(||
@@ -833,11 +857,18 @@ pub async fn ignite_game(
             .ok_or_else(|| AppError::new("MISSING_FILES", "Install Minecraft before launching."))?;
         reservation.check_cancelled()?;
         let platform = Platform::windows()?;
-        let java = java::resolve(
+        let java = crate::minecraft::java_runtime::ensure(
             input.java,
             &input.data,
             installed.version.java_major(),
             platform.arch,
+            crate::auth::accounts::Accounts::read(&input.data)?.offline,
+            input.timeout,
+            |message| {
+                reservation.check_cancelled()?;
+                publish_game(&app, GameStatus::new(&id, Readiness::Launching, message));
+                Ok(())
+            },
         )
         .await?;
         reservation.check_cancelled()?;

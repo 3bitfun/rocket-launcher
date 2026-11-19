@@ -39,6 +39,15 @@ pub struct Project {
     pub(super) date_modified: Option<String>,
     #[serde(default)]
     pub(super) gallery: Vec<String>,
+    #[serde(skip_deserializing, skip_serializing_if = "Option::is_none")]
+    pub(super) installed: Option<ModInstallStatus>,
+}
+
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ModInstallStatus {
+    Enabled,
+    Disabled,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -539,14 +548,16 @@ pub async fn search(
         None => "relevance",
         _ => return Err(error("Unknown Modrinth sort order.")),
     };
-    get(client(timeout)?.get(format!("{BASE}/search")).query(&[
+    let mut page: SearchPage = get(client(timeout)?.get(format!("{BASE}/search")).query(&[
         ("query", query.trim()),
         ("facets", &facets),
         ("limit", &PAGE_SIZE.to_string()),
         ("offset", &offset.to_string()),
         ("index", sort),
     ]))
-    .await
+    .await?;
+    page.mark_installed(instance, MODRINTH_INDEX);
+    Ok(page)
 }
 
 fn matches(version: &Version, loader: &str, game_version: &str) -> bool {
@@ -660,8 +671,44 @@ struct InstalledVersion {
     filename: String,
 }
 
+const MODRINTH_INDEX: &str = ".rocket-modrinth.json";
+
+impl SearchPage {
+    pub(super) fn mark_installed(&mut self, instance: &Instance, index_name: &str) {
+        let Ok(game) = fs::canonicalize(&instance.game_directory) else { return };
+        let folder = game.join("mods");
+        if !fs::canonicalize(&folder).is_ok_and(|resolved| resolved == folder && resolved.is_dir()) {
+            return;
+        }
+        let recorded = read_index(&folder, index_name).unwrap_or_default();
+        let bundled = if index_name == MODRINTH_INDEX && instance.is_rocket_pack() {
+            super::pack::recommended_mod_files(&instance.version)
+        } else {
+            BTreeMap::new()
+        };
+        for project in &mut self.hits {
+            project.installed = recorded.get(&project.project_id)
+                .and_then(|version| local_install_status(&folder, &version.filename))
+                .or_else(|| bundled.get(&project.project_id).and_then(|filename| local_install_status(&folder, filename)));
+        }
+    }
+}
+
+fn local_install_status(folder: &Path, filename: &str) -> Option<ModInstallStatus> {
+    let filename = segment(filename).ok()?;
+    if !filename.to_ascii_lowercase().ends_with(".jar") { return None; }
+    let is_file = |path| fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_file());
+    if is_file(folder.join(filename)) {
+        Some(ModInstallStatus::Enabled)
+    } else if is_file(folder.join(format!("{filename}.disabled"))) {
+        Some(ModInstallStatus::Disabled)
+    } else {
+        None
+    }
+}
+
 fn installed_index(folder: &Path) -> Result<BTreeMap<String, InstalledVersion>> {
-    read_index(folder, ".rocket-modrinth.json")
+    read_index(folder, MODRINTH_INDEX)
 }
 
 fn read_index(folder: &Path, index_name: &str) -> Result<BTreeMap<String, InstalledVersion>> {
@@ -892,7 +939,7 @@ async fn stage_version(
         staging,
         primary,
         files,
-        index_name: ".rocket-modrinth.json",
+        index_name: MODRINTH_INDEX,
     })
 }
 
@@ -959,6 +1006,18 @@ impl StagedMod {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn install_status_checks_for_the_actual_enabled_or_disabled_jar() {
+        let folder = tempfile::tempdir().unwrap();
+        let name = "example.jar";
+        assert!(local_install_status(folder.path(), name).is_none());
+        fs::write(folder.path().join("example.jar.disabled"), []).unwrap();
+        assert!(matches!(local_install_status(folder.path(), name), Some(ModInstallStatus::Disabled)));
+        fs::rename(folder.path().join("example.jar.disabled"), folder.path().join(name)).unwrap();
+        assert!(matches!(local_install_status(folder.path(), name), Some(ModInstallStatus::Enabled)));
+        assert!(local_install_status(folder.path(), "../example.jar").is_none());
+    }
 
     #[tokio::test]
     #[ignore = "uses live Modrinth search, version and CDN endpoints"]

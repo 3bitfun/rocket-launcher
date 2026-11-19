@@ -118,6 +118,7 @@ fn scan(root: &Path, depth: u8, found: &mut Vec<PathBuf>) {
 
 fn candidates(data: &Path) -> Vec<PathBuf> {
     let mut found = vec![];
+    scan(&data.join("runtimes"), 2, &mut found);
     if let Some(home) = std::env::var_os("JAVA_HOME") {
         found.push(PathBuf::from(home).join("bin/java.exe"));
     }
@@ -193,8 +194,8 @@ pub async fn resolve(
             ),
         ));
     }
-    let data = data.to_owned();
-    let candidates = tokio::task::spawn_blocking(move || candidates(&data))
+    let runtime_data = data.to_owned();
+    let candidates = tokio::task::spawn_blocking(move || candidates(&runtime_data))
         .await
         .map_err(|e| AppError::new("JAVA", e.to_string()))?;
     let mut seen = HashSet::new();

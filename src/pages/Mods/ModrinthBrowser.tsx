@@ -42,6 +42,10 @@ function ModIcon({ project }: { project: ModrinthProject }) {
   return <ProjectImage className="modrinth-icon" urls={[project.iconUrl, project.featuredGallery, ...(project.gallery ?? [])]} alt="" />;
 }
 
+function InstalledBadge({ status }: { status?: ModrinthProject['installed'] }) {
+  return status ? <span className="tag">{status === 'disabled' ? 'Installed · Disabled' : 'Installed'}</span> : null;
+}
+
 export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPackInstalled }: {
   instance?: Instance; gameVersions?: string[]; onInstalled: () => void; onPackInstalled?: () => void;
 }) {
@@ -65,7 +69,7 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
   const [detailsFailed, setDetailsFailed] = useState(false);
   const [draft, setDraft] = useState('');
   const [search, setSearch] = useState({ query: '', offset: 0, sort: '' });
-  const [page, setPage] = useState<ModrinthPage | null>(null);
+  const [loadedPage, setPage] = useState<{ instanceId?: string; data: ModrinthPage } | null>(null);
   const [project, setProject] = useState<ModrinthProject | null>(null);
   const [versions, setVersions] = useState<ModrinthVersion[] | null>(null);
   const [selectedId, setSelectedId] = useState('');
@@ -75,6 +79,8 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
   const [installed, setInstalled] = useState('');
   const version = versions?.find((item) => item.id === selectedId);
   const instanceId = pack ? undefined : instance?.id;
+  const page = loadedPage?.instanceId === instanceId ? loadedPage?.data ?? null : null;
+  const projectInstallStatus = page?.hits.find((hit) => hit.projectId === project?.projectId)?.installed;
   const instanceVersion = pack ? undefined : instance?.version;
   const instanceLoader = pack ? undefined : instance?.loader;
   const instanceLoaderVersion = pack ? undefined : instance?.loaderVersion;
@@ -120,7 +126,7 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
       ? native.searchModpacks(search.query, search.offset, search.sort || 'relevance', filters)
       : (curseForge ? native.searchCurseForge : native.searchMods)(instanceId!, search.query, search.offset, search.sort || undefined);
     void request
-      .then((result) => { if (active) setPage(result); })
+      .then((data) => { if (active) setPage({ instanceId, data }); })
       .catch((error) => { if (active) setSearchError(errorMessage(error)); });
     return () => { active = false; };
   }, [instanceId, instanceVersion, instanceLoader, instanceLoaderVersion, pack, curseForge, filters, search, retry]);
@@ -173,6 +179,7 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
     try {
       const filename = await (curseForge ? native.installCurseForge : native.installMod)(instanceId, target.projectId, versionId);
       setInstalled(`Installed ${filename}`);
+      setRetry((value) => value + 1);
       onInstalled();
     } catch (error) {
       setVersionError(errorMessage(error));
@@ -241,7 +248,7 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
     </div>}
     {curseForge && !instance ? <p className="panel-footnote">Choose a Fabric or Forge target instance to browse compatible CurseForge mods.</p> : project ? <>
       <button type="button" className="text-button" disabled={!!installing} onClick={() => setProject(null)}><ArrowLeft size={15} /> Back to results</button>
-      <div className="modrinth-heading"><ModIcon key={project.projectId} project={project} /><div><h3>{project.title}</h3><small>by {project.author} · {counts.format(project.downloads)} downloads</small></div></div>
+      <div className="modrinth-heading"><ModIcon key={project.projectId} project={project} /><div><h3>{project.title}</h3><small>by {project.author} · {counts.format(project.downloads)} downloads</small></div>{!pack && <InstalledBadge status={projectInstallStatus} />}</div>
       <p>{project.description}</p>
       {pack && details && <>
         <div className="pack-gallery">{[...details.gallery].sort((a, b) => Number(b.featured) - Number(a.featured)).map((image) =>
@@ -315,7 +322,7 @@ export function ModrinthBrowser({ instance, gameVersions = [], onInstalled, onPa
       </button>)}</div>}
       {!pack && !!page?.hits.length && <ul className="mod-list modrinth-results">{page.hits.map((hit) => <li key={hit.projectId}>
         <ModIcon project={hit} />
-        <div><strong>{hit.title}</strong> <small>by {hit.author} · {counts.format(hit.downloads)} downloads</small><p>{hit.description}</p>
+        <div><strong>{hit.title}</strong> <InstalledBadge status={hit.installed} /> <small>by {hit.author} · {counts.format(hit.downloads)} downloads</small><p>{hit.description}</p>
           {!!hit.displayCategories?.length && <div className="modrinth-tags">{hit.displayCategories.slice(0, 4).map((category) => <span className="tag" key={category}>{category}</span>)}</div>}
         </div>
         <div className="inline-actions modrinth-actions">

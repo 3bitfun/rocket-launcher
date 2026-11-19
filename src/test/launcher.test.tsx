@@ -129,15 +129,20 @@ it('installs the chosen Modrinth version into the selected Fabric instance', asy
     loader: 'fabric', loaderVersion: '0.20.1', gameDirectory: 'C:\\test',
     ramMb: 4096, javaPath: null, createdAt: 0, updatedAt: 0, lastSelectedAt: 0, readiness: 'ready',
   };
-  const search = vi.spyOn(native, 'searchMods').mockResolvedValue({
+  let installedOnFabric = false;
+  const search = vi.spyOn(native, 'searchMods').mockImplementation(async (id) => ({
     totalHits: 1,
-    hits: [{ projectId: 'Project1', title: 'Example Mod', description: 'A test mod', author: 'Test author', downloads: 5 }],
-  });
+    hits: [{ projectId: 'Project1', title: 'Example Mod', description: 'A test mod', author: 'Test author', downloads: 5,
+      installed: id === instance.id && installedOnFabric ? 'enabled' : undefined }],
+  }));
   const versions = vi.spyOn(native, 'modVersions').mockResolvedValue([
     { id: 'Version1', versionNumber: '1.1', versionType: 'release', fileName: 'example-1.1.jar', requiredDependencies: [] },
     { id: 'Version2', versionNumber: '1.0', versionType: 'release', fileName: 'example-1.0.jar', requiredDependencies: [] },
   ]);
-  const install = vi.spyOn(native, 'installMod').mockResolvedValue('example-1.0.jar');
+  const install = vi.spyOn(native, 'installMod').mockImplementation(async () => {
+    installedOnFabric = true;
+    return 'example-1.0.jar';
+  });
   const gallery = vi.spyOn(native, 'modrinthGallery').mockResolvedValue(['https://cdn.modrinth.com/data/Project1/gallery.png']);
   const curseSearch = vi.spyOn(native, 'searchCurseForge').mockResolvedValue({
     totalHits: 1,
@@ -146,7 +151,7 @@ it('installs the chosen Modrinth version into the selected Fabric instance', asy
   const keySaved = vi.spyOn(native, 'curseForgeKeySaved').mockResolvedValue(true);
   const refresh = vi.fn();
   try {
-    render(<ModrinthBrowser instance={instance} onInstalled={refresh} />);
+    const { rerender } = render(<ModrinthBrowser instance={instance} onInstalled={refresh} />);
     const user = userEvent.setup();
     await user.type(screen.getByLabelText('Search mods'), 'example');
     await user.click(screen.getByRole('button', { name: /^Search$/ }));
@@ -162,9 +167,16 @@ it('installs the chosen Modrinth version into the selected Fabric instance', asy
     expect(install).toHaveBeenCalledWith(instance.id, 'Project1', 'Version2');
     expect(await screen.findByRole('status')).toHaveTextContent('Installed example-1.0.jar');
     expect(refresh).toHaveBeenCalledOnce();
+    expect(await screen.findByText('Installed', { exact: true })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Back to results/ }));
+    expect(screen.getByText('Installed', { exact: true })).toBeInTheDocument();
+    const other = { ...instance, id: 'another-fabric' };
+    rerender(<ModrinthBrowser instance={other} onInstalled={refresh} />);
+    expect(await screen.findByText('Example Mod')).toBeInTheDocument();
+    expect(screen.queryByText('Installed', { exact: true })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^CurseForge$/ }));
     expect(await screen.findByText('CurseForge Example')).toBeInTheDocument();
-    expect(curseSearch).toHaveBeenCalledWith(instance.id, 'example', 0, undefined);
+    expect(curseSearch).toHaveBeenCalledWith(other.id, 'example', 0, undefined);
     expect(screen.queryByText('Example Mod')).not.toBeInTheDocument();
   } finally {
     search.mockRestore();

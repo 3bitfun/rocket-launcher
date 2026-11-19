@@ -17,6 +17,7 @@ const MINECRAFT: u32 = 432;
 const MODS: u32 = 6;
 const MAX_FILE: u64 = 256 * 1024 * 1024;
 const CREDENTIAL: &str = "curseforge:api-key";
+const INSTALL_INDEX: &str = ".rocket-curseforge.json";
 
 fn error(message: impl Into<String>) -> AppError {
     AppError::new("CURSEFORGE", message)
@@ -181,7 +182,7 @@ pub async fn search(
         ("sortOrder", "desc"),
     ]))
     .await?;
-    Ok(SearchPage {
+    let mut page = SearchPage {
         total_hits: results.pagination.total_count,
         hits: results
             .data
@@ -213,9 +214,12 @@ pub async fn search(
                     .take(8)
                     .map(|image| image.url)
                     .collect(),
+                installed: None,
             })
             .collect(),
-    })
+    };
+    page.mark_installed(instance, INSTALL_INDEX);
+    Ok(page)
 }
 
 #[derive(Deserialize)]
@@ -399,6 +403,6 @@ pub async fn stage(
         staging,
         primary,
         files: planned,
-        index_name: ".rocket-curseforge.json",
+        index_name: INSTALL_INDEX,
     })
 }

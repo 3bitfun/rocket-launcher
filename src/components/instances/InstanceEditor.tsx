@@ -145,7 +145,7 @@ export function InstanceEditor({ instance, settings, catalog, fetching, catalogE
         {instance ? <label className="field"><span>Game directory</span><input value={instance.gameDirectory} readOnly /></label>
           : rocketPack ? <label className="field"><span>Rocket folder</span><input value={`${settings.minecraftDirectory}\\Rocket`} readOnly /></label>
           : <PathField label="Instance parent directory" value={parent} onChange={setParent} onError={setError} hint="A unique game folder is created here. Your existing files stay untouched." />}
-        <PathField label="Java executable override" kind="java" value={java} onChange={setJava} onError={setError} hint="Optional. Leave blank to use the launcher default or automatic detection." />
+        <PathField label="Java executable override" kind="java" value={java} onChange={setJava} onError={setError} hint="Optional. Leave blank to use the launcher default or automatically set up the required Java version." />
       </fieldset>
       <div className="notice"><AlertCircle size={16} /><span>{rocketPack
         ? offline ? 'Go online to download Rocket Pack, or choose another setup.'

@@ -13,3 +13,4 @@ pub mod sync;
 pub mod multiplayer;
 pub mod curseforge;
 pub mod diagnostics;
+pub mod java_runtime;

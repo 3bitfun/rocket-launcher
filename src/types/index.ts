@@ -119,6 +119,7 @@ export interface ModrinthProject {
   versions?: string[];
   dateModified?: string | null;
   gallery?: string[];
+  installed?: 'enabled' | 'disabled';
 }
 export interface ModpackFilters { game: string; loader: string; category: string; side: string; collection: string }
 export interface ModpackProgress { phase: string; completed: number; total: number }

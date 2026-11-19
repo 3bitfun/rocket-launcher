@@ -25,7 +25,7 @@ Rocket Launcher manages Vanilla, Fabric, and Forge instances on Windows. Choose 
 - Atomic Rust-managed configuration persistence and single-instance application behavior.
 - Live official Mojang version catalogue, release/snapshot filters, local cache, bounded requests, timeout, one retry, and explicit failure/fallback states.
 - Mojang client, libraries, assets, logging configuration and native archives, with streaming downloads, SHA-1 verification, shared cache reuse, and offline repair checks.
-- Java discovery with exact version and architecture matching. A manually selected executable takes priority.
+- Java 21 is embedded in the installer and standalone executable. The launcher automatically downloads matching Windows x64 Java 8, 16, 17, or 25 when needed, verifies SHA-256, checks the runtime version and architecture, and reuses it across instances and offline sessions. A manually selected executable takes priority.
 - Launch Pad **Install & play** for Rocket Pack, separate install and repair actions, measured Downloads progress, and native launch preparation. The header shows download progress and provides access to active Minecraft sessions.
 - Abort a launch or stop a running game from the Launch Pad or instance manager. Running sessions are accessible from the header on other pages. The manager can display, refresh, and copy output and error logs from the latest session recorded by launcher v0.1.20 or later.
 - **Diagnose crash** opens the instance’s crash and log viewer. It checks captured output, the Minecraft log, crash reports, and JVM reports for common Java, memory, mod, and graphics failures. The session picker lets you review up to 12 captured sessions, including earlier failures after relaunching. Use **Copy summary** to share the suggested causes without copying the full logs.
@@ -38,7 +38,7 @@ Rocket Launcher manages Vanilla, Fabric, and Forge instances on Windows. Choose 
 - Local rotating structured logs and an in-app log viewer.
 - Keyboard-accessible controls, native modal focus management, responsive desktop layout.
 
-Java runtimes are selected from installed runtimes. Launcher updates are applied from Settings.
+Java runtimes are selected or installed automatically. Launcher updates are applied from Settings.
 
 ## Rocket Pack and instances
 
@@ -175,7 +175,7 @@ Configuration writes use a same-directory temporary file, flush to disk, then at
 
 Removing an instance **only removes its configuration**; game directories are preserved. Duplication copies settings into a **new empty directory**; it does not copy saves, mods, or game files. Existing directories cannot be relocated through the editor. Changing the default directory affects newly created instances only.
 
-RAM is configurable between 1 and 64 GB in 256 MB increments. Java discovery checks the instance override, the launcher setting, `JAVA_HOME`, `PATH`, common Windows installations, and launcher runtime folders. Install the Java major reported on the Launch Pad and use a runtime matching the launcher's Windows architecture.
+RAM is configurable between 1 and 64 GB in 256 MB increments. Java discovery checks the instance override, the launcher setting, managed runtime folders, `JAVA_HOME`, `PATH`, and common Windows installations. Leave the Java field blank for automatic setup. Java 21 is included as an Eclipse Temurin JRE, including its license and legal notices. Other supported majors download from Adoptium on first install or launch. Managed runtimes live in the application's `runtimes` directory, are shared across instances, and need no administrator access. The launcher shows Java download and installation progress. Offline mode can unpack included Java 21 or reuse an installed runtime. Other versions require one online setup. Explicit executable overrides are validated and report an error if incompatible.
 
 The catalogue is reused for one hour, then refreshed. Refresh always tries the network. Valid cached versions remain available when Mojang cannot be reached, with a visible warning. Without any valid cache, creating an instance requires the first successful fetch. Existing instances can be renamed, selected, removed, and edited without changing their Minecraft version while offline. Historical alpha/beta versions are intentionally excluded.
 
